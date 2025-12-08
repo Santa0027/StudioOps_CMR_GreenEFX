@@ -1,0 +1,9 @@
+venv/
+__pycache__/
+*.pyc
+*.zip
+*.pdf
+*.txt
+node_modules/
+*.sqlite3
+.env
