@@ -86,3 +86,6 @@ class ProjectStageElement(models.Model):
 
     def __str__(self):
         return f"{self.stage.project.name} - {self.stage.name} - {self.name}"
+
+
+

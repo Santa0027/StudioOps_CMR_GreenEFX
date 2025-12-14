@@ -1,5 +1,9 @@
 from django.db import models
-from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
+from django.contrib.auth.models import (
+    AbstractBaseUser,
+    PermissionsMixin,
+    BaseUserManager,
+)
 
 
 class UserManager(BaseUserManager):
@@ -12,79 +16,88 @@ class UserManager(BaseUserManager):
         user.save()
         return user
 
-    def createsuperuser(self, email, password=None, **extra_feilds):
+    def create_superuser(self, email, password=None, **extra_feilds):
         extra_feilds.setdefault("is_staff", True)
         extra_feilds.setdefault("is_superuser", True)
         return self.create_user(email, password, **extra_feilds)
 
 
 class DepartmentOfStaff(models.Model):
-    Department = models.CharField(unique=True, null=False, blank=False, default=" ")
-    Discriptions = models.CharField(max_length=50, null=True, blank=True)
+    name = models.CharField(max_length=100, unique=True)
+    description = models.CharField(max_length=255, blank=True, null=True)
+
+    def __str__(self):
+        return self.name
+
+class Role(models.Model):
+    name = models.CharField(max_length=50, unique=True)
+    description = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return self.name
+
+
+class Module(models.Model):
+    code = models.CharField(max_length=50, unique=True)
+    name = models.CharField(max_length=100)
+
+    def __str__(self):
+        return self.name
+
+
+class RolePermission(models.Model):
+
+    ACTION_CHOICES = (
+        ("view", "View"),
+        ("create", "Create"),
+        ("edit", "Edit"),
+        ("delete", "Delete"),
+        ("manage", "Manage"),
+    )
+
+    role = models.ForeignKey(Role, on_delete=models.CASCADE, related_name="permissions")
+    module = models.ForeignKey(Module, on_delete=models.CASCADE)
+    action = models.CharField(max_length=20, choices=ACTION_CHOICES)
+    allowed = models.BooleanField(default=False)
+
+    class Meta:
+        unique_together = ("role", "module", "action")
+
+    def __str__(self):
+        return f"{self.role} | {self.module} | {self.action}"
 
 
 class User(AbstractBaseUser, PermissionsMixin):
+
     email = models.EmailField(unique=True)
-    name = models.CharField(null=False, blank=False, max_length=60, default="")
-    phone = models.CharField(max_length=12, unique=True, null=True, blank=True)  # Modified: null=True, blank=True
+    name = models.CharField(max_length=60)
+    phone = models.CharField(max_length=12, unique=True, null=True, blank=True)
+
+    role = models.ForeignKey(Role, on_delete=models.SET_NULL, null=True, blank=True)
+    department = models.ForeignKey(
+        DepartmentOfStaff,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
-    Department = models.ForeignKey(
-        DepartmentOfStaff, on_delete=models.SET_NULL, null=True, blank=True, related_name="staff_users"
-    )
-    avatar_url = models.URLField(max_length=200, null=True, blank=True)  # New field
 
-    # Personal Details
-    date_of_birth = models.DateField(null=True, blank=True)  # New field
-    GENDER_CHOICES = [
-        ("Male", "Male"),
-        ("Female", "Female"),
-        ("Other", "Other"),
-    ]
-    gender = models.CharField(
-        max_length=10, choices=GENDER_CHOICES, null=True, blank=True
-    )  # New field
-    highest_qualification = models.CharField(
-        max_length=100, null=True, blank=True
-    )  # New field
-    certifications = models.TextField(null=True, blank=True)  # New field
+    avatar_url = models.URLField(blank=True, null=True)
 
-    address = models.CharField(max_length=255, null=True, blank=True)
-    city = models.CharField(max_length=100, null=True, blank=True)
-    state = models.CharField(max_length=100, null=True, blank=True)
-    zip_code = models.CharField(max_length=10, null=True, blank=True)
+    address = models.CharField(max_length=255, blank=True, null=True)
+    city = models.CharField(max_length=100, blank=True, null=True)
+    state = models.CharField(max_length=100, blank=True, null=True)
+    zip_code = models.CharField(max_length=10, blank=True, null=True)
+
     date_joined = models.DateTimeField(auto_now_add=True)
-    last_login = models.DateTimeField(null=True, blank=True)
-
-    ROLE_CHOICES = (
-        ("ADMIN", "Admin"),
-        ("MANAGER", "Manager"),
-        ("STAFF", "Staff"),
-        ("CUSTOMER", "Customer"),
-    )
-
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default="CUSTOMER")
-
-    groups = models.ManyToManyField(
-        "auth.Group",
-        related_name="usermanagement_user_groups",
-        blank=True,
-        help_text=(
-            "The groups this user belongs to. A user will get all permissions" "granted to each of their groups."
-        ),
-        verbose_name="groups",
-    )
-    user_permissions = models.ManyToManyField(
-        "auth.Permission",
-        related_name="usermanagement_user_permissions",
-        blank=True,
-        help_text="Specific permissions for this user.",
-        verbose_name="user permissions",
-    )
+    last_login = models.DateTimeField(blank=True, null=True)
 
     objects = UserManager()
+
     USERNAME_FIELD = "email"
-    REQUIRED_FIELDS = ("name", "phone", "Department", "address", "city", "state", "zip_code")
+    REQUIRED_FIELDS = ["name"]
 
     def __str__(self):
         return self.name

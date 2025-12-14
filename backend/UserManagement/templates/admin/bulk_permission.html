@@ -1,0 +1,13 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block content %}
+<h1>Bulk Permissions for {{ role.name }}</h1>
+
+<form method="post">{% csrf_token %}
+    <table>
+        {{ form.as_table }}
+    </table>
+    <input type="submit" value="Update Permissions" class="default">
+</form>
+{% endblock %}
