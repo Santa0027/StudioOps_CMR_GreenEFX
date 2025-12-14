@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User 
+from .models import User,DepartmentOfStaff,Module,Role,RolePermission
 
 
 class UserSerilizer(serializers.ModelSerializer):
@@ -19,3 +19,37 @@ class UserSerilizer(serializers.ModelSerializer):
             role=validated_data.get('role', 'CUSTOMER')
         )
         return user
+
+
+
+class UserDepartmentSerilizer(serializers.ModelSerializer):
+    
+    
+    class Meta:
+        model = DepartmentOfStaff
+        fields = "__all__"
+        
+
+
+        
+class ModuleSerializer(serializers.ModelSerializer):
+    
+    class Meta :
+        model = Module
+        fields = '__all__'        
+        
+        
+        
+class RoleSerializer(serializers.ModelSerializer):
+    
+    class Meta :
+        model = Role
+        fields = '__all__'            
+
+
+
+class PermissionSerializer(serializers.ModelSerializer):
+    
+    class Meta:
+        model = RolePermission
+        fields = '__all__'        
