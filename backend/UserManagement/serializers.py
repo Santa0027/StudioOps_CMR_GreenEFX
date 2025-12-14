@@ -48,8 +48,18 @@ class RoleSerializer(serializers.ModelSerializer):
 
 
 
-class PermissionSerializer(serializers.ModelSerializer):
+class PermissionMatrixSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = RolePermission
-        fields = '__all__'        
+        fields = ['role', 'module', 'action', 'allowed']
+        
+        
+        
+        validators = [
+            serializers.UniqueTogetherValidator(
+                queryset=RolePermission.objects.all(),
+                fields = ["role","module","action"],
+                message= "A permission already exists for this Role, Module, and Action combination."
+            )
+        ]    
