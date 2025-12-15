@@ -43,7 +43,7 @@ INSTALLED_APPS = [
     'finance', # Assuming 'finance' app might also need to be registered for future use
     'tasks', # Assuming 'tasks' app might also need to be registered for future use
     'rest_framework',
-    'UserManagement',
+    'UserManagement.apps.UsermanagementConfig',
     'rest_framework_simplejwt',
     ]
 
