@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User,DepartmentOfStaff,Module,Role,RolePermission
+from .models import User,DepartmentOfStaff,Module,Role,RolePermission,PermissionAction
 
 
 class UserSerilizer(serializers.ModelSerializer):
@@ -49,17 +49,19 @@ class RoleSerializer(serializers.ModelSerializer):
 
 
 class PermissionMatrixSerializer(serializers.ModelSerializer):
-    
+    role = serializers.PrimaryKeyRelatedField(queryset=Role.objects.all())
+    module = serializers.PrimaryKeyRelatedField(queryset=Module.objects.all())
+    actions = serializers.PrimaryKeyRelatedField(
+        queryset=PermissionAction.objects.all(),
+        many=True
+    )
+
     class Meta:
         model = RolePermission
-        fields = ['role', 'module', 'action', 'allowed']
-        
-        
-        
-        validators = [
-            serializers.UniqueTogetherValidator(
-                queryset=RolePermission.objects.all(),
-                fields = ["role","module","action"],
-                message= "A permission already exists for this Role, Module, and Action combination."
-            )
-        ]    
+        fields = [
+            "id",
+            "role",
+            "module",
+            "actions",
+            "allowed",
+        ]

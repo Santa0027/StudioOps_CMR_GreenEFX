@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework.decorators import action,authentication_classes
 from rest_framework.viewsets import GenericViewSet
 from django.db import transaction
+from rest_framework import status
 
 from django.shortcuts import get_list_or_404,get_object_or_404
 
@@ -79,87 +80,75 @@ class ModuleViewset(ModelViewSet):
 class RolePermissionManagerViewset(GenericViewSet):
     queryset = RolePermission.objects.all()
     serializer_class = PermissionMatrixSerializer
-    permission_classes = [AllowAny]
-    
-    
-    @action(detail=False , methods=["post"],url_path='update-matrix')
+    permission_classes = []  # add IsAuthenticated later
+
+    @action(detail=False, methods=["post"], url_path="update-matrix")
     def update_permission_matrix(self, request):
+        serializer = self.geet_serializer(data=request.data,many=True)
+        serializer.is_valid(raise_exception=True)
+        validated_data = serializer.validated_data
         
         
-        
-        data = request.data
-        serializer = self.get_serializer(data =data , many = True)
-        serializer.is_valid(raise_exception= True)
-        
-        
-        validated_data = self.get_serializer.validated_data
-        
-        if not validated_data :
-            return Response({"details" : "No permission data provided."}, status=status.HTTP_400_BAD_REQUEST)
+        if not validated_data:
+            return Response(
+                {"details": "No permission data provided"},
+                status =status.HTTP_400_BAD_REQUEST,
+            )
         
         
-        role_id = validated_data[0]['role'].id
+        role = validated_data[0]['role']
         
         
-        
-        try:
+        try :
             with transaction.atomic():
-                RolePermission.objects.filter(role_id=role_id).delete()
+                existing_perems = {
+                    (p.module_id , p.action):p
+                    for p in RolePermission.objects.filter(role=role)
+                }
                 
                 
-                
-                
-                permission_to_create = []
+                seen_key = set()
                 
                 for item in validated_data:
+                    key = (item["module"].id,item['action'])
+                    seen_key.add(key)
                     
-                    
-                    permission_to_create.append(
-                        RolePermission(
-                            role = item['role'],
-                            module = item['module'],
-                            permission = item['permission'],
-                            allowed = item ['allowed'],
-                            created_by = self.request.user
-                        )
-                    )
-                    
-                RolePermission.objects.bulk_create(permission_to_create)    
-                
-                
-        except Exception as e :
-            return Response({"detials" : f"an error aquired while bulk update :{e}"},
-                            status=status.HTTP_500_INTERNAL_SERVER_ERRORS)
-                  
-                    
-        
-        return Response({"details" : f" the permission for the {role_id} is successfully created "},status=status.HTTP_200_OK)    
-            
+                    if key in existing_perems:
+                        perm = existing_perems[key]
+                        perm.allowed = item["allowed"]
+                        perm.created_by = request.user
+                        perm.save()
+                        
+                    else:
+                        RolePermission.objects.create(
+                            role=role,
+                            module = item["module"],
+                            action= item["action"],
+                            allowed=item["allowed"],
+                            created_by = request.user,
+                        )    
+                        
+                for key ,perms in existing_perems.items():
+                    if key not in seen_key:
+                        perms.delete()
+        except Exception as e:
+            return Response(
+                {"details": f"permission update failed : {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )             
+        return Response(
+            {"details": f"permission updated for the role {role.id}"},
+            status=status.HTTP_200_OK
+        )    
+                                
+                      
 
-    
-    @action(detail=True, methods=["get"] , url_path='matrix-data')
-    def get_role_permission_matrix (self, request , pk = None):
-        
-        role = get_object_or_404(Role ,pk=pk)
-        
-        
-        
-        permission = RolePermission.objects.filter(role=role)
-        
-        
-        serializer = PermissionMatrixSerializer(permission , many=True)
-        
-        
+    @action(detail=True, methods=["get"], url_path="matrix-data")
+    def get_role_permission_matrix(self, request, pk=None):
+        role = get_object_or_404(Role, pk=pk)
+        permissions = RolePermission.objects.filter(role=role)
+        serializer = self.get_serializer(permissions, many=True)
         return Response(serializer.data)
-        
-
-
-
-
-
-
-
-
 
 
 
