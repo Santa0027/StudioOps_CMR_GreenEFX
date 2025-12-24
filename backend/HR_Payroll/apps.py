@@ -1,11 +1,11 @@
 from django.apps import AppConfig
 
 
-class UsermanagementConfig(AppConfig):
+class HR_PayrollConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
-    name = 'UserManagement'
+    name = 'HR_Payroll'
 
     
     
     def ready(self):
-        import UserManagement.signals
+        import HR_Payroll.signals

@@ -1,5 +1,5 @@
 from django.db import models
-from UserManagement.models import User # Import the User model
+from HR_Payroll.models import User # Import the User model
 
 STATUS_CHOICES = [
     ("Active", "Active"),

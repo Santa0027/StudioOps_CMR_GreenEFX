@@ -43,12 +43,12 @@ INSTALLED_APPS = [
     'finance', # Assuming 'finance' app might also need to be registered for future use
     'tasks', # Assuming 'tasks' app might also need to be registered for future use
     'rest_framework',
-    'UserManagement.apps.UsermanagementConfig',
+    'HR_Payroll.apps.HR_PayrollConfig',
     'rest_framework_simplejwt',
     ]
 
 
-AUTH_USER_MODEL = 'UserManagement.User'
+AUTH_USER_MODEL = 'HR_Payroll.User'
 
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',

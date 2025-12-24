@@ -4,23 +4,44 @@ from django.contrib.auth.models import (
     AbstractBaseUser,
     PermissionsMixin,
     BaseUserManager,
+    Group,
 )
+from django.core.serializers.json import DjangoJSONEncoder
 
+
+
+from django.core.serializers.json import DjangoJSONEncoder
+
+
+from django.utils import timezone
 
 class UserManager(BaseUserManager):
     def create_user(self, email, password=None, **extra_fields):
         if not email:
             raise ValueError("Email is required")
+
         email = self.normalize_email(email)
+        extra_fields.setdefault("is_active", True)
+        extra_fields.setdefault("date_joined", timezone.now())
+
         user = self.model(email=email, **extra_fields)
         user.set_password(password)
-        user.save()
+        user.save(using=self._db)
         return user
 
     def create_superuser(self, email, password=None, **extra_fields):
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
+
+        if not extra_fields.get("is_staff"):
+            raise ValueError("Superuser must have is_staff=True.")
+        if not extra_fields.get("is_superuser"):
+            raise ValueError("Superuser must have is_superuser=True.")
+
         return self.create_user(email, password, **extra_fields)
+
+
+
 
 
 class DepartmentOfStaff(models.Model):
@@ -39,20 +60,8 @@ class DepartmentOfStaff(models.Model):
         return self.name
 
 
-class Role(models.Model):
-    name = models.CharField(max_length=50, unique=True)
-    description = models.TextField(blank=True, null=True)
-    created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="created_roles",
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
 
-    def __str__(self):
-        return self.name
+
 
 
 class Module(models.Model):
@@ -71,34 +80,7 @@ class Module(models.Model):
         return self.name
 
 
-class PermissionAction(models.Model):
-    code = models.CharField(max_length=20, unique=True)
-    name = models.CharField(max_length=50)
 
-    def __str__(self):
-        return self.name
-
-
-class RolePermission(models.Model):
-    role = models.ForeignKey(Role, on_delete=models.CASCADE, related_name="permissions")
-    module = models.ForeignKey(Module, on_delete=models.CASCADE, related_name="permissions")
-    actions = models.ManyToManyField(PermissionAction)
-    allowed = models.BooleanField(default=True)
-
-    created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="created_rolepermissions",
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        unique_together = ("role", "module")
-
-    def __str__(self):
-        return f"{self.role} | {self.module}"
 
 
 class User(AbstractBaseUser, PermissionsMixin):
@@ -106,15 +88,17 @@ class User(AbstractBaseUser, PermissionsMixin):
     name = models.CharField(max_length=60)
     phone = models.CharField(max_length=12, unique=True, null=True, blank=True)
 
-    role = models.ForeignKey(Role, on_delete=models.SET_NULL, null=True, blank=True)
-    department = models.ForeignKey(
-        DepartmentOfStaff, on_delete=models.SET_NULL, null=True, blank=True
-    )
-
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
 
-    date_joined = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
+    "self",
+    on_delete=models.SET_NULL,
+    null=True,
+    blank=True,
+    related_name="created_users",
+    )
+    date_joined = models.DateTimeField(default=timezone.now)
     created_at = models.DateTimeField(auto_now_add=True)
 
     objects = UserManager()
@@ -126,6 +110,39 @@ class User(AbstractBaseUser, PermissionsMixin):
         return self.name
 
 
+
+
+
+class Employee(models.Model):
+    user = models.OneToOneField(
+    settings.AUTH_USER_MODEL,
+    on_delete=models.CASCADE,
+    related_name="employee_profile"
+)
+
+    role = models.ForeignKey(
+        Group,                     # ✅ Django Group = Role
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="employees"
+    )
+    department = models.ForeignKey(
+        DepartmentOfStaff,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+  
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.email} ({self.role})"
+
+
+    
+    
 
 
 class AuditLog(models.Model):
@@ -149,8 +166,8 @@ class AuditLog(models.Model):
     action = models.CharField(max_length=20,choices=ACTION_CHOICES)
     
     
-    old_data = models.JSONField(null=False,blank=False)
-    new_data = models.JSONField(null=False,blank=False)
+    old_data = models.JSONField(encoder=DjangoJSONEncoder, null=True, blank=True)
+    new_data = models.JSONField(encoder=DjangoJSONEncoder, null=True, blank=True)
     
     
     performed_by = models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.SET_NULL,null=True,blank=True,related_name="audit_logs")

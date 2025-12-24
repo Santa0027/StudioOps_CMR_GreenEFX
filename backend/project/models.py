@@ -1,5 +1,5 @@
 from django.db import models
-from UserManagement.models import User
+from HR_Payroll.models import User
 from clients.models import Clients
 
 PROJECT_STATUS_CHOICES = [
