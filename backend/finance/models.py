@@ -1,5 +1,5 @@
 from django.db import models
-from clients.models import Clients
+from Sales.models import Clients
 from project.models import Project
 
 INVOICE_STATUS_CHOICES = [

@@ -38,10 +38,10 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'clients',
+    'Sales',
     'project', # Add the 'project' app here
     'finance', # Assuming 'finance' app might also need to be registered for future use
-    'tasks', # Assuming 'tasks' app might also need to be registered for future use
+    # 'tasks', # Assuming 'tasks' app might also need to be registered for future use
     'rest_framework',
     'HR_Payroll.apps.HR_PayrollConfig',
     'rest_framework_simplejwt',
