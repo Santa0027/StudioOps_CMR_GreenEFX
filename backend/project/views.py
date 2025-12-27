@@ -1,97 +1,65 @@
 from rest_framework.viewsets import ModelViewSet
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from rest_framework import status
-
-from .models import (
-    Project, ProjectStage, ProjectStageElement,
-    StageElementVersion, StageElementInputOutput
-)
-# from .serializers import (
-#     ProjectSerializer, ProjectStageSerializer,
-#     ProjectStageElementSerializer, StageElementVersionSerializer,
-#     StageElementInputOutputSerializer
-# )
-
-
-from .serializers import(
-    ProjectSerializer, ProjectStageSerializer,
-     ProjectStageElementSerializer, StageElementVersionSerializer,
-      StageElementInputOutputSerializer
-)
-
-
-
-# ---------------------------
-# Project
-# ---------------------------
+from rest_framework.permissions import IsAuthenticated
+from .models import *
+from .serializers import *
 class ProjectViewSet(ModelViewSet):
-    queryset = Project.objects.all()
+    queryset = Project.objects.select_related("client", "created_by")
     serializer_class = ProjectSerializer
+    # permission_classes = [IsAuthenticated]
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+class ProjectStageTemplateViewSet(ModelViewSet):
+    queryset = ProjectStageTemplate.objects.all()
+    serializer_class = ProjectStageTemplateSerializer
+    permission_classes = [IsAuthenticated]
 
 
-# ---------------------------
-# Stage
-# ---------------------------
+class ProjectStageElementTemplateViewSet(ModelViewSet):
+    queryset = ProjectStageElementTemplate.objects.select_related("stage")
+    serializer_class = ProjectStageElementTemplateSerializer
+    permission_classes = [IsAuthenticated]
 class ProjectStageViewSet(ModelViewSet):
-    queryset = ProjectStage.objects.all()
+    queryset = ProjectStage.objects.select_related("project", "template")
     serializer_class = ProjectStageSerializer
-
-    @action(detail=True, methods=["post"])
-    def approve(self, request, pk=None):
-        stage = self.get_object()
-        stage.status = "completed"
-        stage.save()
-        return Response({"message": "Stage approved"})
-
-
-# ---------------------------
-# Task / Stage Element
-# ---------------------------
+    permission_classes = [IsAuthenticated]
 class ProjectStageElementViewSet(ModelViewSet):
-    queryset = ProjectStageElement.objects.all()
+    queryset = ProjectStageElement.objects.select_related(
+        "stage", "template"
+    )
     serializer_class = ProjectStageElementSerializer
-
-    @action(detail=True, methods=["post"])
-    def reject(self, request, pk=None):
-        element = self.get_object()
-        element.status = "rejected"
-        element.rejection_notes = request.data.get("notes", "")
-        element.save()
-        return Response({"message": "Task rejected"})
-
-
-# ---------------------------
-# Versioning
-# ---------------------------
+    permission_classes = [IsAuthenticated]
+class ProjectTaskAssignmentViewSet(ModelViewSet):
+    queryset = ProjectTaskAssignment.objects.select_related("task", "user")
+    serializer_class = ProjectTaskAssignmentSerializer
+    permission_classes = [IsAuthenticated]
 class StageElementVersionViewSet(ModelViewSet):
-    queryset = StageElementVersion.objects.all()
+    queryset = StageElementVersion.objects.select_related("element", "created_by")
     serializer_class = StageElementVersionSerializer
+    permission_classes = [IsAuthenticated]
 
-    @action(detail=True, methods=["post"])
-    def rollback(self, request, pk=None):
-        version = self.get_object()
-        target_version_id = request.data.get("rollback_to")
+    def perform_create(self, serializer):
+        element = serializer.validated_data["element"]
+        last_version = (
+            StageElementVersion.objects
+            .filter(element=element)
+            .order_by("-version_number")
+            .first()
+        )
+        next_version = 1 if not last_version else last_version.version_number + 1
 
-        try:
-            target = StageElementVersion.objects.get(id=target_version_id)
-        except StageElementVersion.DoesNotExist:
-            return Response(
-                {"error": "Invalid version"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        serializer.save(
+            version_number=next_version,
+            created_by=self.request.user
+        )
+class ProjectTimeLogViewSet(ModelViewSet):
+    queryset = ProjectTimeLog.objects.select_related("task", "user")
+    serializer_class = ProjectTimeLogSerializer
+    permission_classes = [IsAuthenticated]
 
-        version.rollback_to = target
-        version.save()
-
-        return Response({
-            "message": f"Rolled back to version {target.version_number}"
-        })
-
-
-# ---------------------------
-# Inputs / Outputs
-# ---------------------------
-class StageElementInputOutputViewSet(ModelViewSet):
-    queryset = StageElementInputOutput.objects.all()
-    serializer_class = StageElementInputOutputSerializer
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+class ProjectAttachmentViewSet(ModelViewSet):
+    queryset = ProjectAttachment.objects.select_related("project")
+    serializer_class = ProjectAttachmentSerializer
+    permission_classes = [IsAuthenticated]

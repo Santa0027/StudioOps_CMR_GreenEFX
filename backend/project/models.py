@@ -1,10 +1,12 @@
 from django.db import models
+from django.core.exceptions import ValidationError
 from HR_Payroll.models import User
 from Sales.models import Clients
 
-# -------------------------------
-# Project Model
-# -------------------------------
+# =====================================================
+# PROJECT
+# =====================================================
+
 class Project(models.Model):
     STATUS_CHOICES = [
         ("not_started", "Not Started"),
@@ -36,28 +38,64 @@ class Project(models.Model):
     ]
 
     name = models.CharField(max_length=255)
-    description = models.TextField(blank=True , default= "None")
-    client = models.ForeignKey(Clients, on_delete=models.PROTECT, related_name="projects")
-    project_type = models.CharField(max_length=20, choices=PROJECT_TYPE_CHOICES , default="Single Service")
-    service_type = models.CharField(max_length=50, choices=SERVICE_TYPE_CHOICES, default="Graphic Design")
-    priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, default="medium")
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="not_started")
+    description = models.TextField(blank=True, default="None")
+
+    client = models.ForeignKey(
+        Clients,
+        on_delete=models.PROTECT,
+        related_name="projects"
+    )
+
+    project_type = models.CharField(
+        max_length=20,
+        choices=PROJECT_TYPE_CHOICES,
+        default="single_service"
+    )
+
+    service_type = models.CharField(
+        max_length=50,
+        choices=SERVICE_TYPE_CHOICES,
+        default="graphic_design"
+    )
+
+    priority = models.CharField(
+        max_length=20,
+        choices=PRIORITY_CHOICES,
+        default="medium"
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default="not_started"
+    )
+
     start_date = models.DateField(null=True, blank=True)
     due_date = models.DateField(null=True, blank=True)
     end_date = models.DateField(null=True, blank=True)
+
     budget = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     estimated_hours = models.PositiveIntegerField(null=True, blank=True)
+
     initial_requirements = models.TextField(blank=True)
     reference_links = models.TextField(blank=True)
+
     created_by = models.ForeignKey(
-    User,
-    on_delete=models.PROTECT,
-    related_name="created_projects",
-    null=True,
-    blank=True
-)
+        User,
+        on_delete=models.PROTECT,
+        related_name="created_projects",
+        null=True,
+        blank=True
+    )
 
-    updated_by = models.ForeignKey(User, on_delete=models.PROTECT, related_name="updated_projects", null=True, blank=True)
+    updated_by = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name="updated_projects",
+        null=True,
+        blank=True
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -65,157 +103,236 @@ class Project(models.Model):
         return self.name
 
 
-# -------------------------------
-# Package Model
-# -------------------------------
-class Package(models.Model):
-    name = models.CharField(max_length=100)
-    description = models.TextField(blank=True, null=True)
-    price = models.DecimalField(max_digits=10, decimal_places=2 ,default=True)
+# =====================================================
+# WORKFLOW TEMPLATES (GLOBAL)
+# =====================================================
+
+class ProjectStageTemplate(models.Model):
+    """
+    Example: Pre-Production, Editing, Effects
+    """
+    name = models.CharField(max_length=100, unique=True)
+    description = models.TextField(blank=True)
 
     def __str__(self):
         return self.name
 
 
-class ProjectPackage(models.Model):
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="project_packages")
-    package = models.ForeignKey(Package, on_delete=models.PROTECT)
+class ProjectStageElementTemplate(models.Model):
+    """
+    Example: Script Writing, Requirement Gathering
+    """
+    stage = models.ForeignKey(
+        ProjectStageTemplate,
+        on_delete=models.CASCADE,
+        related_name="task_templates"
+    )
 
-    class Meta:
-        unique_together = ("project", "package")
-
-
-# -------------------------------
-# Project Stage / Milestone
-# -------------------------------
-class ProjectStage(models.Model):
-    STATUS_CHOICES = [
-        ("pending", "Pending"),
-        ("active", "Active"),
-        ("completed", "Completed"),
-        ("rejected", "Rejected"),
-    ]
-
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="stages")
     name = models.CharField(max_length=100)
-    order = models.PositiveIntegerField(default=0)
-    description = models.TextField(blank=True, default= "")
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
-    rejection_notes = models.TextField(blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    description = models.TextField(blank=True)
+
+    default_estimated_hours = models.PositiveIntegerField(null=True, blank=True)
 
     class Meta:
-        ordering = ["order"]
-        unique_together = ("project", "name")
-
-    def __str__(self):
-        return f"{self.project.name} → {self.name}"
-
-
-# -------------------------------
-# Stage Element / Task
-# -------------------------------
-class ProjectStageElement(models.Model):
-    STATUS_CHOICES = [
-        ("pending", "Pending"),
-        ("in_progress", "In Progress"),
-        ("completed", "Completed"),
-        ("rejected", "Rejected"),
-    ]
-
-    stage = models.ForeignKey(ProjectStage, on_delete=models.CASCADE, related_name="elements")
-    name = models.CharField(max_length=100)
-    description = models.TextField(blank=True , default= "")
-    order = models.PositiveIntegerField(default=0)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
-    assigned_to = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="assigned_elements")
-    estimated_hours = models.PositiveIntegerField(null=True, blank=True)
-    actual_hours = models.PositiveIntegerField(null=True, blank=True)
-    rejection_notes = models.TextField(blank=True)
-
-    class Meta:
-        ordering = ["order"]
         unique_together = ("stage", "name")
 
     def __str__(self):
         return f"{self.stage.name} → {self.name}"
 
 
-# -------------------------------
-# Stage Element Version (Versioning / Rollback)
-# -------------------------------
+# =====================================================
+# PROJECT INSTANCES (PER PROJECT COPY)
+# =====================================================
+
+class ProjectStage(models.Model):
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.CASCADE,
+        related_name="stages"
+    )
+
+    template = models.ForeignKey(
+        ProjectStageTemplate,
+        on_delete=models.PROTECT
+    )
+
+    order = models.PositiveIntegerField(default=0)
+
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ("pending", "Pending"),
+            ("active", "Active"),
+            ("completed", "Completed"),
+            ("rejected", "Rejected"),
+        ],
+        default="pending"
+    )
+
+    rejection_notes = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["order"]
+        unique_together = ("project", "template")
+
+    def __str__(self):
+        return f"{self.project.name} → {self.template.name}"
+
+
+class ProjectStageElement(models.Model):
+    """
+    THIS IS WHERE CONTRIBUTION IS DECLARED (ONBOARDING TIME)
+    """
+    stage = models.ForeignKey(
+        ProjectStage,
+        on_delete=models.CASCADE,
+        related_name="elements"
+    )
+
+    template = models.ForeignKey(
+        ProjectStageElementTemplate,
+        on_delete=models.PROTECT
+    )
+
+    order = models.PositiveIntegerField(default=0)
+
+    contribution_percentage = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        help_text="Declared during project onboarding"
+    )
+
+    estimated_hours = models.PositiveIntegerField(null=True, blank=True)
+    actual_hours = models.PositiveIntegerField(null=True, blank=True)
+
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ("pending", "Pending"),
+            ("in_progress", "In Progress"),
+            ("completed", "Completed"),
+            ("rejected", "Rejected"),
+        ],
+        default="pending"
+    )
+
+    rejection_notes = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["order"]
+        unique_together = ("stage", "template")
+
+    def clean(self):
+        if self.contribution_percentage <= 0 or self.contribution_percentage > 100:
+            raise ValidationError("Contribution must be between 0 and 100")
+
+    def __str__(self):
+        return f"{self.stage} → {self.template.name}"
+
+
+# =====================================================
+# TASK ASSIGNMENTS (WHO WORKS)
+# =====================================================
+
+class ProjectTaskAssignment(models.Model):
+    task = models.ForeignKey(
+        ProjectStageElement,
+        on_delete=models.CASCADE,
+        related_name="assignments"
+    )
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name="task_assignments"
+    )
+
+    role = models.CharField(max_length=100)
+
+    assigned_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("task", "user", "role")
+
+    def __str__(self):
+        return f"{self.user} → {self.task.template.name}"
+
+
+# =====================================================
+# VERSIONING
+# =====================================================
+
 class StageElementVersion(models.Model):
-    element = models.ForeignKey(ProjectStageElement, on_delete=models.CASCADE, related_name="versions")
+    element = models.ForeignKey(
+        ProjectStageElement,
+        on_delete=models.CASCADE,
+        related_name="versions"
+    )
+
     version_number = models.PositiveIntegerField()
     description = models.TextField(blank=True)
     file = models.FileField(upload_to="stage_element_versions/")
-    status = models.CharField(max_length=20, choices=ProjectStageElement.STATUS_CHOICES, default="pending")
+
+    hours_spent = models.DecimalField(max_digits=6, decimal_places=2)
+
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ("pending", "Pending"),
+            ("approved", "Approved"),
+            ("rejected", "Rejected"),
+        ],
+        default="pending"
+    )
+
     rejection_notes = models.TextField(blank=True)
+
     created_by = models.ForeignKey(User, on_delete=models.PROTECT)
-    rollback_to = models.ForeignKey('self', null=True, blank=True, on_delete=models.SET_NULL, related_name="rolled_versions")
+    rollback_to = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="rolled_versions"
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ["-version_number"]
         unique_together = ("element", "version_number")
+        ordering = ["-version_number"]
 
     def __str__(self):
-        return f"{self.element.name} v{self.version_number}"
+        return f"{self.element.template.name} v{self.version_number}"
 
 
-# -------------------------------
-# Artist / Employee Contribution
-# -------------------------------
-class ArtistContribution(models.Model):
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="contributors")
-    artist = models.ForeignKey(User, on_delete=models.PROTECT, related_name="project_contributions")
-    role = models.CharField(max_length=100, default="artist")
-    percentage = models.DecimalField(max_digits=5, decimal_places=2)
+# =====================================================
+# TIME LOGS
+# =====================================================
 
-    class Meta:
-        unique_together = ("project", "artist")
-
-    def __str__(self):
-        return f"{self.artist.name} → {self.project.name}"
-
-
-# -------------------------------
-# Project Attachments
-# -------------------------------
-class ProjectAttachment(models.Model):
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="attachments")
-    file = models.FileField(upload_to="project_attachments/")
-    uploaded_at = models.DateTimeField(auto_now_add=True)
-
-
-# -------------------------------
-# Project Task Time Logs
-# -------------------------------
 class ProjectTimeLog(models.Model):
-    task = models.ForeignKey(ProjectStageElement, on_delete=models.CASCADE, related_name="time_logs")
+    task = models.ForeignKey(
+        ProjectStageElement,
+        on_delete=models.CASCADE,
+        related_name="time_logs"
+    )
+
     user = models.ForeignKey(User, on_delete=models.PROTECT)
     hours_spent = models.DecimalField(max_digits=5, decimal_places=2)
     log_date = models.DateField(auto_now_add=True)
     note = models.TextField(blank=True)
 
 
-# -------------------------------
-# Stage Element Inputs/Outputs (Optional)
-# -------------------------------
-class StageElementInputOutput(models.Model):
-    element_version = models.ForeignKey(StageElementVersion, on_delete=models.CASCADE, related_name="inputs_outputs")
-    input_type = models.CharField(max_length=50, choices=[
-        ("file", "File Upload"),
-        ("text", "Text Notes"),
-        ("status_update", "Status Update"),
-        ("time_log", "Time Log"),
-        ("comment", "Comment")
-    ])
-    input_content = models.TextField(blank=True, null=True)
-    time_logged = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
-    created_by = models.ForeignKey(User, on_delete=models.PROTECT)
-    created_at = models.DateTimeField(auto_now_add=True)
+# =====================================================
+# ATTACHMENTS
+# =====================================================
 
-    def __str__(self):
-        return f"{self.element_version.element.name} - {self.input_type}"
+class ProjectAttachment(models.Model):
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.CASCADE,
+        related_name="attachments"
+    )
+
+    file = models.FileField(upload_to="project_attachments/")
+    uploaded_at = models.DateTimeField(auto_now_add=True)

@@ -1,92 +1,153 @@
 from rest_framework import serializers
 from .models import (
-    Project, ProjectStage, ProjectStageElement,
-    StageElementVersion, StageElementInputOutput,
-    ArtistContribution, ProjectTimeLog
+    Project,
+    ProjectStageTemplate,
+    ProjectStageElementTemplate,
+    ProjectStage,
+    ProjectStageElement,
+    ProjectTaskAssignment,
+    StageElementVersion,
+    ProjectTimeLog,
+    ProjectAttachment,
 )
+from HR_Payroll.models import User
+from Sales.models import Clients
+
+
+from HR_Payroll.serializers import UserSerializer
+from Sales.serializers import ClientSerializer
+
+# class UserMiniSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = User
+#         fields = ["id", "name", "email"]
+
+
+# class ClientMiniSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = Clients
+#         fields = ["id", "name"]
 
 
 
 
 
-# ---------------------------
-# Stage Element / Task
-# ---------------------------
+
+
+class ProjectStageTemplateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProjectStageTemplate
+        fields = "__all__"
+
+
+class ProjectStageElementTemplateSerializer(serializers.ModelSerializer):
+    stage = ProjectStageTemplateSerializer(read_only=True)
+    stage_id = serializers.PrimaryKeyRelatedField(
+        queryset=ProjectStageTemplate.objects.all(),
+        source="stage",
+        write_only=True
+    )
+
+    class Meta:
+        model = ProjectStageElementTemplate
+        fields = "__all__"
+
+
 class ProjectStageElementSerializer(serializers.ModelSerializer):
+    template = ProjectStageElementTemplateSerializer(read_only=True)
+    template_id = serializers.PrimaryKeyRelatedField(
+        queryset=ProjectStageElementTemplate.objects.all(),
+        source="template",
+        write_only=True
+    )
+
     class Meta:
         model = ProjectStageElement
         fields = "__all__"
 
-# ---------------------------
-# Project Stage
-# ---------------------------
+    def validate_contribution_percentage(self, value):
+        if value <= 0 or value > 100:
+            raise serializers.ValidationError(
+                "Contribution percentage must be between 1 and 100"
+            )
+        return value
+
 class ProjectStageSerializer(serializers.ModelSerializer):
-    elements = ProjectStageElementSerializer(many=True, read_only=True)
+    template = ProjectStageTemplateSerializer(read_only=True)
+    template_id = serializers.PrimaryKeyRelatedField(
+        queryset=ProjectStageTemplate.objects.all(),
+        source="template",
+        write_only=True
+    )
+
+    # 🔥 ADD THIS
+    elements = ProjectStageElementSerializer(
+        many=True,
+        read_only=True
+    )
 
     class Meta:
         model = ProjectStage
-        fields = ["id", "name", "order", "status", "elements"]
+        fields = "__all__"
 
-# ---------------------------
-# Versioning
-# ---------------------------
+
+
+
+
+
+class ProjectTaskAssignmentSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
+    user_id = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.all(),
+        source="user",
+        write_only=True
+    )
+
+    class Meta:
+        model = ProjectTaskAssignment
+        fields = "__all__"
+
+
 class StageElementVersionSerializer(serializers.ModelSerializer):
+    created_by = UserSerializer(read_only=True)
+
     class Meta:
         model = StageElementVersion
         fields = "__all__"
+        read_only_fields = ["version_number", "created_at"]
 
 
-# ---------------------------
-# Inputs / Outputs
-# ---------------------------
-class StageElementInputOutputSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = StageElementInputOutput
-        fields = "__all__"
-
-
-# ---------------------------
-# Artist Contribution
-# ---------------------------
-class ArtistContributionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ArtistContribution
-        fields = "__all__"
-
-
-# ---------------------------
-# Time Logs
-# ---------------------------
 class ProjectTimeLogSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
+
     class Meta:
         model = ProjectTimeLog
         fields = "__all__"
 
 
+class ProjectAttachmentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProjectAttachment
+        fields = "__all__"
 
-
-# ---------------------------
-# Project
-# ---------------------------
 
 class ProjectSerializer(serializers.ModelSerializer):
-    # 1. Nest the Stages (which will eventually contain tasks)
-    stages = ProjectStageSerializer(many=True, read_only=True)
-    
-    # 2. Nest the Artist Contributions
-    # contributions = ArtistContributionSerializer(many=True, read_only=True, source="artistcontribution_set")
-    
-    # 3. Nest the Attachments (if needed)
-    # attachments = ProjectAttachmentSerializer(many=True, read_only=True, source="projectattachment_set")
+    client = ClientSerializer(read_only=True)
+    client_id = serializers.PrimaryKeyRelatedField(
+        queryset=Clients.objects.all(),
+        source="client",
+        write_only=True
+    )
+
+    created_by = UserSerializer(read_only=True)
+
+    # 🔥 ADD THIS
+    stages = ProjectStageSerializer(
+        many=True,
+        read_only=True
+    )
 
     class Meta:
         model = Project
-        # List the fields explicitly to include the new nested fields
-        fields = [
-            "id", "name", "project_type", "service_type", "priority", 
-            "status", "start_date", "due_date", "budget", 
-            "stages",
-            "client", "created_by"
-        ]
-
-        
+        fields = "__all__"
+        read_only_fields = ["created_at", "updated_at"]
