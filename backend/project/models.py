@@ -1,7 +1,9 @@
 from django.db import models
 from django.core.exceptions import ValidationError
+from django.db.models import Sum, Max
 from HR_Payroll.models import User
 from Sales.models import Clients
+
 
 # =====================================================
 # PROJECT
@@ -108,9 +110,6 @@ class Project(models.Model):
 # =====================================================
 
 class ProjectStageTemplate(models.Model):
-    """
-    Example: Pre-Production, Editing, Effects
-    """
     name = models.CharField(max_length=100, unique=True)
     description = models.TextField(blank=True)
 
@@ -119,9 +118,6 @@ class ProjectStageTemplate(models.Model):
 
 
 class ProjectStageElementTemplate(models.Model):
-    """
-    Example: Script Writing, Requirement Gathering
-    """
     stage = models.ForeignKey(
         ProjectStageTemplate,
         on_delete=models.CASCADE,
@@ -130,7 +126,6 @@ class ProjectStageElementTemplate(models.Model):
 
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
-
     default_estimated_hours = models.PositiveIntegerField(null=True, blank=True)
 
     class Meta:
@@ -141,7 +136,7 @@ class ProjectStageElementTemplate(models.Model):
 
 
 # =====================================================
-# PROJECT INSTANCES (PER PROJECT COPY)
+# PROJECT INSTANCES
 # =====================================================
 
 class ProjectStage(models.Model):
@@ -180,9 +175,6 @@ class ProjectStage(models.Model):
 
 
 class ProjectStageElement(models.Model):
-    """
-    THIS IS WHERE CONTRIBUTION IS DECLARED (ONBOARDING TIME)
-    """
     stage = models.ForeignKey(
         ProjectStage,
         on_delete=models.CASCADE,
@@ -198,8 +190,7 @@ class ProjectStageElement(models.Model):
 
     contribution_percentage = models.DecimalField(
         max_digits=5,
-        decimal_places=2,
-        help_text="Declared during project onboarding"
+        decimal_places=2
     )
 
     estimated_hours = models.PositiveIntegerField(null=True, blank=True)
@@ -223,15 +214,26 @@ class ProjectStageElement(models.Model):
         unique_together = ("stage", "template")
 
     def clean(self):
-        if self.contribution_percentage <= 0 or self.contribution_percentage > 100:
+        if not (0 < self.contribution_percentage <= 100):
             raise ValidationError("Contribution must be between 0 and 100")
+
+        total = ProjectStageElement.objects.filter(
+            stage=self.stage
+        ).exclude(pk=self.pk).aggregate(
+            total=Sum("contribution_percentage")
+        )["total"] or 0
+
+        if total + self.contribution_percentage > 100:
+            raise ValidationError(
+                "Total contribution of all stage elements cannot exceed 100%"
+            )
 
     def __str__(self):
         return f"{self.stage} → {self.template.name}"
 
 
 # =====================================================
-# TASK ASSIGNMENTS (WHO WORKS)
+# TASK ASSIGNMENTS
 # =====================================================
 
 class ProjectTaskAssignment(models.Model):
@@ -248,18 +250,14 @@ class ProjectTaskAssignment(models.Model):
     )
 
     role = models.CharField(max_length=100)
-
     assigned_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         unique_together = ("task", "user", "role")
 
-    def __str__(self):
-        return f"{self.user} → {self.task.template.name}"
-
 
 # =====================================================
-# VERSIONING
+# VERSIONING (INTERNAL & CLIENT)
 # =====================================================
 
 class StageElementVersion(models.Model):
@@ -272,7 +270,6 @@ class StageElementVersion(models.Model):
     version_number = models.PositiveIntegerField()
     description = models.TextField(blank=True)
     file = models.FileField(upload_to="stage_element_versions/")
-
     hours_spent = models.DecimalField(max_digits=6, decimal_places=2)
 
     status = models.CharField(
@@ -286,14 +283,12 @@ class StageElementVersion(models.Model):
     )
 
     rejection_notes = models.TextField(blank=True)
-
     created_by = models.ForeignKey(User, on_delete=models.PROTECT)
     rollback_to = models.ForeignKey(
         "self",
         null=True,
         blank=True,
-        on_delete=models.SET_NULL,
-        related_name="rolled_versions"
+        on_delete=models.SET_NULL
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -301,9 +296,6 @@ class StageElementVersion(models.Model):
     class Meta:
         unique_together = ("element", "version_number")
         ordering = ["-version_number"]
-
-    def __str__(self):
-        return f"{self.element.template.name} v{self.version_number}"
 
 
 # =====================================================
@@ -324,15 +316,110 @@ class ProjectTimeLog(models.Model):
 
 
 # =====================================================
-# ATTACHMENTS
+# PROJECT ASSETS (HYBRID STORAGE)
 # =====================================================
 
-class ProjectAttachment(models.Model):
-    project = models.ForeignKey(
-        Project,
+class ProjectAsset(models.Model):
+    ASSET_TYPE_CHOICES = [
+        ("psd", "Photoshop"),
+        ("ai", "Illustrator"),
+        ("ae", "After Effects"),
+        ("pr", "Premiere Pro"),
+        ("video", "Video"),
+        ("image", "Image"),
+        ("other", "Other"),
+    ]
+
+    STORAGE_LOCATION_CHOICES = [
+        ("local", "Local Server"),
+        ("cloud", "Cloud Server"),
+    ]
+
+    ASSET_ROLE_CHOICES = [
+        ("source", "Source File"),
+        ("preview", "Preview Render"),
+        ("final", "Final Deliverable"),
+    ]
+
+    element = models.ForeignKey(
+        ProjectStageElement,
         on_delete=models.CASCADE,
-        related_name="attachments"
+        related_name="assets"
     )
 
-    file = models.FileField(upload_to="project_attachments/")
-    uploaded_at = models.DateTimeField(auto_now_add=True)
+    uploaded_by = models.ForeignKey(User, on_delete=models.PROTECT)
+    asset_type = models.CharField(max_length=20, choices=ASSET_TYPE_CHOICES)
+    asset_role = models.CharField(max_length=20, choices=ASSET_ROLE_CHOICES)
+    file = models.FileField(upload_to="project_assets/")
+    storage_location = models.CharField(
+        max_length=10,
+        choices=STORAGE_LOCATION_CHOICES,
+        default="local"
+    )
+
+    client_review = models.BooleanField(default=False)
+    version_number = models.PositiveIntegerField(editable=False)
+    description = models.TextField(blank=True)
+    processed = models.BooleanField(default=False)  # Added for Celery task tracking
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    approved_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        unique_together = ("element", "version_number", "client_review")
+        ordering = ["-version_number"]
+
+    def save(self, *args, **kwargs):
+        if not self.pk:
+            last_version = ProjectAsset.objects.filter(
+                element=self.element,
+                client_review=self.client_review
+            ).aggregate(
+                max_v=Max("version_number")
+            )["max_v"] or 0
+
+            self.version_number = last_version + 1
+
+        super().save(*args, **kwargs)
+
+
+# =====================================================
+# CLIENT REVIEW LOG
+# =====================================================
+
+class ClientReviewLog(models.Model):
+    asset = models.ForeignKey(
+        ProjectAsset,
+        on_delete=models.CASCADE,
+        related_name="review_logs"
+    )
+
+    reviewed_by = models.ForeignKey(User, on_delete=models.PROTECT)
+    review_notes = models.TextField(blank=True)
+    approved = models.BooleanField(default=False)
+    reviewed_at = models.DateTimeField(auto_now_add=True)
+
+
+
+class VersionAuditLog(models.Model):
+    version = models.ForeignKey(
+        StageElementVersion,
+        on_delete=models.CASCADE,
+        related_name="audit_logs"
+    )
+
+    action = models.CharField(
+        max_length=20,
+        choices=[
+            ("approved", "Approved"),
+            ("rejected", "Rejected"),
+            ("rolled_back", "Rolled Back"),
+        ]
+    )
+
+    notes = models.TextField(blank=True)
+    performed_by = models.ForeignKey(User, on_delete=models.PROTECT)
+    performed_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.version} - {self.action}"

@@ -38,14 +38,18 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+
     'Sales',
-    'project', # Add the 'project' app here
-    'finance', # Assuming 'finance' app might also need to be registered for future use
-    # 'tasks', # Assuming 'tasks' app might also need to be registered for future use
+    'project',
+    'finance',
+
     'rest_framework',
-    'HR_Payroll.apps.HR_PayrollConfig',
+    'drf_spectacular',
     'rest_framework_simplejwt',
-    ]
+
+    'django_celery_results',
+    'HR_Payroll.apps.HR_PayrollConfig',
+]
 
 
 AUTH_USER_MODEL = 'HR_Payroll.User'
@@ -55,11 +59,29 @@ AUTHENTICATION_BACKENDS = [
 ]
 
 
+# REST_FRAMEWORK = {
+#     'DEFAULT_AUTHENTICATION_CLASSES': (
+#         'rest_framework_simplejwt.authentication.JWTAuthentication',
+#     )
+# }
+
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
-    )
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ],
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticated",
+    ],
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.UserRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "user": "1000/day",
+        "asset_stream": "20/min",
+    },
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
+
 
 
 MIDDLEWARE = [
@@ -143,3 +165,31 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+
+CELERY_BROKER_URL = "redis://localhost:6379/0"
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+
+# INSTALLED_APPS += ["django_celery_results"]
+CELERY_RESULT_BACKEND = "django-db"
+
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "StudioOps API",
+    "DESCRIPTION": """
+    StudioOps Project Management API
+
+    🔹 Internal APIs – Studio staff  
+    🔹 Client APIs – Review & approvals  
+    🔹 Hybrid Storage – Local + Cloud  
+    🔹 Secure Asset Streaming (no download)
+    """,
+    "VERSION": "1.0.0",
+
+    "SERVE_INCLUDE_SCHEMA": False,
+    "COMPONENT_SPLIT_REQUEST": True,
+
+    "SECURITY": [{"BearerAuth": []}],
+}
