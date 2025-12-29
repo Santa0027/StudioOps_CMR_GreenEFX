@@ -1,16 +1,20 @@
 from rest_framework import viewsets, permissions
 from django.contrib.auth.models import Group , Permission
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from rest_framework import status
 
-from .models import User, Employee, DepartmentOfStaff, Module, AuditLog
+from .models import User, Employee, DepartmentOfStaff, Module, AuditLog,EmpAttendance,Payroll,Payslip,SalaryStructure
 from .serializers import (
     UserSerializer,
     EmployeeSerializer,
     DepartmentSerializer,
     ModuleSerializer,
     GroupSerializer,
-    AuditLogSerializer,PermissionSerializer
+    AuditLogSerializer,PermissionSerializer,AttendanceSerializer,PayrollSerializer,SalaryStructureSerializer
 )
- 
+
+from .services.payroll import calculate_payroll 
 
 class PermissionViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Permission.objects.all().order_by("id")
@@ -83,3 +87,41 @@ class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = AuditLog.objects.select_related("performed_by")
     serializer_class = AuditLogSerializer
     permission_classes = [permissions.IsAdminUser]
+
+
+class AttendanceViewSet(viewsets.ModelViewSet):
+    queryset = EmpAttendance.objects.select_related("employee", "employee__user")
+    serializer_class = AttendanceSerializer
+    permission_classes = [permissions.IsAdminUser]
+
+
+class SalaryStructureViewSet(viewsets.ModelViewSet):
+    queryset = SalaryStructure.objects.select_related("employee")
+    serializer_class = SalaryStructureSerializer
+    permission_classes = [permissions.IsAdminUser]
+
+
+class PayrollViewSet(viewsets.ModelViewSet):
+    queryset = Payroll.objects.all()
+    serializer_class = PayrollSerializer
+    permission_classes = [permissions.IsAdminUser]
+
+    @action(detail=False, methods=["post"], url_path="generate")
+    def generate_payroll(self, request):
+        employee_id = request.data.get("employee_id")
+        month = request.data.get("month")
+        year = request.data.get("year")
+
+        employee = Employee.objects.get(id=employee_id)
+
+        payroll = calculate_payroll(
+            employee=employee,
+            month=month,
+            year=year,
+            admin_user=request.user
+        )
+
+        return Response(
+            {"message": "Payroll generated", "payroll_id": payroll.id},
+            status=status.HTTP_201_CREATED
+        )

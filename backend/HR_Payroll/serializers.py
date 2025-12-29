@@ -7,6 +7,10 @@ from .models import (
     DepartmentOfStaff,
     Module,
     AuditLog,
+    SalaryStructure,
+    Payroll,
+    Payslip,
+    EmpAttendance,
 )
 
 
@@ -95,4 +99,27 @@ class AuditLogSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = AuditLog
+        fields = "__all__"
+
+
+
+class AttendanceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EmpAttendance
+        fields = "__all__"
+
+
+class SalaryStructureSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SalaryStructure
+        fields = "__all__"
+
+
+class PayrollSerializer(serializers.ModelSerializer):
+    employee_email = serializers.EmailField(
+        source="employee.user.email", read_only=True
+    )
+
+    class Meta:
+        model = Payroll
         fields = "__all__"
