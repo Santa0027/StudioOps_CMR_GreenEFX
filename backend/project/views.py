@@ -20,6 +20,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema, OpenApiResponse
+from .tasks import process_project_asset
 
 from .models import *
 from .serializers import *
@@ -91,6 +92,7 @@ class ProjectAssetViewSet(ModelViewSet):
     def perform_create(self, serializer):
         # Hook for async upload / background processing
         serializer.save(uploaded_by=self.request.user)
+        process_project_asset.delay(asset.id)
 
 
 @extend_schema(

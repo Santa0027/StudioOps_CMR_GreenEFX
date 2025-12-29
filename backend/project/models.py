@@ -320,6 +320,17 @@ class ProjectTimeLog(models.Model):
 # =====================================================
 
 class ProjectAsset(models.Model):
+    
+    
+    def project_asset_upload_path(instance, filename):
+        project_name = instance.element.stage.project.name.replace(" ", "_")
+        stage_name = instance.element.stage.template.name.replace(" ", "_")
+        role = instance.asset_role.lower()
+        
+        # Optional: sanitize filename
+        filename = filename.replace(" ", "_")
+        
+        return f"{project_name}/{stage_name}/{role}/{filename}"
     ASSET_TYPE_CHOICES = [
         ("psd", "Photoshop"),
         ("ai", "Illustrator"),
@@ -350,7 +361,7 @@ class ProjectAsset(models.Model):
     uploaded_by = models.ForeignKey(User, on_delete=models.PROTECT)
     asset_type = models.CharField(max_length=20, choices=ASSET_TYPE_CHOICES)
     asset_role = models.CharField(max_length=20, choices=ASSET_ROLE_CHOICES)
-    file = models.FileField(upload_to="project_assets/")
+    file = models.FileField(upload_to=project_asset_upload_path)
     storage_location = models.CharField(
         max_length=10,
         choices=STORAGE_LOCATION_CHOICES,
@@ -381,6 +392,18 @@ class ProjectAsset(models.Model):
             self.version_number = last_version + 1
 
         super().save(*args, **kwargs)
+        
+    def project_asset_upload_path(instance, filename):
+        project_name = instance.element.stage.project.name.replace(" ", "_")
+        stage_name = instance.element.stage.template.name.replace(" ", "_")
+        role = instance.asset_role.lower()
+        
+        # Optional: sanitize filename
+        filename = filename.replace(" ", "_")
+        
+        return f"{project_name}/{stage_name}/{role}/{filename}"
+
+    
 
 
 # =====================================================
