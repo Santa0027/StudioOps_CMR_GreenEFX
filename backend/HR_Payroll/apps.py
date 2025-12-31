@@ -7,5 +7,5 @@ class HR_PayrollConfig(AppConfig):
 
     
     
-    def ready(self):
-        import backend.HR_Payroll.signals.audit
+    # def ready(self):
+    #     import signals.audit

@@ -1,10 +1,10 @@
-from hrpayroll.models import (
-    EmployeeAttendance,
+from ..models import (
+    EmpAttendance,
     Payroll
 )
 
 def calculate_payroll(employee, month, year, admin_user):
-    attendances = EmployeeAttendance.objects.filter(
+    attendances = EmpAttendance.objects.filter(
         employee=employee,
         date__month=month,
         date__year=year

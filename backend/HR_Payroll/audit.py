@@ -3,8 +3,8 @@ from django.db.models.signals import pre_save, post_save, post_delete
 from django.dispatch import receiver
 from django.forms.models import model_to_dict
 
-from ..models import AuditLog
-from ..middleware import get_current_user, get_current_ip
+from .models import AuditLog
+from .middleware import get_current_user, get_current_ip
 
 
 AUDIT_MODELS = (
