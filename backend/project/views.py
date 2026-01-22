@@ -71,7 +71,12 @@ class ProjectStageElementViewSet(ModelViewSet):
         project_id = self.request.query_params.get("project_id")
         if project_id:
             queryset = queryset.filter(stage__project_id=project_id)
-        return queryset
+        
+        user = self.request.user
+        if user.is_authenticated:
+            queryset = queryset.filter(assignments__user=user)
+            
+        return queryset.distinct()
 
 
 @extend_schema(

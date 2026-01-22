@@ -161,24 +161,28 @@ class ClientReviewLogSerializer(serializers.ModelSerializer):
         read_only_fields = ("reviewed_at",)
 
 
+
 # =====================================================
 # STAGE ELEMENT DETAIL SERIALIZER (INTERNAL)
 # (Full deep view with relations)
 # =====================================================
 class ProjectStageElementDetailSerializer(serializers.ModelSerializer):
-    # All versions linked to this task
+    project_name = serializers.CharField(
+        source="stage.project.name",
+        read_only=True
+    )
+    template_name = serializers.CharField(
+        source="template.name",
+        read_only=True
+    )
     versions = StageElementVersionSerializer(
         many=True,
         read_only=True
     )
-
-    # All assets (local + cloud)
     assets = ProjectAssetSerializer(
         many=True,
         read_only=True
     )
-
-    # Assigned team members
     assignments = ProjectTaskAssignmentSerializer(
         many=True,
         read_only=True
@@ -186,7 +190,11 @@ class ProjectStageElementDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ProjectStageElement
-        fields = "__all__"
+        fields = [
+            'id', 'stage', 'template', 'order', 'contribution_percentage',
+            'estimated_hours', 'actual_hours', 'status', 'rejection_notes',
+            'project_name', 'template_name', 'versions', 'assets', 'assignments'
+        ]
 
 
 # =====================================================

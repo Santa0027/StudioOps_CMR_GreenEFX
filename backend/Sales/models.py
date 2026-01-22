@@ -8,6 +8,7 @@ STATUS_CHOICES = [
 ]
 
 
+
 class Enquiry(models.Model):
     STATUS_CHOICES = [
         ("new", "New"),
@@ -87,4 +88,47 @@ class Lead(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
+
         return f"{self.client.name} ({self.status})"
+
+    
+
+    
+
+class FollowUp(models.Model):
+
+        enquiry = models.ForeignKey(Enquiry, on_delete=models.CASCADE, related_name="follow_ups")
+
+        follow_up_date = models.DateTimeField()
+
+        notes = models.TextField()
+
+        created_by = models.ForeignKey(User, on_delete=models.PROTECT, related_name="enquiry_follow_ups")
+
+    
+
+        def __str__(self):
+
+            return f"Follow-up for {self.enquiry.client_name} on {self.follow_up_date}"
+
+    
+
+    
+
+class LeadFollowUp(models.Model):
+
+        lead = models.ForeignKey(Lead, on_delete=models.CASCADE, related_name="follow_ups")
+
+        follow_up_date = models.DateTimeField()
+
+        notes = models.TextField()
+
+        created_by = models.ForeignKey(User, on_delete=models.PROTECT, related_name="lead_follow_ups")
+
+    
+
+        def __str__(self):
+
+            return f"Follow-up for {self.lead.client.name} on {self.follow_up_date}"
+
+    

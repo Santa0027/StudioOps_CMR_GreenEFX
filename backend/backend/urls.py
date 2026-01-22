@@ -20,15 +20,22 @@ from drf_spectacular.views import (
     SpectacularAPIView,
     SpectacularSwaggerView,
 )
+from rest_framework_simplejwt.views import (
+    TokenObtainPairView,
+    TokenRefreshView,
+)
 
 
 # Include UserManagement urls by name below (avoid invalid import syntax)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/users/', include('HR_Payroll.urls')),
     path('api/', include('Sales.urls')),
     path('api/', include('project.urls')),
+    path('api/finance/', include('finance.urls')),
    path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(
         "api/docs/",
