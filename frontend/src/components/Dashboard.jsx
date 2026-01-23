@@ -1,6 +1,9 @@
 import React from 'react';
+import { useAuth } from '../context/AuthContext'; // Import useAuth
 
 function Dashboard() {
+  const { user } = useAuth(); // Destructure user from useAuth()
+
   const projects = [
     { name: 'Project "Orion"', client: 'Nova Corp', dueDate: '2024-12-15', status: 'In Progress' },
     { name: 'Nebula Rebrand', client: 'Galactic Studios', dueDate: '2024-11-30', status: 'Completed' },
@@ -21,6 +24,10 @@ function Dashboard() {
         return '';
     }
   };
+
+  const userEmailInitial = user && user.email ? user.email[0].toUpperCase() : 'U';
+  const userDisplayName = user && user.email ? user.email : 'Guest';
+  const userRoleDisplay = user && user.role ? user.role : 'Role';
 
   return (
     <div className="flex-1 overflow-auto p-6">
@@ -45,11 +52,11 @@ function Dashboard() {
           </div>
           <div className="flex items-center space-x-2 bg-[#2a2a2a] rounded-full p-1 pr-3">
             <div className="w-8 h-8 bg-gray-600 rounded-full flex items-center justify-center text-xs font-semibold">
-              {/* User Avatar Placeholder */}
+              {userEmailInitial}
             </div>
             <div>
-              <span className="block text-sm font-semibold">Admin</span>
-              <span className="block text-xs text-gray-400">Creative Director</span>
+              <span className="block text-sm font-semibold">{userDisplayName}</span>
+              <span className="block text-xs text-gray-400">{userRoleDisplay}</span>
             </div>
           </div>
         </div>
@@ -58,7 +65,7 @@ function Dashboard() {
       {/* Dashboard Content */}
       <div className="mt-8">
         <h1 className="text-3xl font-bold">Dashboard Overview</h1>
-        <p className="text-gray-400 mt-2">Welcome back, Admin! Here's your studio's performance snapshot.</p>
+        <p className="text-gray-400 mt-2">Welcome back, {userDisplayName}! Here's your studio's performance snapshot.</p>
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-8">

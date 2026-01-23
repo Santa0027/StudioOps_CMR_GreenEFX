@@ -9,24 +9,21 @@ function LoginBox() {
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
 
-    // Hardcoded credentials for demonstration
-    const credentials = {
-      'admin@studioops.com': { password: 'adminpassword', role: 'admin' },
-      'manager@studioops.com': { password: 'managerpassword', role: 'manager' },
-      'staff@studioops.com': { password: 'staffpassword', role: 'staff' },
-    };
+    try {
+      const result = await login(email, password); // Await the async login call
 
-    const userCredential = credentials[email];
-
-    if (userCredential && userCredential.password === password) {
-      login({ email: email, role: userCredential.role });
-      navigate('/dashboard'); // Navigate to dashboard on successful login
-    } else {
-      setError('Invalid email or password.');
+      if (result.success) {
+        navigate('/dashboard'); // Navigate to dashboard on successful login
+      } else {
+        setError(result.error || 'Login failed. Please try again.');
+      }
+    } catch (err) {
+      setError('An unexpected error occurred during login.');
+      console.error("Login attempt failed:", err);
     }
   };
 

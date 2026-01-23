@@ -39,8 +39,8 @@ function App() {
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
       {/* Protected routes */}
-      <Route element={<PrivateRoute allowedRoles={['admin', 'manager', 'staff']} />}>
-        <Route path="/" element={<Layout />}>
+      <Route element={<PrivateRoute />}>
+        <Route element={<Layout />}>
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/tasks" element={<TaskPage />} />
           <Route path="/tasks/:taskId" element={<TaskDetails />} />
