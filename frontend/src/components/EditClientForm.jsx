@@ -1,20 +1,36 @@
-import React, { useState } from 'react';
-import { createClient } from '../api/api'; // Import the API function
+import React, { useState, useEffect } from 'react';
+import { updateClient } from '../api/api'; // Import the API function
 
-function AddClientForm({ onClose, onAddSuccess }) {
-  const [clientName, setClientName] = useState('');
-  const [website, setWebsite] = useState('');
-  const [contactPerson, setContactPerson] = useState(''); // Changed from primaryContact
-  const [status, setStatus] = useState('Active'); // Default status
-  const [logoUrl, setLogoUrl] = useState('');
-  const [gstNumber, setGstNumber] = useState('');
-  const [email, setEmail] = useState('');
-  const [bankName, setBankName] = useState('');
-  const [accountNumber, setAccountNumber] = useState('');
-  const [ifscCode, setIfscCode] = useState('');
-  const [address, setAddress] = useState(''); // Changed from billingAddress
-  const [notes, setNotes] = useState('');
-  const [loading, setLoading] = useState(false); // New loading state
+function EditClientForm({ client, onClose, onEditSuccess }) {
+  const [clientName, setClientName] = useState(client.client_name || '');
+  const [website, setWebsite] = useState(client.website || '');
+  const [contactPerson, setContactPerson] = useState(client.contact_person || '');
+  const [status, setStatus] = useState(client.status || 'Active');
+  const [logoUrl, setLogoUrl] = useState(client.logo_url || '');
+  const [gstNumber, setGstNumber] = useState(client.gst_number || '');
+  const [email, setEmail] = useState(client.email || '');
+  const [bankName, setBankName] = useState(client.bank_name || '');
+  const [accountNumber, setAccountNumber] = useState(client.account_number || '');
+  const [ifscCode, setIfscCode] = useState(client.ifsc_code || '');
+  const [address, setAddress] = useState(client.address || '');
+  const [notes, setNotes] = useState(client.notes || '');
+  const [loading, setLoading] = useState(false);
+
+  // Update form fields if client prop changes (e.g., when editing a different client)
+  useEffect(() => {
+    setClientName(client.client_name || '');
+    setWebsite(client.website || '');
+    setContactPerson(client.contact_person || '');
+    setStatus(client.status || 'Active');
+    setLogoUrl(client.logo_url || '');
+    setGstNumber(client.gst_number || '');
+    setEmail(client.email || '');
+    setBankName(client.bank_name || '');
+    setAccountNumber(client.account_number || '');
+    setIfscCode(client.ifsc_code || '');
+    setAddress(client.address || '');
+    setNotes(client.notes || '');
+  }, [client]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -36,13 +52,13 @@ function AddClientForm({ onClose, onAddSuccess }) {
     };
 
     try {
-      await createClient(clientData);
-      alert('Client added successfully!');
-      if (onAddSuccess) onAddSuccess(); // Refresh client list in parent
+      await updateClient(client.id, clientData); // Use updateClient with client.id
+      alert('Client updated successfully!');
+      if (onEditSuccess) onEditSuccess(); // Refresh client list in parent
       if (onClose) onClose(); // Close form/modal
     } catch (err) {
-      console.error('Failed to add client:', err);
-      alert('Failed to add client. Please try again.');
+      console.error('Failed to update client:', err);
+      alert('Failed to update client. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -50,7 +66,7 @@ function AddClientForm({ onClose, onAddSuccess }) {
 
   return (
     <div className="bg-[#1C1C1E] p-8 rounded-lg shadow-lg max-w-2xl mx-auto border border-gray-700">
-      <h2 className="text-3xl font-bold mb-8 text-white text-center">Add New Client</h2>
+      <h2 className="text-3xl font-bold mb-8 text-white text-center">Edit Client</h2>
       <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="col-span-full">
           <h3 className="text-xl font-semibold mb-4 text-gray-200">Basic Information</h3>
@@ -243,7 +259,7 @@ function AddClientForm({ onClose, onAddSuccess }) {
             className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out"
             disabled={loading}
           >
-            {loading ? 'Adding...' : 'Add Client'}
+            {loading ? 'Updating...' : 'Update Client'}
           </button>
         </div>
       </form>
@@ -251,4 +267,4 @@ function AddClientForm({ onClose, onAddSuccess }) {
   );
 }
 
-export default AddClientForm;
+export default EditClientForm;

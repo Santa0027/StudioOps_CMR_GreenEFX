@@ -3,7 +3,7 @@ import LoginPage from './components/login/LoginPage';
 import SignupPage from './components/login/SignupPage'; // Import SignupPage
 import ForgotPasswordPage from './components/login/ForgotPasswordPage'; // Import ForgotPasswordPage
 import Dashboard from './components/Dashboard';
-import Projects from './components/Projects';
+import Projects from './page/Projects';
 import Calendar from './components/Calendar';
 import Settings from './components/Settings';
 import ClientManagement from './components/ClientManagement';
@@ -29,6 +29,8 @@ import InvoiceDetails from './components/InvoiceDetails'; // Import InvoiceDetai
 import CreateInvoiceForm from './components/CreateInvoiceForm'; // Import CreateInvoiceForm
 import PackageManagement from './components/PackageManagement'; // Import PackageManagement
 import ReportAndAnalysis from './components/ReportAndAnalysis'; // Import ReportAndAnalysis
+import LeadManagement from './page/LeadManagement'; // Import LeadManagement
+import EnquiryManagement from './page/EnquiryManagement'; // Import EnquiryManagement
 
 function App() {
   return (
@@ -65,6 +67,8 @@ function App() {
           <Route path="/invoice/:invoiceId" element={<InvoiceDetails />} /> {/* View specific invoice details */}
           <Route path="/packages" element={<PackageManagement />} /> {/* Manage work packages */}
           <Route path="/reports" element={<ReportAndAnalysis />} /> {/* Reports and Analysis page */}
+          <Route path="/leads" element={<LeadManagement />} />
+          <Route path="/enquiries" element={<EnquiryManagement />} />
         </Route>
       </Route>
     </Routes>

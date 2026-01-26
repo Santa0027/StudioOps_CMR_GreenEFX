@@ -89,7 +89,7 @@ class Lead(models.Model):
 
     def __str__(self):
 
-        return f"{self.client.name} ({self.status})"
+        return f"{self.client.client_name} ({self.status})"
 
     
 
@@ -129,6 +129,6 @@ class LeadFollowUp(models.Model):
 
         def __str__(self):
 
-            return f"Follow-up for {self.lead.client.name} on {self.follow_up_date}"
+            return f"Follow-up for {self.lead.client.client_name} on {self.follow_up_date}"
 
     

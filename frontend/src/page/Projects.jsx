@@ -1,60 +1,73 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getProjects, deleteProject, updateProject } from '../api/api'; // Import API functions
+import CreateNewProject from '../components/CreateNewProject'; // Assuming this component exists and handles creation
+import EditProjectForm from '../components/EditProjectForm'; // We will create this
 
 function Projects() {
   const navigate = useNavigate();
-  const [projectsData, setProjectsData] = useState([
-    {
-      name: 'Project Alpha - ACME Corp',
-      status: 'In Progress',
-      team: 2,
-      dueDate: '2024-10-15',
-      progress: 75,
-    },
-    {
-      name: 'Project Beta - Stark Industries',
-      status: 'Review',
-      team: 3,
-      dueDate: '2024-09-30',
-      progress: 90,
-    },
-    {
-      name: 'Project Gamma - Wayne Enterprises',
-      status: 'Completed',
-      team: 1,
-      dueDate: '2024-08-20',
-      progress: 100,
-    },
-    {
-      name: 'Project Delta - Cyberdyne Systems',
-      status: 'On Hold',
-      team: 2,
-      dueDate: '2024-11-05',
-      progress: 20,
-    },
-  ]);
+  const [projects, setProjects] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [showCreateProjectForm, setShowCreateProjectForm] = useState(false);
+  const [showEditProjectForm, setShowEditProjectForm] = useState(false);
+  const [editingProject, setEditingProject] = useState(null);
+
+  const fetchProjects = async () => {
+    try {
+      setLoading(true);
+      const res = await getProjects();
+      setProjects(res.data);
+    } catch (err) {
+      setError(err);
+      console.error("Failed to fetch projects:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProjects();
+  }, []);
+
+  const handleDeleteProject = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this project?")) {
+      return;
+    }
+    try {
+      await deleteProject(id);
+      alert("Project deleted successfully!");
+      fetchProjects(); // Refresh the list
+    } catch (err) {
+      console.error("Failed to delete project:", err);
+      alert("Failed to delete project. Please try again.");
+    }
+  };
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'In Progress':
+      case 'in_progress':
         return 'bg-blue-600';
-      case 'Review':
+      case 'review':
         return 'bg-purple-600';
-      case 'Completed':
+      case 'completed':
         return 'bg-green-600';
-      case 'On Hold':
+      case 'on_hold':
         return 'bg-yellow-600';
       default:
         return 'bg-gray-600';
     }
   };
 
+  if (loading) return <div className="p-6 bg-black min-h-screen text-white text-center">Loading projects...</div>;
+  if (error) return <div className="p-6 bg-black min-h-screen text-red-500 text-center">Error: {error.message}</div>;
+
   return (
     <div className="p-6 bg-black min-h-screen text-white">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-4xl font-bold">Projects</h1>
         <button
-          onClick={() => navigate('/projects/create')}
+          onClick={() => setShowCreateProjectForm(true)} // Open modal for creating project
           className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg flex items-center"
         >
           <svg
@@ -74,13 +87,14 @@ function Projects() {
       </div>
 
       <div className="flex space-x-4 mb-6">
+        {/* Filter/Sort options - these will need to be connected to state and API calls */}
         <div className="relative">
           <select className="bg-gray-800 border border-gray-700 text-white py-2 px-4 rounded-lg appearance-none cursor-pointer">
             <option>Status</option>
-            <option>In Progress</option>
-            <option>Review</option>
-            <option>Completed</option>
-            <option>On Hold</option>
+            <option value="in_progress">In Progress</option>
+            <option value="review">Review</option>
+            <option value="completed">Completed</option>
+            <option value="on_hold">On Hold</option>
           </select>
           <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
             <svg
@@ -96,6 +110,7 @@ function Projects() {
         <div className="relative">
           <select className="bg-gray-800 border border-gray-700 text-white py-2 px-4 rounded-lg appearance-none cursor-pointer">
             <option>Assignee</option>
+            {/* Populate with actual assignees from API */}
             <option>John Doe</option>
             <option>Jane Smith</option>
           </select>
@@ -113,6 +128,7 @@ function Projects() {
         <div className="relative">
           <select className="bg-gray-800 border border-gray-700 text-white py-2 px-4 rounded-lg appearance-none cursor-pointer">
             <option>Client</option>
+            {/* Populate with actual clients from API */}
             <option>ACME Corp</option>
             <option>Stark Industries</option>
           </select>
@@ -171,11 +187,11 @@ function Projects() {
             </tr>
           </thead>
           <tbody>
-            {projectsData.map((project, index) => (
-              <tr key={index}>
+            {projects.map((project) => (
+              <tr key={project.id}>
                 <td className="px-5 py-5 border-b border-gray-700 bg-gray-800 text-sm">
                   <button
-                    onClick={() => navigate(`/projects/${encodeURIComponent(project.name)}`)}
+                    onClick={() => navigate(`/projects/${project.id}`)} // Use project.id for navigation
                     className="text-blue-400 hover:text-blue-300 font-semibold"
                   >
                     {project.name}
@@ -192,31 +208,39 @@ function Projects() {
                 </td>
                 <td className="px-5 py-5 border-b border-gray-700 bg-gray-800 text-sm">
                   <div className="flex -space-x-2 overflow-hidden">
-                    {Array.from({ length: project.team }).map((_, i) => (
+                    {project.assigned_users && project.assigned_users.map((user, i) => (
                       <img
                         key={i}
                         className="inline-block h-8 w-8 rounded-full ring-2 ring-gray-800"
-                        src={`https://i.pravatar.cc/150?img=${i + 1}`}
-                        alt=""
+                        src={user.profile_picture || `https://i.pravatar.cc/150?img=${i + 1}`} // Use user's profile picture
+                        alt={user.username}
+                        title={user.username}
                       />
                     ))}
                   </div>
                 </td>
                 <td className="px-5 py-5 border-b border-gray-700 bg-gray-800 text-sm">
-                  {project.dueDate}
+                  {project.due_date} {/* Assuming due_date field */}
                 </td>
                 <td className="px-5 py-5 border-b border-gray-700 bg-gray-800 text-sm">
                   <div className="w-full bg-gray-700 rounded-full h-2.5">
                     <div
                       className="bg-blue-600 h-2.5 rounded-full"
-                      style={{ width: `${project.progress}%` }}
+                      style={{ width: `${project.progress_percentage || 0}%` }} // Assuming progress_percentage field
                     ></div>
                   </div>
-                  <span className="ml-2 text-xs">{project.progress}%</span>
+                  <span className="ml-2 text-xs">{project.progress_percentage || 0}%</span>
                 </td>
                 <td className="px-5 py-5 border-b border-gray-700 bg-gray-800 text-sm">
                   <div className="flex items-center space-x-3">
-                    <button className="text-gray-400 hover:text-white">
+                    <button
+                      onClick={() => {
+                        setEditingProject(project);
+                        setShowEditProjectForm(true);
+                      }}
+                      className="text-yellow-500 hover:text-yellow-600"
+                      title="Edit Project"
+                    >
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
                         className="h-5 w-5"
@@ -231,7 +255,11 @@ function Projects() {
                         />
                       </svg>
                     </button>
-                    <button className="text-gray-400 hover:text-white">
+                    <button
+                      onClick={() => handleDeleteProject(project.id)}
+                      className="text-red-500 hover:text-red-600"
+                      title="Delete Project"
+                    >
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
                         className="h-5 w-5"
@@ -246,8 +274,9 @@ function Projects() {
                         />
                       </svg>
                     </button>
+                    {/* Placeholder for Version History - update with actual navigation if needed */}
                     <button
-                      onClick={() => navigate(`/projects/${encodeURIComponent(project.name)}/version-history`)}
+                      onClick={() => navigate(`/projects/${project.id}/version-history`)}
                       className="text-gray-400 hover:text-white"
                       title="View Version History"
                     >
@@ -272,8 +301,9 @@ function Projects() {
                         />
                       </svg>
                     </button>
+                    {/* Staging new version - update with actual functionality */}
                     <button
-                      onClick={() => alert(`Staging new version for ${project.name}`)} // Placeholder for staging action
+                      onClick={() => alert(`Staging new version for ${project.name}`)}
                       className="text-gray-400 hover:text-white"
                       title="Stage New Version"
                     >
@@ -288,6 +318,25 @@ function Projects() {
           </tbody>
         </table>
       </div>
+
+      {showCreateProjectForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+          <CreateNewProject onClose={() => setShowCreateProjectForm(false)} onProjectAdded={fetchProjects} />
+        </div>
+      )}
+
+      {showEditProjectForm && editingProject && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+          <EditProjectForm
+            project={editingProject}
+            onClose={() => {
+              setShowEditProjectForm(false);
+              setEditingProject(null);
+            }}
+            onProjectUpdated={fetchProjects}
+          />
+        </div>
+      )}
     </div>
   );
 }

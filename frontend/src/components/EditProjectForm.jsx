@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { createProject, getClients, getEmployees } from '../api/api'; // Import API functions
+import { updateProject, getClients, getEmployees } from '../api/api'; // Import API functions
 
 const mockPackages = [
   {
@@ -28,31 +28,30 @@ const mockPackages = [
   },
 ];
 
-const CreateNewProject = ({ onClose, onProjectAdded }) => { // Accept onClose and onProjectAdded props
-  const [projectName, setProjectName] = useState('');
-  const [clientId, setClientId] = useState(''); // Changed to clientId
-  const [priority, setPriority] = useState('Medium');
-  const [serviceType, setServiceType] = useState('3D Animation');
-  const [selectionMode, setSelectionMode] = useState('package');
-  const [selectedPackage, setSelectedPackage] = useState('');
-  const [singleServiceName, setSingleServiceName] = useState('');
+const EditProjectForm = ({ project, onClose, onProjectUpdated }) => {
+  const [projectName, setProjectName] = useState(project.name || '');
+  const [clientId, setClientId] = useState(project.client || '');
+  const [priority, setPriority] = useState(project.priority || 'Medium');
+  const [serviceType, setServiceType] = useState(project.service_type || '3D Animation');
+  const [selectionMode, setSelectionMode] = useState('package'); // Assume default or determine from project data
+  const [selectedPackage, setSelectedPackage] = useState(''); // Need to map project services to packages
+  const [singleServiceName, setSingleServiceName] = useState(''); // Need to map project services to single service
   const [singleServiceBudget, setSingleServiceBudget] = useState('');
   const [singleServiceHours, setSingleServiceHours] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [dueDate, setDueDate] = useState('');
-  const [budget, setBudget] = useState('');
-  const [estimateHours, setEstimateHours] = useState('');
-  const [teamMembers, setTeamMembers] = useState([]); // Selected team members (user IDs)
-  const [description, setDescription] = useState('');
-  const [initialRequirements, setInitialRequirements] = useState('');
-  const [referenceLinks, setReferenceLinks] = useState('');
-  const [attachments, setAttachments] = useState([]);
-  const [clients, setClients] = useState([]); // State for clients from API
-  const [employees, setEmployees] = useState([]); // State for employees from API
-  const [loading, setLoading] = useState(false); // Loading state for form submission
-  const [formError, setFormError] = useState(null); // Error state for form submission
+  const [startDate, setStartDate] = useState(project.start_date || '');
+  const [dueDate, setDueDate] = useState(project.due_date || '');
+  const [budget, setBudget] = useState(project.budget || '');
+  const [estimateHours, setEstimateHours] = useState(project.estimated_hours || '');
+  const [teamMembers, setTeamMembers] = useState(project.assigned_users ? project.assigned_users.map(user => user.id) : []);
+  const [description, setDescription] = useState(project.description || '');
+  const [initialRequirements, setInitialRequirements] = useState(project.initial_requirements || '');
+  const [referenceLinks, setReferenceLinks] = useState(project.reference_links || '');
+  const [attachments, setAttachments] = useState([]); // Handle existing attachments if any, for now new only
+  const [clients, setClients] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [formError, setFormError] = useState(null);
 
-  // Fetch clients and employees on component mount
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
@@ -69,6 +68,22 @@ const CreateNewProject = ({ onClose, onProjectAdded }) => { // Accept onClose an
   }, []);
 
   useEffect(() => {
+    setProjectName(project.name || '');
+    setClientId(project.client || '');
+    setPriority(project.priority || 'Medium');
+    setServiceType(project.service_type || '3D Animation');
+    setStartDate(project.start_date || '');
+    setDueDate(project.due_date || '');
+    setBudget(project.budget || '');
+    setEstimateHours(project.estimated_hours || '');
+    setTeamMembers(project.assigned_users ? project.assigned_users.map(user => user.id) : []);
+    setDescription(project.description || '');
+    setInitialRequirements(project.initial_requirements || '');
+    setReferenceLinks(project.reference_links || '');
+    // Reset selection mode and package/single service fields if needed based on project data
+  }, [project]);
+
+  useEffect(() => {
     if (selectionMode === 'package') {
       if (selectedPackage) {
         const pkg = mockPackages.find(p => p.id === selectedPackage);
@@ -80,10 +95,13 @@ const CreateNewProject = ({ onClose, onProjectAdded }) => { // Accept onClose an
           setInitialRequirements(pkg.items.map(item => `${item.quantity} ${item.unit} ${item.name}`).join(', '));
         }
       } else {
-        setBudget('');
-        setEstimateHours('');
-        setDescription('');
-        setInitialRequirements('');
+        // If no package selected, clear fields, but only if they weren't pre-filled by the project prop
+        if (!project.budget && !project.estimated_hours) {
+          setBudget('');
+          setEstimateHours('');
+          setDescription('');
+          setInitialRequirements('');
+        }
       }
     } else { // selectionMode === 'singleService'
       setBudget(singleServiceBudget);
@@ -91,9 +109,10 @@ const CreateNewProject = ({ onClose, onProjectAdded }) => { // Accept onClose an
       setDescription(`Single service: ${singleServiceName}`);
       setInitialRequirements(`Service: ${singleServiceName}, Budget: $${singleServiceBudget}, Estimated Hours: ${singleServiceHours}`);
     }
-  }, [selectedPackage, selectionMode, singleServiceName, singleServiceBudget, singleServiceHours]);
+  }, [selectedPackage, selectionMode, singleServiceName, singleServiceBudget, singleServiceHours, project]);
 
-  const handleCreateProject = async () => {
+
+  const handleSubmit = async () => {
     setLoading(true);
     setFormError(null);
 
@@ -101,32 +120,30 @@ const CreateNewProject = ({ onClose, onProjectAdded }) => { // Accept onClose an
     formData.append('name', projectName);
     formData.append('client', clientId);
     formData.append('priority', priority);
-    formData.append('service_type', serviceType); // Assuming service_type field
-    formData.append('start_date', startDate); // Assuming start_date field
-    formData.append('due_date', dueDate);     // Assuming due_date field
+    formData.append('service_type', serviceType);
+    formData.append('start_date', startDate);
+    formData.append('due_date', dueDate);
     formData.append('budget', budget);
-    formData.append('estimated_hours', estimateHours); // Assuming estimated_hours field
+    formData.append('estimated_hours', estimateHours);
     formData.append('description', description);
-    formData.append('initial_requirements', initialRequirements); // Assuming initial_requirements field
-    formData.append('reference_links', referenceLinks); // Assuming reference_links field
+    formData.append('initial_requirements', initialRequirements);
+    formData.append('reference_links', referenceLinks);
 
     teamMembers.forEach(memberId => {
-      formData.append('assigned_users', memberId); // Append each selected user ID
+      formData.append('assigned_users', memberId);
     });
 
     attachments.forEach(file => {
-      formData.append('attachments', file); // Append each attachment file
+      formData.append('attachments', file);
     });
 
     try {
-      await createProject(formData);
-      alert('Project created successfully!');
-      if (onProjectAdded) onProjectAdded();
+      await updateProject(project.id, formData);
+      alert('Project updated successfully!');
+      if (onProjectUpdated) onProjectUpdated();
       if (onClose) onClose();
     } catch (err) {
-      console.error('Failed to create project:', err);
-
-      // Attempt to parse specific error messages from the backend
+      console.error('Failed to update project:', err);
       if (err.response && err.response.data) {
         let errorMessages = [];
         for (const key in err.response.data) {
@@ -136,11 +153,11 @@ const CreateNewProject = ({ onClose, onProjectAdded }) => { // Accept onClose an
             errorMessages.push(`${key}: ${err.response.data[key]}`);
           }
         }
-        setFormError(`Failed to create project: ${errorMessages.join('; ')}`);
-        alert(`Failed to create project: ${errorMessages.join('; ')}`);
+        setFormError(`Failed to update project: ${errorMessages.join('; ')}`);
+        alert(`Failed to update project: ${errorMessages.join('; ')}`);
       } else {
-        setFormError('Failed to create project. Please check your input.');
-        alert('Failed to create project. Please check your input.');
+        setFormError('Failed to update project. Please check your input.');
+        alert('Failed to update project. Please check your input.');
       }
     } finally {
       setLoading(false);
@@ -179,7 +196,7 @@ const CreateNewProject = ({ onClose, onProjectAdded }) => { // Accept onClose an
   return (
     <div className="bg-[#1C1C1E] p-8 rounded-lg shadow-lg max-w-4xl mx-auto border border-gray-700 max-h-[90vh] overflow-y-auto">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-3xl font-bold text-white">Create New Project</h2>
+        <h2 className="text-3xl font-bold text-white">Edit Project</h2>
         <button onClick={onClose} className="text-gray-400 hover:text-white">
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -199,7 +216,7 @@ const CreateNewProject = ({ onClose, onProjectAdded }) => { // Accept onClose an
         </div>
       )}
 
-      <p className="text-gray-400 mb-8">Fill in the details below to start a new project.</p>
+      <p className="text-gray-400 mb-8">Modify the details below to update the project.</p>
 
       <div className="bg-gray-800 rounded-lg shadow-lg p-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -518,12 +535,12 @@ const CreateNewProject = ({ onClose, onProjectAdded }) => { // Accept onClose an
             Cancel
           </button>
           <button
-            type="button" // Changed to type="button" to prevent default form submission on click
+            type="button"
             className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-            onClick={handleCreateProject}
+            onClick={handleSubmit}
             disabled={loading}
           >
-            {loading ? 'Creating...' : 'Create Project'}
+            {loading ? 'Updating...' : 'Update Project'}
           </button>
         </div>
       </div>
@@ -531,5 +548,4 @@ const CreateNewProject = ({ onClose, onProjectAdded }) => { // Accept onClose an
   );
 };
 
-
-export default CreateNewProject ;
+export default EditProjectForm;

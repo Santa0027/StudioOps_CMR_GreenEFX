@@ -1,51 +1,47 @@
-import React, { useState } from 'react';
-import AddClientForm from './AddClientForm'; // Import the new form component
+import React, { useState, useEffect } from 'react';
+import AddClientForm from './AddClientForm';
+import EditClientForm from './EditClientForm'; // Import EditClientForm
+import { getClients, createClient, updateClient, deleteClient } from '../api/api';
 
 function ClientManagement() {
   const [showAddClientForm, setShowAddClientForm] = useState(false);
+  const [clients, setClients] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [showEditClientForm, setShowEditClientForm] = useState(false);
+  const [editingClient, setEditingClient] = useState(null);
 
-  const clients = [
-    {
-      name: 'QuantumLeap',
-      website: 'innovations.com',
-      contact: 'Alina Petrova',
-      projects: 5,
-      status: 'Active',
-      logo: 'https://via.placeholder.com/40/20c997/ffffff?text=QL'
-    },
-    {
-      name: 'Starlight Studios',
-      website: 'starlight.media',
-      contact: 'Ben Carter',
-      projects: 2,
-      status: 'Active',
-      logo: 'https://via.placeholder.com/40/f7df1e/000000?text=SS'
-    },
-    {
-      name: 'Nexus Corp',
-      website: 'nexuscorp.io',
-      contact: 'Chen Wei',
-      projects: 0,
-      status: 'Archived',
-      logo: 'https://via.placeholder.com/40/888888/ffffff?text=NC'
-    },
-    {
-      name: 'Momentum Dynamics',
-      website: 'momentum.dev',
-      contact: 'Sofia Rossi',
-      projects: 1,
-      status: 'On Hold',
-      logo: 'https://via.placeholder.com/40/6a0dad/ffffff?text=MD'
-    },
-    {
-      name: 'Evolve Solutions',
-      website: 'evolve.tech',
-      contact: 'Leo Kim',
-      projects: 8,
-      status: 'Active',
-      logo: 'https://via.placeholder.com/40/4CAF50/ffffff?text=ES'
-    },
-  ];
+
+  const fetchClients = async () => {
+    try {
+      setLoading(true);
+      const res = await getClients();
+      setClients(res.data);
+    } catch (err) {
+      setError(err);
+      console.error("Failed to fetch clients:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchClients();
+  }, []);
+
+  const handleDeleteClient = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this client?")) {
+      return;
+    }
+    try {
+      await deleteClient(id);
+      alert("Client deleted successfully!");
+      fetchClients(); // Refresh the list
+    } catch (err) {
+      console.error("Failed to delete client:", err);
+      alert("Failed to delete client. Please try again.");
+    }
+  };
 
   const getStatusClasses = (status) => {
     switch (status) {
@@ -59,6 +55,9 @@ function ClientManagement() {
         return '';
     }
   };
+
+  if (loading) return <div className="flex-1 overflow-auto p-6 text-center text-gray-400">Loading clients...</div>;
+  if (error) return <div className="flex-1 overflow-auto p-6 text-center text-red-400">Error: {error.message}</div>;
 
   return (
     <div className="flex-1 overflow-auto p-6">
@@ -120,32 +119,50 @@ function ClientManagement() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {clients.map((client, index) => (
-          <div key={index} className="bg-[#2a2a2a] p-6 rounded-lg shadow-md flex flex-col justify-between">
+        {clients.map((client) => (
+          <div key={client.id} className="bg-[#2a2a2a] p-6 rounded-lg shadow-md flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center space-x-3">
                   <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center overflow-hidden">
-                    <img src={client.logo} alt={`${client.name} logo`} className="object-cover w-full h-full" />
+                    {/* Assuming client.logo_url exists, otherwise a placeholder */}
+                    <img src={client.logo_url || 'https://via.placeholder.com/40/CCCCCC/FFFFFF?text=CL'} alt={`${client.client_name} logo`} className="object-cover w-full h-full" />
                   </div>
                   <div>
-                    <p className="text-lg font-semibold">{client.name}</p>
+                    <p className="text-lg font-semibold">{client.client_name}</p>
                     <p className="text-sm text-gray-400">{client.website}</p>
                   </div>
                 </div>
-                <button className="text-gray-400 hover:text-white">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 12.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 18.75a.75.75 0 110-1.5.75.75 0 010 1.5z"></path></svg>
-                </button>
+                <div className="relative">
+                  <button
+                    onClick={() => {
+                      setEditingClient(client);
+                      setShowEditClientForm(true);
+                    }}
+                    className="text-yellow-500 hover:text-yellow-600 mr-2"
+                    title="Edit Client"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                  </button>
+                  <button
+                    onClick={() => handleDeleteClient(client.id)}
+                    className="text-red-500 hover:text-red-600"
+                    title="Delete Client"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                  </button>
+                </div>
               </div>
               <div className="mb-4">
                 <p className="text-sm text-gray-400">Primary Contact</p>
-                <p className="font-medium">{client.contact}</p>
+                <p className="font-medium">{client.contact_person}</p>
               </div>
             </div>
             <div className="flex items-center justify-between mt-4 border-t border-gray-800 pt-4">
               <div className="flex items-center text-sm text-gray-400">
                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6m-2 0V5a2 2 0 012-2h4a2 2 0 012 2v2M8 7H3"></path></svg>
-                {client.projects} Active Projects
+                {/* Assuming there's a way to get active project count */}
+                {/* {client.projects} Active Projects */} 0 Active Projects
               </div>
               <span className={`px-3 py-1 text-xs font-semibold rounded-full ${getStatusClasses(client.status)}`}>
                 {client.status}
@@ -165,7 +182,20 @@ function ClientManagement() {
 
       {showAddClientForm && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-          <AddClientForm onClose={() => setShowAddClientForm(false)} />
+          <AddClientForm onClose={() => setShowAddClientForm(false)} onAddSuccess={fetchClients} />
+        </div>
+      )}
+
+      {showEditClientForm && editingClient && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+          <EditClientForm
+            client={editingClient}
+            onClose={() => {
+              setShowEditClientForm(false);
+              setEditingClient(null);
+            }}
+            onEditSuccess={fetchClients}
+          />
         </div>
       )}
     </div>

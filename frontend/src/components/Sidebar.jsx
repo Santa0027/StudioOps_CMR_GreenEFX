@@ -28,6 +28,12 @@ function Sidebar({ isExpanded, toggleSidebar }) {
         <path d="M12 2.252A8.014 8.014 0 0117.748 8H12V2.252z" />
       </svg>
     ), path: '/dashboard' },
+     { name: 'Enquiry Management', icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+        <path d="M2 10a8 8 0 018-8v8h8a8 8 0 01-8 8v-8H2z" />
+        <path d="M12 2.252A8.014 8.014 0 0117.748 8H12V2.252z" />
+      </svg>
+    ), path: '/enquiries' },
     {
       name: 'Users Management',
       icon: (
@@ -52,6 +58,11 @@ function Sidebar({ isExpanded, toggleSidebar }) {
         <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
       </svg>
     ), path: '/clients' },
+    { name: 'Lead Management', icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+        <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0115 11h2a5 5 0 015 5v1h-2.07a6.97 6.97 0 00-4.33-1.5zM3 11a5 5 0 015-5h2a5 5 0 015 5v1H3v-1z" />
+      </svg>
+    ), path: '/leads' },
     {
       name: 'Projects',
       icon: (

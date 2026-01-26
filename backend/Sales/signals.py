@@ -1,12 +1,13 @@
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from .models import Lead
+from .models import Lead , Enquiry, Clients
 from project.models import Project
+from django.db import transaction
 
 @receiver(post_save, sender=Lead)
 def create_project_from_lead(sender, instance, created, **kwargs):
     # Only trigger if status changed to "won" and no project exists yet
-    if instance.status == "won" and not hasattr(instance, 'project_created'):
+    if instance.status == "won" and not instance.project_created:
         project = Project.objects.create(
             client=instance.client,
             project_type="single_service",  # or based on lead type
@@ -23,3 +24,43 @@ def create_project_from_lead(sender, instance, created, **kwargs):
         # Mark that a project was created to avoid duplicates
         instance.project_created = True
         instance.save(update_fields=['project_created'])
+
+
+
+
+@receiver(post_save, sender=Enquiry)
+def create_lead_by_enquiry(sender, instance, created, **kwargs):
+    # Only proceed if the enquiry status is 'qualified' and it's not a new instance
+    # (i.e., it's an update) or if it's a new instance and already qualified.
+    # We want to trigger this when an existing enquiry *becomes* qualified.
+    if instance.status != "qualified":
+        return
+
+    # Avoid duplicate lead creation for the same enquiry
+    if hasattr(instance, "lead"):
+        return
+
+    with transaction.atomic():
+        # Try to find an existing client or create a new one
+        client, created_client = Clients.objects.get_or_create(
+            email=instance.client_email,
+            defaults={
+                'client_name': instance.client_name,
+                'phone': instance.client_phone,
+                'status': 'Active' # Default status for new clients
+            }
+        )
+
+        lead = Lead.objects.create(
+            enquiry=instance,
+            client=client,
+            services_requested=instance.service_interested,
+            # For estimated_budget, we'll need a way to parse budget_range (CharField) to Decimal.
+            # For now, we'll leave it as None or try a simple parsing if possible.
+            # Assuming budget_range might be "1000-2000" or "5000".
+            # This is a simplification; a more robust solution would be needed.
+            estimated_budget=None, # Set to None for now, or implement parsing logic
+            assigned_to=instance.assigned_to,
+            notes=f"Auto-created from enquiry #{instance.id}. Original budget range: {instance.budget_range}. Original notes: {instance.notes}"
+        )
+        
