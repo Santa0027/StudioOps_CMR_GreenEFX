@@ -74,7 +74,6 @@ function Sidebar({ isExpanded, toggleSidebar }) {
         { name: 'All Projects', path: '/projects' },
         // { name: 'Reassign User', path: '/projects/reassign-user' },
         { name: 'Project Status', path: '/projects/status' },
-        { name: 'Manage Packages', path: '/packages' },
       ],
     },
     { name: 'Tasks Overview', icon: (
@@ -110,6 +109,19 @@ function Sidebar({ isExpanded, toggleSidebar }) {
         <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
       </svg>
     ), path: '/asset-library' },
+    {
+      name: 'Master Modules',
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82-.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0-.33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0 .33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0 .33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09z"></path>
+        </svg>
+      ),
+      subItems: [
+        { name: 'Package Management', path: '/master/packages' },
+        { name: 'Workflow Template Management', path: '/master/workflow-templates' },
+      ],
+    },
     {
       name: 'System Settings',
       icon: (
@@ -147,7 +159,13 @@ function Sidebar({ isExpanded, toggleSidebar }) {
                 <div>
                   <div
                     className={`flex items-center p-3 rounded-lg text-white font-medium hover:bg-gray-700 transition-colors duration-200 cursor-pointer
-                      ${Object.values(item.subItems).some(subItem => location.pathname === subItem.path) || (item.name === 'Projects' && (location.pathname.startsWith('/projects') || location.pathname.startsWith('/packages'))) || (item.name === 'Users Management' && location.pathname.startsWith('/users')) || (item.name === 'Finance & Billing' && (location.pathname.startsWith('/finance-billing') || location.pathname.startsWith('/invoice'))) || (item.name === 'System Settings' && location.pathname.startsWith('/settings')) ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' : 'text-gray-400'}
+                      ${(item.name === 'Projects' && location.pathname.startsWith('/projects')) ||
+                        (item.name === 'Users Management' && location.pathname.startsWith('/users')) ||
+                        (item.name === 'Finance & Billing' && (location.pathname.startsWith('/finance-billing') || location.pathname.startsWith('/invoice'))) ||
+                        (item.name === 'Master Modules' && location.pathname.startsWith('/master')) || // New active state check
+                        (item.name === 'System Settings' && location.pathname.startsWith('/settings')) ||
+                        (item.subItems.some(subItem => location.pathname === subItem.path))
+                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' : 'text-gray-400'}
                       ${!isExpanded && 'justify-center'}`}
                     onClick={() => isExpanded && toggleMenu(item.name)}
                   >

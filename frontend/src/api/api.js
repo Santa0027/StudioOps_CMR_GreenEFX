@@ -68,8 +68,47 @@ export const deleteClient = (id) => api.delete(`/clients/${id}/`);
 // ---------------------------------------------- Project APIs -------------------------------------
 
 export const getProjects = () => api.get("/projects/");
+export const getProject = (id) => api.get(`/projects/${id}/`);
 export const createProject = (data) => api.post("/projects/", data);
 export const updateProject = (id, data) => api.put(`/projects/${id}/`, data);
 export const deleteProject = (id) => api.delete(`/projects/${id}/`);
+export const getProjectVersions = (projectId) => api.get(`/projects/${projectId}/versions/`);
 
 // --------------------------------------------- end Project APIs -----------------------------------
+
+// ---------------------------------------------- Package APIs -------------------------------------
+
+export const getPackages = () => api.get("/packages/");
+export const getPackage = (packageId) => api.get(`/packages/${packageId}/`);
+export const createPackage = (data) => api.post("/packages/", data);
+export const updatePackage = (id, data) => api.put(`/packages/${id}/`, data);
+export const deletePackage = (id) => api.delete(`/packages/${id}/`);
+
+// --------------------------------------------- end Package APIs -----------------------------------
+
+// ---------------------------------------------- PackageItem APIs (Nested under Package) -----------
+
+export const getPackageItemsForPackage = (packageId) => api.get(`/packages/${packageId}/items/`);
+export const createPackageItemForPackage = (packageId, data) => api.post(`/packages/${packageId}/items/`, data);
+export const updatePackageItem = (packageId, itemId, data) => api.put(`/packages/${packageId}/items/${itemId}/`, data);
+export const deletePackageItem = (packageId, itemId) => api.delete(`/packages/${packageId}/items/${itemId}/`);
+
+// --------------------------------------------- end PackageItem APIs -------------------------------
+
+// ---------------------------------------------- Project Stage Template APIs -------------------------
+
+export const getProjectStageTemplates = () => api.get("/stage-templates/");
+export const createProjectStageTemplate = (data) => api.post("/stage-templates/", data);
+export const updateProjectStageTemplate = (id, data) => api.put(`/stage-templates/${id}/`, data);
+export const deleteProjectStageTemplate = (id) => api.delete(`/stage-templates/${id}/`);
+
+// --------------------------------------------- end Project Stage Template APIs --------------------
+
+// ---------------------------------------------- Project Stage Element Template APIs -----------------
+
+export const getProjectStageElementTemplatesForStage = (stageId) => api.get(`/stage-templates/${stageId}/elements/`);
+export const createProjectStageElementTemplateForStage = (stageId, data) => api.post(`/stage-templates/${stageId}/elements/`, data);
+export const updateProjectStageElementTemplate = (stageId, elementId, data) => api.put(`/stage-templates/${stageId}/elements/${elementId}/`, data);
+export const deleteProjectStageElementTemplate = (stageId, elementId) => api.delete(`/stage-templates/${stageId}/elements/${elementId}/`);
+
+// --------------------------------------------- end Project Stage Element Template APIs -------------

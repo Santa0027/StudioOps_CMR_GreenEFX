@@ -10,11 +10,12 @@ This router exposes two main logical API groups:
 All routes are version-ready and role-protected at the view level.
 """
 
-from rest_framework.routers import DefaultRouter
-from django.urls import path
+from django.urls import path, include
+from rest_framework_nested import routers
 from .views import *
 
-router = DefaultRouter()
+# Create a top-level router
+router = routers.DefaultRouter()
 
 # ==========================================================
 # INTERNAL APIs (Studio / Team Access)
@@ -71,6 +72,29 @@ router.register(
     ProjectTimeLogViewSet,
 )
 
+# Packages CRUD (Top-level)
+router.register(
+    "packages",
+    PackageViewSet,
+    basename="packages"
+)
+
+# Nested router for Package Items
+packages_router = routers.NestedDefaultRouter(router, 'packages', lookup='package')
+packages_router.register('items', PackageItemViewSet, basename='package-items')
+
+# Project Stage Templates CRUD (Top-level)
+router.register(
+    "stage-templates",
+    ProjectStageTemplateViewSet,
+    basename="stage-templates"
+)
+
+# Nested router for Project Stage Element Templates
+stage_templates_router = routers.NestedDefaultRouter(router, 'stage-templates', lookup='stage')
+stage_templates_router.register('elements', ProjectStageElementTemplateViewSet, basename='stage-template-elements')
+
+
 # ==========================================================
 # CLIENT APIs (Client Portal / Review Access)
 # ==========================================================
@@ -118,7 +142,7 @@ router.register(
 # POST /api/assets/
 # GET /api/client/assets/
 # All CRUD and ReadOnly routes based on viewsets
-urlpatterns = router.urls
+urlpatterns = router.urls + packages_router.urls + stage_templates_router.urls
 urlpatterns += [
     path("client/assets/<int:asset_id>/stream/", AssetStreamView.as_view(), name="asset-stream"),
 ]

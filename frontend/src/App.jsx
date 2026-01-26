@@ -6,7 +6,7 @@ import Dashboard from './components/Dashboard';
 import Projects from './page/Projects';
 import Calendar from './components/Calendar';
 import Settings from './components/Settings';
-import ClientManagement from './components/ClientManagement';
+import ClientManagement from './page/ClientManagement';
 import UserManagement from './components/UserManagement'; // Import UserManagement
 import ProjectDetails from './components/ProjectDetails'; // Import ProjectDetails
 import PrivateRoute from './components/PrivateRoute'; // Import PrivateRoute
@@ -27,10 +27,13 @@ import ProjectStatus from './components/ProjectStatus'; // Import ProjectStatus
 import InvoicePage from './components/InvoicePage'; // Import InvoicePage for listing
 import InvoiceDetails from './components/InvoiceDetails'; // Import InvoiceDetails for single invoice view
 import CreateInvoiceForm from './components/CreateInvoiceForm'; // Import CreateInvoiceForm
-import PackageManagement from './components/PackageManagement'; // Import PackageManagement
+import PackageManagement from './page/PackageManagement'; // Import PackageManagement
+import PackageItemPage from './page/PackageItemPage'; // Import PackageItemPage
+import ProjectStageElementTemplateManagementPage from './page/ProjectStageElementTemplateManagementPage'; // Import ProjectStageElementTemplateManagementPage
 import ReportAndAnalysis from './components/ReportAndAnalysis'; // Import ReportAndAnalysis
 import LeadManagement from './page/LeadManagement'; // Import LeadManagement
 import EnquiryManagement from './page/EnquiryManagement'; // Import EnquiryManagement
+import WorkflowTemplateManagement from './page/WorkflowTemplateManagement'; // Import the new WorkflowTemplateManagement component
 
 function App() {
   return (
@@ -47,8 +50,8 @@ function App() {
           <Route path="/tasks" element={<TaskPage />} />
           <Route path="/tasks/:taskId" element={<TaskDetails />} />
           <Route path="/projects" element={<Projects />} />
-          <Route path="/projects/:projectName" element={<ProjectDetails />} />
-          <Route path="/projects/:projectName/version-history" element={<VersionHistory />} />
+          <Route path="/projects/:id" element={<ProjectDetails />} />
+          <Route path="/projects/:id/version-history" element={<VersionHistory />} />
           <Route path="/projects/reassign-user" element={<ReassignProject />} />
           <Route path="/projects/status" element={<ProjectStatus />} />
           <Route path="/calendar" element={<Calendar />} />
@@ -69,6 +72,12 @@ function App() {
           <Route path="/reports" element={<ReportAndAnalysis />} /> {/* Reports and Analysis page */}
           <Route path="/leads" element={<LeadManagement />} />
           <Route path="/enquiries" element={<EnquiryManagement />} />
+
+          {/* Master Modules */}
+          <Route path="/master/packages" element={<PackageManagement />} /> {/* Master module: Package Management */}
+          <Route path="/master/packages/:packageId/items" element={<PackageItemPage />} />
+          <Route path="/master/workflow-templates" element={<WorkflowTemplateManagement />} /> {/* New consolidated Workflow Template Management */}
+          {/* Removed old ProjectStageTemplateManagement and ProjectStageElementTemplateManagementPage routes */}
         </Route>
       </Route>
     </Routes>

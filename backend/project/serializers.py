@@ -112,7 +112,7 @@ class ProjectAssetSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ProjectAsset
-        fields = "__all__"
+        fields = '__all__'
 
         # System-managed fields
         read_only_fields = (
@@ -218,3 +218,88 @@ class ClientProjectStageElementSerializer(serializers.ModelSerializer):
             "rejection_notes",
             "assets",
         )
+
+# =====================================================
+# PACKAGE SERIALIZERS
+# =====================================================
+
+class PackageItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PackageItem
+        # Explicitly list fields, omitting 'package' as it's set by the parent PackageSerializer
+        fields = ['id', 'name', 'quantity', 'unit']
+        read_only_fields = ['id']
+
+class PackageSerializer(serializers.ModelSerializer):
+    items = PackageItemSerializer(many=True, read_only=False) # Allow nested creation/update
+
+    class Meta:
+        model = Package
+        fields = '__all__'
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+    def create(self, validated_data):
+        items_data = validated_data.pop('items')
+        package = Package.objects.create(**validated_data)
+        for item_data in items_data:
+            PackageItem.objects.create(package=package, **item_data)
+        return package
+
+    def update(self, instance, validated_data):
+        items_data = validated_data.pop('items', None)
+
+        # Update package fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        # Update or create package items
+        if items_data is not None:
+            # Clear existing items and create new ones (simplistic approach)
+            instance.items.all().delete()
+            for item_data in items_data:
+                PackageItem.objects.create(package=instance, **item_data)
+
+        return instance
+
+# =====================================================
+# PROJECT STAGE TEMPLATE SERIALIZERS
+# =====================================================
+
+class ProjectStageElementTemplateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProjectStageElementTemplate
+        fields = ['id', 'name', 'description', 'default_estimated_hours'] # Explicitly list fields, omitting 'stage'
+        read_only_fields = ['id']
+
+class ProjectStageTemplateSerializer(serializers.ModelSerializer):
+    task_templates = ProjectStageElementTemplateSerializer(many=True, read_only=False) # Nested serializer for elements
+
+    class Meta:
+        model = ProjectStageTemplate
+        fields = '__all__'
+        read_only_fields = ['id']
+
+    def create(self, validated_data):
+        task_templates_data = validated_data.pop('task_templates', [])
+        stage_template = ProjectStageTemplate.objects.create(**validated_data)
+        for template_data in task_templates_data:
+            ProjectStageElementTemplate.objects.create(stage=stage_template, **template_data)
+        return stage_template
+
+    def update(self, instance, validated_data):
+        task_templates_data = validated_data.pop('task_templates', None)
+
+        # Update ProjectStageTemplate fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        # Update or create ProjectStageElementTemplates
+        if task_templates_data is not None:
+            # Simplistic: delete existing and recreate. More robust would be to diff.
+            instance.task_templates.all().delete()
+            for template_data in task_templates_data:
+                ProjectStageElementTemplate.objects.create(stage=instance, **template_data)
+
+        return instance

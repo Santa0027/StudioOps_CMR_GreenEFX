@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import AddClientForm from './AddClientForm';
-import EditClientForm from './EditClientForm'; // Import EditClientForm
+import AddClientForm from '../components/clients/AddClientForm'
+import EditClientForm from '../components/clients/EditClientForm'
 import { getClients, createClient, updateClient, deleteClient } from '../api/api';
 
 function ClientManagement() {

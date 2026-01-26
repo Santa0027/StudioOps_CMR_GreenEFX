@@ -1,66 +1,36 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react'; // Added useEffect
 import { useParams, useNavigate } from 'react-router-dom';
-import VersionHistory from './VersionHistory'; // Import the VersionHistory component
+import VersionHistory from './VersionHistory';
+import { getProject } from '../api/api'; // NEW IMPORT
 
 function ProjectDetails() {
-  const { projectName } = useParams();
+  const { id } = useParams(); // Changed from projectName to id
   const navigate = useNavigate();
+  const [projectData, setProjectData] = useState(null); // State for fetched project data
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [uploadedAssets, setUploadedAssets] = useState([]);
   const [projectVersionFile, setProjectVersionFile] = useState(null);
-  const [showUploadModal, setShowUploadModal] = useState(false); // New state for modal visibility
+  const [showUploadModal, setShowUploadModal] = useState(false);
 
-  const project = {
-    name: decodeURIComponent(projectName),
-    status: 'In Progress',
-    progress: 65,
-    clientName: 'CyberCorp',
-    startDate: '2024-08-01',
-    projectLead: 'Alex Ray',
-    deadline: '2024-12-15',
-    teamMembers: [
-      { name: 'Alex Ray', role: 'Project Lead', avatar: 'https://i.pravatar.cc/150?img=6' },
-      { name: 'Maria Garcia', role: '3D Modeler', avatar: 'https://i.pravatar.cc/150?img=1' },
-      { name: 'Ken Tanaka', role: 'Animator', avatar: 'https://i.pravatar.cc/150?img=8' },
-      { name: 'Chloe Kim', role: 'VFX Artist', avatar: 'https://i.pravatar.cc/150?img=10' },
-    ],
-    initialRequirements: 'Develop a new 3D animated short film featuring a futuristic city. The main character should be a robot sidekick. The theme is exploration and discovery.',
-    referenceLinks: 'https://www.figma.com/file-design-mockups, https://trello.com/project-board',
-    attachments: [
-      { name: 'Project_Brief.pdf', url: '#' },
-      { name: 'Concept_Art.zip', url: '#' },
-    ],
-    assets: [
-      { name: 'Main_Character_v...', type: 'image', thumbnail: 'https://via.placeholder.com/100x70/2d3748/ffffff?text=Asset1' },
-      { name: 'Walk_Cycle_Final...', type: 'image', thumbnail: 'https://via.placeholder.com/100x70/2d3748/ffffff?text=Asset2' },
-      { name: 'Metal_Panel_Tex...', type: 'image', thumbnail: 'https://via.placeholder.com/100x70/2d3748/ffffff?text=Asset3' },
-    ],
-    activityFeed: [
-      {
-        type: 'upload',
-        user: 'Chloe Kim',
-        action: 'uploaded a new asset',
-        assetName: 'Render_Pass_02_vfx.mp4',
-        time: '2 hours ago',
-        avatar: 'https://i.pravatar.cc/150?img=10'
-      },
-      {
-        type: 'comment',
-        user: 'Alex Ray',
-        action: 'left a comment',
-        comment: '"Great work on the latest render pass, @Chloe! The particle effects are looking fantastic."',
-        time: '4 hours ago',
-        avatar: 'https://i.pravatar.cc/150?img=6'
-      },
-      {
-        type: 'task_complete',
-        user: 'Maria Garcia',
-        action: 'completed a task',
-        task: 'Model Main Character Arm',
-        time: '1 day ago',
-        avatar: 'https://i.pravatar.cc/150?img=1'
-      },
-    ],
-  };
+  useEffect(() => {
+    const fetchProject = async () => {
+      try {
+        setLoading(true);
+        const res = await getProject(id); // Use id from useParams
+        setProjectData(res.data);
+      } catch (err) {
+        console.error('Failed to fetch project details:', err);
+        setError('Failed to fetch project details.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (id) {
+      fetchProject();
+    }
+  }, [id]); // Depend on id
 
   const handleAssetUpload = (event) => {
     const files = event.target.files;
@@ -91,11 +61,11 @@ function ProjectDetails() {
     if (projectVersionFile) {
       const formData = new FormData();
       formData.append('projectVersion', projectVersionFile);
-      formData.append('projectName', project.name);
+      formData.append('projectName', projectData.name);
 
       try {
         // Replace with your actual API endpoint
-        const response = await fetch(`/api/projects/${encodeURIComponent(project.name)}/upload-version`, {
+        const response = await fetch(`/api/projects/${encodeURIComponent(projectData.id)}/upload-version`, {
           method: 'POST',
           body: formData,
           // Depending on your backend, you might need to set headers like 'Content-Type': 'multipart/form-data'
@@ -121,18 +91,22 @@ function ProjectDetails() {
     }
   };
 
+  if (loading) return <div className="min-h-screen bg-black text-white p-6">Loading project details...</div>;
+  if (error) return <div className="min-h-screen bg-black text-white p-6 text-red-500">Error: {error}</div>;
+  if (!projectData) return <div className="min-h-screen bg-black text-white p-6">Project not found.</div>;
+
   return (
     <div className="min-h-screen bg-black text-white p-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center">
-          <h1 className="text-4xl font-bold mr-4">{project.name}</h1>
+          <h1 className="text-4xl font-bold mr-4">{projectData.name}</h1>
           <span
             className={`px-3 py-1 rounded-full text-sm font-semibold ${getStatusColor(
-              project.status
+              projectData.status
             )}`}
           >
-            {project.status}
+            {projectData.status}
           </span>
         </div>
         <div className="flex items-center space-x-4">
@@ -158,7 +132,7 @@ function ProjectDetails() {
             </svg>
           </div>
           <button
-            onClick={() => navigate(`/projects/${encodeURIComponent(project.name)}/version-history`)}
+            onClick={() => navigate(`/projects/${encodeURIComponent(projectData.id)}/version-history`)} // Using projectData.id
             className="p-2 rounded-full bg-gray-800 hover:bg-gray-700"
             title="View Version History"
           >
@@ -260,7 +234,7 @@ function ProjectDetails() {
 
       {/* Breadcrumbs */}
       <div className="text-gray-400 mb-6">
-        <span>All Projects</span> / <span className="text-white">{project.name}</span>
+        <span>All Projects</span> / <span className="text-white">{projectData.name}</span>
       </div>
 
       <div className="relative"> {/* Changed to relative for floating element positioning */}
@@ -273,13 +247,13 @@ function ProjectDetails() {
               <div className="flex mb-2 items-center justify-between">
                 <div>
                   <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-white bg-gradient-to-r from-blue-600 to-purple-600">
-                    {project.progress}%
+                    {projectData.progress}%
                   </span>
                 </div>
               </div>
               <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-purple-200">
                 <div
-                  style={{ width: `${project.progress}%` }}
+                  style={{ width: `${projectData.progress}%` }}
                   className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-blue-500"
                 ></div>
               </div>
@@ -293,19 +267,19 @@ function ProjectDetails() {
             <div className="grid grid-cols-2 gap-4 mt-6">
               <div>
                 <p className="text-gray-300 text-sm">Client Name</p>
-                <p className="font-semibold">{project.clientName}</p>
+                <p className="font-semibold">{projectData.client.name}</p>
               </div>
               <div>
                 <p className="text-gray-300 text-sm">Start Date</p>
-                <p className="font-semibold">{project.startDate}</p>
+                <p className="font-semibold">{projectData.start_date}</p>
               </div>
               <div>
                 <p className="text-gray-300 text-sm">Project Lead</p>
-                <p className="font-semibold">{project.projectLead}</p>
+                <p className="font-semibold">{projectData.project_lead.username}</p>
               </div>
               <div>
                 <p className="text-gray-300 text-sm">Deadline</p>
-                <p className="font-semibold">{project.deadline}</p>
+                <p className="font-semibold">{projectData.end_date}</p>
               </div>
             </div>
           </div>
@@ -316,16 +290,17 @@ function ProjectDetails() {
               <div className="bg-gray-800 p-6 rounded-lg shadow-lg h-full">
                 <h2 className="text-2xl font-bold mb-4">Team Members</h2>
                 <div className="space-y-4">
-                  {project.teamMembers.map((member, index) => (
+                  {projectData.assigned_users?.map((member, index) => (
                     <div key={index} className="flex items-center">
                       <img
                         className="h-10 w-10 rounded-full mr-4"
-                        src={member.avatar}
-                        alt={member.name}
+                        src={member.profile_picture || `https://i.pravatar.cc/150?img=${index + 1}`} // Assuming profile_picture exists or fallback
+                        alt={member.username}
                       />
                       <div>
-                        <p className="font-semibold">{member.name}</p>
-                        <p className="text-sm text-gray-400">{member.role}</p>
+                        <p className="font-semibold">{member.username}</p>
+                        {/* Assuming role might be part of the assignment or user model */}
+                        {/* <p className="text-sm text-gray-400">{member.role}</p> */}
                       </div>
                     </div>
                   ))}
@@ -370,21 +345,21 @@ function ProjectDetails() {
           {/* Initial Requirements */}
           <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
             <h2 className="text-2xl font-bold mb-4">Initial Requirements</h2>
-            <p className="text-gray-300 whitespace-pre-wrap">{project.initialRequirements}</p>
+            <p className="text-gray-300 whitespace-pre-wrap">{projectData.description}</p>
           </div>
 
           {/* Reference Links */}
           <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
             <h2 className="text-2xl font-bold mb-4">Reference Links</h2>
-            <p className="text-blue-400 break-all">{project.referenceLinks}</p>
+            <p className="text-blue-400 break-all">{projectData.reference_links}</p>
           </div>
 
           {/* Attachments */}
           <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
             <h2 className="text-2xl font-bold mb-4">Attachments</h2>
-            {project.attachments.length > 0 ? (
+            {projectData.attachments.length > 0 ? (
               <div className="space-y-2">
-                {project.attachments.map((attachment, index) => (
+                {projectData.attachments.map((attachment, index) => (
                   <a key={index} href={attachment.url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline flex items-center">
                     <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.102 1.101m-4.507 4.507a2 2 0 11-2.828-2.828l.793-.793A4.001 4.001 0 0112 10.172v.001z"></path></svg>
                     {attachment.name}
@@ -429,7 +404,7 @@ function ProjectDetails() {
               </label>
             </div>
             <div className="grid grid-cols-3 gap-4">
-              {project.assets.map((asset, index) => (
+              {projectData.assets.map((asset, index) => (
                 <div key={index} className="bg-gray-700 rounded-lg overflow-hidden">
                   <img
                     className="w-full h-24 object-cover"
@@ -454,7 +429,7 @@ function ProjectDetails() {
           {/* Version History Section */}
           <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
             <h2 className="text-2xl font-bold mb-4">Project Versions</h2>
-            <VersionHistory projectName={project.name} />
+            <VersionHistory projectId={projectData.id} />
           </div>
         </div>
 
@@ -462,7 +437,7 @@ function ProjectDetails() {
         <div className="md:col-span-1 bg-gray-800 p-6 rounded-lg shadow-lg fixed right-6 top-24 w-[29rem] h-[calc(100vh-12rem)] overflow-y-auto"> {/* Adjusted width for better alignment */}
           <h2 className="text-2xl font-bold mb-4">Activity Feed</h2>
           <div className="space-y-6">
-            {project.activityFeed.map((activity, index) => (
+            {projectData.activity_feed.map((activity, index) => (
               <div key={index} className="flex space-x-4">
                 <img
                   className="h-10 w-10 rounded-full"
