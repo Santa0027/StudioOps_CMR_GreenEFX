@@ -1,78 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-
-// Dummy data for task details based on taskId
-const getTaskDetails = (taskId) => {
-  switch (taskId) {
-    case '1':
-      return {
-        id: '1',
-        title: 'Character Rigging - Final Pass',
-        project: 'Project Nebula',
-        mainCharacter: 'Main Character',
-        workType: '3d_animation',
-        imageUrl: 'https://cdn.pixabay.com/photo/2023/11/27/12/35/ai-generated-8395568_1280.jpg',
-        timeTracked: '01:23:45',
-        notes: [
-          { id: 1, user: 'Jane Doe', comment: 'Can we adjust the elbow joint rotation limits?', type: 'feedback', timestamp: '2025-11-30 14:00' },
-          { id: 2, user: 'John Smith', comment: 'Mesh deformation looks clean on arm movements.', type: 'feedback', timestamp: '2025-11-30 14:15' },
-          { id: 3, user: 'Project Manager', comment: 'Overall progress is looking solid. Let\'s aim to wrap this up by EOD.', type: 'comment', avatar: 'https://i.pravatar.cc/150?img=12', timestamp: '2025-11-30 15:00' },
-        ],
-        reviewData: {
-          keyAreas: ['Joint Limits', 'Skinning', 'Controls'],
-          rigComplexity: 'High',
-        },
-      };
-    case '2':
-      return {
-        id: '2',
-        title: 'Animate Walk Cycle - Main Character (Rework)',
-        project: 'Project Cygnus',
-        mainCharacter: 'Main Character',
-        workType: 'video_editing',
-        imageUrl: 'https://cdn.pixabay.com/photo/2016/11/29/05/45/film-1867140_1280.jpg',
-        timeTracked: '02:00:10',
-        notes: [
-          { id: 1, user: 'Client', comment: 'The pacing in the first 10 seconds feels a bit off, can we speed it up slightly?', type: 'feedback', timestamp: '2025-11-29 10:30' },
-          { id: 2, user: 'Editor', comment: 'Applying a new color grade for consistency. Reviewing cuts for smoothness.', type: 'comment', avatar: 'https://i.pravatar.cc/150?img=13', timestamp: '2025-11-29 11:00' },
-        ],
-        reviewData: {
-          timelineSegments: ['Intro', 'Main Loop', 'Outro'],
-          fps: 24,
-        },
-      };
-    case '3':
-      return {
-        id: '3',
-        title: 'Concept Art for Alien Flora (Assigned)',
-        project: 'Project Orion',
-        mainCharacter: 'Environment',
-        workType: 'graphic_design',
-        imageUrl: 'https://cdn.pixabay.com/photo/2017/08/30/01/05/milky-way-2695569_1280.jpg',
-        timeTracked: '00:45:00',
-        notes: [
-          { id: 1, user: 'Art Director', comment: 'Experiment with more bioluminescent elements.', type: 'feedback', timestamp: '2025-11-28 09:00' },
-          { id: 2, user: 'Artist', comment: 'Working on variations for the plant structures.', type: 'comment', avatar: 'https://i.pravatar.cc/150?img=14', timestamp: '2025-11-28 10:00' },
-        ],
-        reviewData: {
-          colorPalette: ['Green-Blue', 'Purple-Pink'],
-          styleGuide: 'Sci-Fi Organic',
-        },
-      };
-    default:
-      return {
-        id: taskId,
-        title: 'Generic Task Details',
-        project: 'Unknown Project',
-        mainCharacter: 'N/A',
-        workType: 'normal',
-        imageUrl: 'https://cdn.pixabay.com/photo/2017/08/30/01/05/milky-way-2695569_1280.jpg',
-        timeTracked: '00:00:00',
-        notes: [],
-        reviewData: {},
-      };
-  }
-};
+import { getProjectStageElement } from '../api/api'; // Import the API function
+import Modal from './Modal'; // Assuming a Modal component for error/loading
 
 const GraphicDesignReview = ({ reviewData }) => (
   <div className="bg-gray-700 p-4 rounded-lg mb-4">
@@ -104,37 +33,59 @@ const VideoEditingReview = ({ reviewData }) => (
 function TaskDetails() {
   const { taskId } = useParams();
   const [task, setTask] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [newComment, setNewComment] = useState('');
   const [newCommentType, setNewCommentType] = useState('comment');
 
   useEffect(() => {
-    // Simulate fetching task details
-    setTask(getTaskDetails(taskId));
+    const fetchTask = async () => {
+      try {
+        setLoading(true);
+        const response = await getProjectStageElement(taskId);
+        setTask(response.data);
+      } catch (err) {
+        setError("Failed to fetch task details.");
+        console.error("Error fetching task details:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchTask();
   }, [taskId]);
 
-  if (!task) {
-    return <div className="min-h-screen bg-black text-white p-6">Loading task details...</div>;
-  }
+  const formatHours = (totalHours) => {
+    if (totalHours === null || totalHours === undefined) {
+        return '00:00:00';
+    }
+    const hours = Math.floor(totalHours);
+    const minutes = Math.floor((totalHours - hours) * 60);
+    const seconds = Math.floor(((totalHours - hours) * 60 - minutes) * 60);
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  };
 
   const handleAddComment = () => {
-    if (newComment.trim()) {
-      const updatedNotes = [
-        ...task.notes,
-        {
-          id: task.notes.length + 1,
-          user: 'Current User', // Replace with actual user
-          comment: newComment,
-          type: newCommentType,
-          timestamp: new Date().toLocaleString(),
-          avatar: 'https://i.pravatar.cc/150?img=15', // Placeholder for current user
-        },
-      ];
-      setTask({ ...task, notes: updatedNotes });
+    if (newComment.trim() && task) {
+      // This is a mock implementation. In a real app, you would post the comment to an API
+      // and then update the state with the new comment from the API response.
+      const newNote = {
+        id: task.versions.length + 1,
+        created_by_name: 'Current User', // Replace with actual user from auth context
+        description: newComment,
+        status: newCommentType, // 'feedback' or 'comment'
+        created_at: new Date().toISOString(),
+        avatar: 'https://i.pravatar.cc/150?img=15', // Placeholder for current user
+      };
+      const updatedTask = {
+        ...task,
+        versions: [...task.versions, newNote]
+      }
+      setTask(updatedTask);
       setNewComment('');
     }
   };
 
-  const getReviewComponent = (workType, reviewData) => {
+  const getReviewComponent = (workType, reviewData = {}) => {
     switch (workType) {
       case 'graphic_design':
         return <GraphicDesignReview reviewData={reviewData} />;
@@ -151,26 +102,45 @@ function TaskDetails() {
 
   const getNoteBorderColor = (type) => {
     switch (type) {
-      case 'feedback':
+      case 'rejected':
         return 'border-red-500';
-      case 'comment':
-        return 'border-blue-500';
+      case 'approved':
+        return 'border-green-500';
       default:
-        return 'border-gray-500';
+        return 'border-blue-500';
     }
   };
 
+  if (loading) {
+    return (
+      <Modal isOpen={loading} onClose={() => {}} title="Loading Task">
+        <p>Loading task details...</p>
+      </Modal>
+    );
+  }
+
+  if (error) {
+    return (
+      <Modal isOpen={!!error} onClose={() => setError(null)} title="Error">
+        <p>{error}</p>
+      </Modal>
+    );
+  }
+
+  if (!task) {
+    return <div className="min-h-screen bg-black text-white p-6">Task not found.</div>;
+  }
 
   return (
     <div className="min-h-screen bg-black text-white p-6">
       {/* Breadcrumbs */}
       <div className="text-gray-400 mb-6">
-        <span>{task.project}</span>  <span>{task.mainCharacter}</span>  <span>{task.type}</span> ({task.workType?.replace('_', ' ').toUpperCase()})
+        <span>{task.project_name}</span> &gt; <span>{task.template_name}</span> ({task.stage?.project?.service_type?.replace('_', ' ').toUpperCase()})
       </div>
 
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-4xl font-bold">{task.title}</h1>
+        <h1 className="text-4xl font-bold">{task.template_name}</h1>
         <div className="flex items-center space-x-4">
           <button className="p-2 rounded-full bg-gray-800 hover:bg-gray-700">
             <svg
@@ -197,9 +167,9 @@ function TaskDetails() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Main Content Area */}
         <div className="md:col-span-2 bg-gray-800 rounded-lg shadow-lg relative p-6"> {/* Added p-6 here */}
-          <img src={task.imageUrl} alt={task.title} className="w-full h-auto rounded-lg mb-4" /> {/* Added mb-4 */}
+          <img src={task.assets.length > 0 ? task.assets[0].file : 'https://via.placeholder.com/600x400?text=No+Asset'} alt={task.template_name} className="w-full h-auto rounded-lg mb-4" /> {/* Added mb-4 */}
           {/* Specialized Review Area */}
-          {getReviewComponent(task.workType, task.reviewData)}
+          {getReviewComponent(task.stage?.project?.service_type, {})}
 
           <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-4 bg-gray-900 bg-opacity-75 p-3 rounded-full">
             <button className="p-2 rounded-full hover:bg-gray-700 text-white">
@@ -232,11 +202,11 @@ function TaskDetails() {
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold">Actions</h2>
               <span className="bg-blue-600 px-3 py-1 rounded-full text-xs font-semibold">
-                IN PROGRESS
+                {task.status?.toUpperCase()}
               </span>
             </div>
             <p className="text-gray-400 text-sm mb-2">Time Tracked</p>
-            <p className="text-3xl font-bold mb-4">{task.timeTracked}</p>
+            <p className="text-3xl font-bold mb-4">{formatHours(task.actual_hours)}</p>
             <button className="w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center mb-4">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -248,7 +218,7 @@ function TaskDetails() {
                   fillRule="evenodd"
                   d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 011-1h.01a1 1 0 110 2H8a1 1 0 01-1-1zm3 0a1 1 0 011-1h.01a1 1 0 110 2H11a1 1 0 01-1-1zm3 0a1 1 0 011-1h.01a1 1 0 110 2H14a1 1 0 01-1-1z"
                   clipRule="evenodd"
-                />
+              />
               </svg>
               Pause Timer
             </button>
@@ -280,22 +250,22 @@ function TaskDetails() {
           <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
             <h2 className="text-xl font-bold mb-4">Notes / Feedback</h2>
             <div className="space-y-6">
-              {task.notes.map((note) => (
-                <div key={note.id} className={`flex items-start space-x-3 p-3 rounded-lg border-l-4 ${getNoteBorderColor(note.type)}`}>
-                  {note.type === 'comment' && note.avatar ? (
+              {task.versions?.map((note) => (
+                <div key={note.id} className={`flex items-start space-x-3 p-3 rounded-lg border-l-4 ${getNoteBorderColor(note.status)}`}>
+                  {note.avatar ? (
                     <img
                       className="h-8 w-8 rounded-full flex-shrink-0"
                       src={note.avatar}
-                      alt={note.user}
+                      alt={note.created_by_name}
                     />
                   ) : (
                     <div className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-gray-700 text-white text-xs font-bold">
-                      {note.user.charAt(0)}
+                      {note.created_by_name?.charAt(0)}
                     </div>
                   )}
                   <div>
-                    <p className="font-semibold text-sm">{note.user} <span className="text-gray-500 text-xs ml-2">{note.timestamp}</span></p>
-                    <p className="text-gray-300 text-sm">{note.comment}</p>
+                    <p className="font-semibold text-sm">{note.created_by_name} <span className="text-gray-500 text-xs ml-2">{new Date(note.created_at).toLocaleString()}</span></p>
+                    <p className="text-gray-300 text-sm">{note.description}</p>
                   </div>
                 </div>
               ))}

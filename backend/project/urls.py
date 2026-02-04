@@ -37,11 +37,16 @@ router.register(
 # - Track progress & contribution %
 # - Internal rejection notes
 # - Used by Editors / Designers / PMs
-router.register(
+stage_elements_router = router.register(
     "stage-elements",
     ProjectStageElementViewSet,
     basename="stage-elements"
 )
+
+# Nested router for Task Assignments
+assignments_router = routers.NestedDefaultRouter(router, r'stage-elements', lookup='task')
+assignments_router.register(r'assignments', ProjectTaskAssignmentViewSet, basename='task-assignments')
+
 
 # Project Assets (Hybrid Storage)
 # - Upload source files (PSD, AE, PR, etc.)
@@ -142,7 +147,7 @@ router.register(
 # POST /api/assets/
 # GET /api/client/assets/
 # All CRUD and ReadOnly routes based on viewsets
-urlpatterns = router.urls + packages_router.urls + stage_templates_router.urls
+urlpatterns = router.urls + packages_router.urls + stage_templates_router.urls + assignments_router.urls
 urlpatterns += [
     path("client/assets/<int:asset_id>/stream/", AssetStreamView.as_view(), name="asset-stream"),
 ]

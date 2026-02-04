@@ -104,6 +104,27 @@ class Project(models.Model):
     def __str__(self):
         return self.name
 
+    @property
+    def overall_progress(self):
+        # Calculate total contribution of all elements
+        total_contribution = self.stages.aggregate(
+            total=Sum("elements__contribution_percentage")
+        )["total"]
+
+        if not total_contribution:
+            return 0  # No elements, so 0% progress
+
+        # Calculate completed contribution
+        completed_contribution = self.stages.filter(
+            elements__status="completed"
+        ).aggregate(
+            completed=Sum("elements__contribution_percentage")
+        )["completed"] or 0
+
+        # Calculate progress as a percentage
+        progress = (completed_contribution / total_contribution) * 100
+        return round(progress, 2)
+
 
 # =====================================================
 # WORKFLOW TEMPLATES (GLOBAL)
@@ -172,6 +193,27 @@ class ProjectStage(models.Model):
 
     def __str__(self):
         return f"{self.project.name} → {self.template.name}"
+
+    @property
+    def stage_progress(self):
+        # Calculate total contribution of all elements within this stage
+        total_contribution = self.elements.aggregate(
+            total=Sum("contribution_percentage")
+        )["total"]
+
+        if not total_contribution:
+            return 0  # No elements, so 0% progress for this stage
+
+        # Calculate completed contribution for this stage
+        completed_contribution = self.elements.filter(
+            status="completed"
+        ).aggregate(
+            completed=Sum("contribution_percentage")
+        )["completed"] or 0
+
+        # Calculate progress as a percentage
+        progress = (completed_contribution / total_contribution) * 100
+        return round(progress, 2)
 
 
 class ProjectStageElement(models.Model):

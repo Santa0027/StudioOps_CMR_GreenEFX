@@ -17,6 +17,7 @@ function Projects() {
     try {
       setLoading(true);
       const res = await getProjects();
+      console.log(res.data)
       setProjects(res.data);
     } catch (err) {
       setError(err);
@@ -170,7 +171,13 @@ function Projects() {
                 Project Name
               </th>
               <th className="px-5 py-3 border-b-2 border-gray-700 bg-gray-700 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">
+                Client
+              </th>
+              <th className="px-5 py-3 border-b-2 border-gray-700 bg-gray-700 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">
                 Status
+              </th>
+              <th className="px-5 py-3 border-b-2 border-gray-700 bg-gray-700 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">
+                Priority
               </th>
               <th className="px-5 py-3 border-b-2 border-gray-700 bg-gray-700 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">
                 Team
@@ -198,6 +205,9 @@ function Projects() {
                   </button>
                 </td>
                 <td className="px-5 py-5 border-b border-gray-700 bg-gray-800 text-sm">
+                  {project.client_name}
+                </td>
+                <td className="px-5 py-5 border-b border-gray-700 bg-gray-800 text-sm">
                   <span
                     className={`relative inline-block px-3 py-1 font-semibold text-white leading-tight rounded-full ${getStatusColor(
                       project.status
@@ -207,29 +217,32 @@ function Projects() {
                   </span>
                 </td>
                 <td className="px-5 py-5 border-b border-gray-700 bg-gray-800 text-sm">
+                  {project.priority}
+                </td>
+                <td className="px-5 py-5 border-b border-gray-700 bg-gray-800 text-sm">
                   <div className="flex -space-x-2 overflow-hidden">
                     {project.assigned_users && project.assigned_users.map((user, i) => (
                       <img
                         key={i}
                         className="inline-block h-8 w-8 rounded-full ring-2 ring-gray-800"
-                        src={user.profile_picture || `https://i.pravatar.cc/150?img=${i + 1}`} // Use user's profile picture
-                        alt={user.username}
-                        title={user.username}
+                        src={user.profile_picture || `https://i.pravatar.cc/150?img=${user.id}`} // Use user's ID for consistent avatar
+                        alt={user.name}
+                        title={user.name}
                       />
                     ))}
                   </div>
                 </td>
                 <td className="px-5 py-5 border-b border-gray-700 bg-gray-800 text-sm">
-                  {project.due_date} {/* Assuming due_date field */}
+                  {project.due_date}
                 </td>
                 <td className="px-5 py-5 border-b border-gray-700 bg-gray-800 text-sm">
                   <div className="w-full bg-gray-700 rounded-full h-2.5">
                     <div
                       className="bg-blue-600 h-2.5 rounded-full"
-                      style={{ width: `${project.progress_percentage || 0}%` }} // Assuming progress_percentage field
+                      style={{ width: `${Math.round(project.progress_percentage || 0)}%` }}
                     ></div>
                   </div>
-                  <span className="ml-2 text-xs">{project.progress_percentage || 0}%</span>
+                  <span className="ml-2 text-xs">{Math.round(project.progress_percentage || 0)}%</span>
                 </td>
                 <td className="px-5 py-5 border-b border-gray-700 bg-gray-800 text-sm">
                   <div className="flex items-center space-x-3">

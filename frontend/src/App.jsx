@@ -8,7 +8,7 @@ import Calendar from './components/Calendar';
 import Settings from './components/Settings';
 import ClientManagement from './page/ClientManagement';
 import UserManagement from './components/UserManagement'; // Import UserManagement
-import ProjectDetails from './components/ProjectDetails'; // Import ProjectDetails
+import ProjectDetails from './page/ProjectDetails'; // Import ProjectDetails
 import PrivateRoute from './components/PrivateRoute'; // Import PrivateRoute
 import Layout from './components/Layout'; // Import Layout
 import VersionHistory from './components/VersionHistory'; // Import VersionHistory

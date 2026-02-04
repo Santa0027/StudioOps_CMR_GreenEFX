@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { updateProject, getClients, getEmployees } from '../api/api'; // Import API functions
+import { updateProject, getClients, getEmployees, getProjectStageTemplates } from '../api/api'; // Import API functions
 
 const mockPackages = [
   {
@@ -28,18 +28,34 @@ const mockPackages = [
   },
 ];
 
+const priorityMap = {
+    'low': 'Low',
+    'medium': 'Medium',
+    'high': 'High',
+    'critical': 'Critical',
+};
+
+const serviceTypeMap = {
+    '3d_animation': '3D Animation',
+    'graphic_design': 'Graphic Design',
+    'video_editing': 'Video Editing',
+    'motion_graphics': 'Motion Graphics',
+    'vfx': 'VFX',
+    'package': 'Package',
+};
+
 const EditProjectForm = ({ project, onClose, onProjectUpdated }) => {
   const [projectName, setProjectName] = useState(project.name || '');
   const [clientId, setClientId] = useState(project.client || '');
-  const [priority, setPriority] = useState(project.priority || 'Medium');
-  const [serviceType, setServiceType] = useState(project.service_type || '3D Animation');
+  const [priority, setPriority] = useState(project.priority || 'medium');
+  const [serviceType, setServiceType] = useState(project.service_type || '3d_animation');
   const [selectionMode, setSelectionMode] = useState('package'); // Assume default or determine from project data
   const [selectedPackage, setSelectedPackage] = useState(''); // Need to map project services to packages
   const [singleServiceName, setSingleServiceName] = useState(''); // Need to map project services to single service
   const [singleServiceBudget, setSingleServiceBudget] = useState('');
   const [singleServiceHours, setSingleServiceHours] = useState('');
-  const [startDate, setStartDate] = useState(project.start_date || '');
-  const [dueDate, setDueDate] = useState(project.due_date || '');
+  const [startDate, setStartDate] = useState(project.start_date ? new Date(project.start_date).toISOString().split('T')[0] : '');
+  const [dueDate, setDueDate] = useState(project.due_date ? new Date(project.due_date).toISOString().split('T')[0] : '');
   const [budget, setBudget] = useState(project.budget || '');
   const [estimateHours, setEstimateHours] = useState(project.estimated_hours || '');
   const [teamMembers, setTeamMembers] = useState(project.assigned_users ? project.assigned_users.map(user => user.id) : []);
@@ -51,6 +67,8 @@ const EditProjectForm = ({ project, onClose, onProjectUpdated }) => {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState(null);
+  const [workflowTemplates, setWorkflowTemplates] = useState([]); // New state for available templates
+  const [selectedWorkflowTemplates, setSelectedWorkflowTemplates] = useState([]); // New state for selected templates
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -59,9 +77,11 @@ const EditProjectForm = ({ project, onClose, onProjectUpdated }) => {
         setClients(clientsRes.data);
         const employeesRes = await getEmployees();
         setEmployees(employeesRes.data);
+        const templatesRes = await getProjectStageTemplates(); // Fetch workflow templates
+        setWorkflowTemplates(templatesRes.data);
       } catch (err) {
         console.error('Failed to fetch initial data:', err);
-        setFormError('Failed to load clients or employees.');
+        setFormError('Failed to load clients, employees, or workflow templates.'); // Updated error message
       }
     };
     fetchInitialData();
@@ -70,16 +90,17 @@ const EditProjectForm = ({ project, onClose, onProjectUpdated }) => {
   useEffect(() => {
     setProjectName(project.name || '');
     setClientId(project.client || '');
-    setPriority(project.priority || 'Medium');
-    setServiceType(project.service_type || '3D Animation');
-    setStartDate(project.start_date || '');
-    setDueDate(project.due_date || '');
+    setPriority(project.priority || 'medium');
+    setServiceType(project.service_type || '3d_animation');
+    setStartDate(project.start_date ? new Date(project.start_date).toISOString().split('T')[0] : '');
+    setDueDate(project.due_date ? new Date(project.due_date).toISOString().split('T')[0] : '');
     setBudget(project.budget || '');
     setEstimateHours(project.estimated_hours || '');
     setTeamMembers(project.assigned_users ? project.assigned_users.map(user => user.id) : []);
     setDescription(project.description || '');
     setInitialRequirements(project.initial_requirements || '');
     setReferenceLinks(project.reference_links || '');
+    setSelectedWorkflowTemplates(project.workflow_templates ? project.workflow_templates.map(template => template.id) : []); // Initialize selected workflow templates
     // Reset selection mode and package/single service fields if needed based on project data
   }, [project]);
 
@@ -94,7 +115,6 @@ const EditProjectForm = ({ project, onClose, onProjectUpdated }) => {
           setDescription(pkg.description);
           setInitialRequirements(pkg.items.map(item => `${item.quantity} ${item.unit} ${item.name}`).join(', '));
         }
-      } else {
         // If no package selected, clear fields, but only if they weren't pre-filled by the project prop
         if (!project.budget && !project.estimated_hours) {
           setBudget('');
@@ -107,7 +127,7 @@ const EditProjectForm = ({ project, onClose, onProjectUpdated }) => {
       setBudget(singleServiceBudget);
       setEstimateHours(singleServiceHours);
       setDescription(`Single service: ${singleServiceName}`);
-      setInitialRequirements(`Service: ${singleServiceName}, Budget: $${singleServiceBudget}, Estimated Hours: ${singleServiceHours}`);
+      setInitialRequirements(`Service: ${singleServiceName}, Budget: ${singleServiceBudget}, Estimated Hours: ${singleServiceHours}`);
     }
   }, [selectedPackage, selectionMode, singleServiceName, singleServiceBudget, singleServiceHours, project]);
 
@@ -116,29 +136,23 @@ const EditProjectForm = ({ project, onClose, onProjectUpdated }) => {
     setLoading(true);
     setFormError(null);
 
-    const formData = new FormData();
-    formData.append('name', projectName);
-    formData.append('client', clientId);
-    formData.append('priority', priority);
-    formData.append('service_type', serviceType);
-    formData.append('start_date', startDate);
-    formData.append('due_date', dueDate);
-    formData.append('budget', budget);
-    formData.append('estimated_hours', estimateHours);
-    formData.append('description', description);
-    formData.append('initial_requirements', initialRequirements);
-    formData.append('reference_links', referenceLinks);
-
-    teamMembers.forEach(memberId => {
-      formData.append('assigned_users', memberId);
-    });
-
-    attachments.forEach(file => {
-      formData.append('attachments', file);
-    });
+    const projectData = {
+        name: projectName,
+        client: clientId,
+        priority: priority,
+        service_type: serviceType,
+        start_date: startDate,
+        due_date: dueDate,
+        budget: budget,
+        estimated_hours: estimateHours,
+        description: description,
+        initial_requirements: initialRequirements,
+        reference_links: referenceLinks,
+        assigned_users: teamMembers,
+    };
 
     try {
-      await updateProject(project.id, formData);
+      await updateProject(project.id, projectData);
       alert('Project updated successfully!');
       if (onProjectUpdated) onProjectUpdated();
       if (onClose) onClose();
@@ -190,8 +204,21 @@ const EditProjectForm = ({ project, onClose, onProjectUpdated }) => {
     setTeamMembers(selectedMembers);
   };
 
-  const priorityOptions = ['Low', 'Medium', 'High', 'Critical'];
-  const serviceTypeOptions = ['3D Animation', 'Graphic Design', 'Video Editing', 'Motion Graphics', 'VFX', 'Package'];
+  const handleTemplateChange = (e) => {
+    const { value, checked } = e.target;
+    const templateId = parseInt(value);
+    setSelectedWorkflowTemplates(prev => {
+        if (checked) {
+            return [...prev, templateId];
+        } else {
+            return prev.filter(id => id !== templateId);
+        }
+    });
+  };
+
+
+  const priorityOptions = Object.keys(priorityMap);
+  const serviceTypeOptions = Object.keys(serviceTypeMap);
 
   return (
     <div className="bg-[#1C1C1E] p-8 rounded-lg shadow-lg max-w-4xl mx-auto border border-gray-700 max-h-[90vh] overflow-y-auto">
@@ -316,7 +343,7 @@ const EditProjectForm = ({ project, onClose, onProjectUpdated }) => {
                   >
                     <option value="">Select a service</option>
                     {serviceTypeOptions.map(option => (
-                      <option key={option} value={option}>{option}</option>
+                      <option key={option} value={option}>{serviceTypeMap[option]}</option>
                     ))}
                   </select>
                   <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-300">
@@ -364,7 +391,7 @@ const EditProjectForm = ({ project, onClose, onProjectUpdated }) => {
                 }`}
                 onClick={() => setPriority(option)}
               >
-                {option}
+                {priorityMap[option]}
               </button>
             ))}
           </div>
@@ -382,7 +409,7 @@ const EditProjectForm = ({ project, onClose, onProjectUpdated }) => {
                 }`}
                 onClick={() => setServiceType(option)}
               >
-                {option}
+                {serviceTypeMap[option]}
               </button>
             ))}
           </div>

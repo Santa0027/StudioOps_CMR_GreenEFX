@@ -73,8 +73,20 @@ export const createProject = (data) => api.post("/projects/", data);
 export const updateProject = (id, data) => api.put(`/projects/${id}/`, data);
 export const deleteProject = (id) => api.delete(`/projects/${id}/`);
 export const getProjectVersions = (projectId) => api.get(`/projects/${projectId}/versions/`);
+export const uploadProjectVersion = (projectId, data) => api.post(`/projects/${projectId}/upload-version/`, data);
 
 // --------------------------------------------- end Project APIs -----------------------------------
+// ---------------------------------------------- Task Assignment APIs --------------------------------
+export const createTaskAssignment = (taskId, assignmentData) => api.post(`/stage-elements/${taskId}/assignments/`, assignmentData);
+// --------------------------------------------- end Task Assignment APIs -----------------------------
+
+// ---------------------------------------------- Project Stage Element APIs (Tasks) -----------------
+export const getProjectStageElements = (projectId) => api.get(`/stage-elements/`, { params: { project_id: projectId } });
+export const getProjectStageElement = (id) => api.get(`/stage-elements/${id}/`);
+export const createProjectStageElement = (data) => api.post("/stage-elements/", data);
+export const updateProjectStageElement = (id, data) => api.put(`/stage-elements/${id}/`, data);
+export const deleteProjectStageElement = (id) => api.delete(`/stage-elements/${id}/`);
+// --------------------------------------------- end Project Stage Element APIs --------------------
 
 // ---------------------------------------------- Package APIs -------------------------------------
 

@@ -1,282 +1,233 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import CreateNewTaskForm from './CreateNewTaskForm';
-import AssignTaskForm from './AssignTaskForm';
+import { getProjectStageElements, getProjects, getEmployees, createTaskAssignment } from '../api/api'; // Import the API functions
+import Modal from './Modal'; // Assuming a Modal component for error/loading
 
 function TaskPage() {
   const navigate = useNavigate();
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [isAssignFormOpen, setIsAssignFormOpen] = useState(false);
   const [currentFilter, setCurrentFilter] = useState('all'); // 'all', 'rework', 'assigned'
+  const [tasks, setTasks] = useState([]);
+  const [projects, setProjects] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [assignableTask, setAssignableTask] = useState(null);
+  const [selectedUser, setSelectedUser] = useState('');
+
+  const processTasks = (tasksData) => {
+    const tasksByStage = tasksData.reduce((acc, task) => {
+      const stageName = task.stage_name;
+      if (!acc[stageName]) {
+        acc[stageName] = [];
+      }
+      acc[stageName].push(task);
+      return acc;
+    }, {});
+
+    let nextAssignableTask = null;
+    for (const stageName in tasksByStage) {
+      const stageTasks = tasksByStage[stageName].sort((a, b) => a.order - b.order);
+      const firstPending = stageTasks.find(t => t.status !== 'completed');
+      if (firstPending) {
+        nextAssignableTask = firstPending;
+        break; // Found the first assignable task
+      }
+    }
+    setAssignableTask(nextAssignableTask);
+  };
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const [tasksResponse, projectsResponse, employeesResponse] = await Promise.all([
+          getProjectStageElements(),
+          getProjects(),
+          getEmployees(),
+        ]);
+        setTasks(tasksResponse.data);
+        setProjects(projectsResponse.data);
+        setEmployees(employeesResponse.data);
+        processTasks(tasksResponse.data);
+      } catch (err) {
+        setError("Failed to fetch data.");
+        console.error("Error fetching data:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
 
   const handleOpenCreateTaskForm = () => setIsFormOpen(true);
-  const handleCloseCreateTaskForm = () => setIsFormOpen(false);
+  const handleCloseCreateTaskForm = () => {
+    setIsFormOpen(false);
+    // Optionally refetch tasks after closing the form if a task was created
+    // fetchData(); 
+  };
 
-  const handleOpenAssignTaskForm = () => setIsAssignFormOpen(true);
-  const handleCloseAssignTaskForm = () => setIsAssignFormOpen(false);
+  const handleAssignTask = async (taskId, userId) => {
+    try {
+      await createTaskAssignment(taskId, { user: userId, role: 'Assignee' });
+      const tasksResponse = await getProjectStageElements();
+      setTasks(tasksResponse.data);
+      processTasks(tasksResponse.data);
+    } catch (error) {
+      console.error("Failed to assign task", error);
+    }
+  };
 
-  const myTasks = [
-    {
-      id: 1,
-      title: 'Character Rigging for "Project Nebula"',
-      dueDate: 'Due in 2 days',
-      project: 'Project Nebula',
-      type: 'normal',
-      icon: (
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          className="h-6 w-6 text-purple-500"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2"
-            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-          />
-        </svg>
-      ),
-    },
-    {
-      id: 2,
-      title: 'Animate Walk Cycle - Main Character (Rework)',
-      dueDate: 'Due in 4 days',
-      project: 'Project Cygnus',
-      type: 'rework',
-      icon: (
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          className="h-6 w-6 text-blue-500"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2"
-            d="M10.854 7.146A.5.5 0 0111 7h.001v.001H11v-.001-.001h.001a.5.5 0 01.354.146l4 4a.5.5 0 010 .708l-4 4a.5.5 0 01-.708 0l-1-1a.5.5 0 010-.708L12.293 12H5a.5.5 0 01-.5-.5V11a.5.5 0 01.5-.5h7.293L9.146 8.854a.5.5 0 01.708-.708l1 1z"
-          />
-        </svg>
-      ),
-    },
-    {
-      id: 3,
-      title: 'Concept Art for Alien Flora (Assigned)',
-      dueDate: 'Due: Tomorrow',
-      project: 'Project Orion',
-      type: 'assigned',
-      icon: (
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          className="h-6 w-6 text-yellow-500"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2"
-            d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m15.364 7.364l-.707-.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
-          />
-        </svg>
-      ),
-    },
-    {
-      id: 4,
-      title: 'Render Scene 24 Final Shots',
-      dueDate: 'Due in 6 days',
-      project: 'Project Cygnus',
-      type: 'normal',
-      icon: (
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          className="h-6 w-6 text-blue-500"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2"
-            d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
-          />
-        </svg>
-      ),
-    },
-  ];
+  // Helper function to determine task type for filtering and display
+  const getTaskType = (task) => {
+    if (task.rejection_notes && task.rejection_notes.length > 0) {
+      return 'rework';
+    }
+    if (task.id === assignableTask?.id) {
+        return 'assignable';
+    }
+    if (task.status === 'in_progress') { // Example: consider in_progress as assigned
+        return 'assigned';
+    }
+    return 'normal';
+  };
 
-  const activeProjects = [
-    {
-      name: 'Project Cygnus',
-      type: 'Animated Short',
-      progress: 75,
-      deadline: 'Dec 15, 2024',
-      team: 2,
-    },
-    {
-      name: 'Project Nebula',
-      type: 'VFX for Film',
-      progress: 40,
-      deadline: 'Feb 28, 2025',
-      team: 3,
-    },
-  ];
+  if (loading) {
+    return (
+      <Modal isOpen={loading} onClose={() => {}} title="Loading Data">
+        <p>Loading data...</p>
+      </Modal>
+    );
+  }
+
+  if (error) {
+    return (
+      <Modal isOpen={!!error} onClose={() => setError(null)} title="Error">
+        <p>{error}</p>
+      </Modal>
+    );
+  }
+
+  const filteredTasks = tasks.filter(task => {
+    if (currentFilter === 'all') return true;
+    const type = getTaskType(task);
+    return type === currentFilter;
+  });
 
   return (
-    <div className="min-h-screen bg-black text-white p-6">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-10">
-        <div>
-          <h1 className="text-4xl font-bold">Welcome back, Alex!</h1>
-          <p className="text-gray-400">Here's what's happening today.</p>
-        </div>
-        <div className="flex space-x-4"> {/* Container for buttons */}
+    <div className="p-6 bg-gray-900 text-white min-h-screen">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Tasks</h1>
+        <div className="flex gap-4">
           <button
             onClick={handleOpenCreateTaskForm}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg flex items-center"
+            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5 mr-2"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-            >
-              <path
-                fillRule="evenodd"
-                d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z"
-                clipRule="evenodd"
-              />
-            </svg>
-            New Task
+            Create New Task
+          </button>
+        </div>
+      </div>
+
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold mb-4">Active Projects</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {projects.map((project) => (
+            <div key={project.id} className="bg-gray-800 p-4 rounded-lg shadow-lg">
+              <h3 className="font-bold text-lg mb-2">{project.name}</h3>
+              <p className="text-sm text-gray-400 mb-2">{project.project_type}</p>
+              <div className="w-full bg-gray-700 rounded-full h-2.5 mb-2">
+                <div
+                  className="bg-blue-600 h-2.5 rounded-full"
+                  style={{ width: `${project.overall_progress}%` }}
+                ></div>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span>Team: {project.assigned_users.length} members</span>
+                <span>Deadline: {new Date(project.due_date).toLocaleDateString()}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <h2 className="text-2xl font-bold mb-4">Task List</h2>
+        <div className="flex justify-center mb-4">
+          <button
+            onClick={() => setCurrentFilter('all')}
+            className={`px-4 py-2 ${currentFilter === 'all' ? 'bg-blue-600' : 'bg-gray-700'} rounded-l-lg`}
+          >
+            All
           </button>
           <button
-            onClick={handleOpenAssignTaskForm}
-            className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg flex items-center"
+            onClick={() => setCurrentFilter('rework')}
+            className={`px-4 py-2 ${currentFilter === 'rework' ? 'bg-yellow-600' : 'bg-gray-700'}`}
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5 mr-2"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM12 14c-1.49 0-2.92.6-4 1.72V19h8v-3.28c-1.08-1.12-2.51-1.72-4-1.72z"
-              />
-            </svg>
-            Assign Task
+            Rework ({tasks.filter(t => getTaskType(t) === 'rework').length})
+          </button>
+          <button
+            onClick={() => setCurrentFilter('assigned')}
+            className={`px-4 py-2 ${currentFilter === 'assigned' ? 'bg-green-600' : 'bg-gray-700'} rounded-r-lg`}
+          >
+            Assigned to Me ({tasks.filter(t => getTaskType(t) === 'assigned').length})
           </button>
         </div>
-      </div>
 
-      {isFormOpen && <CreateNewTaskForm onClose={handleCloseCreateTaskForm} />}
-      {isAssignFormOpen && <AssignTaskForm onClose={handleCloseAssignTaskForm} />}
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-        {/* Main Content Area (Task Management) */}
-        <div className="lg:col-span-2">
-          <h2 className="text-3xl font-bold mb-6">My Tasks</h2>
-          <div className="flex space-x-4 mb-6">
-            <button
-              onClick={() => setCurrentFilter('all')}
-              className={`${currentFilter === 'all' ? 'bg-blue-600' : 'bg-gray-800'} hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors`}
-            >
-              All Tasks
-            </button>
-            <button
-              onClick={() => setCurrentFilter('rework')}
-              className={`${currentFilter === 'rework' ? 'bg-red-600' : 'bg-gray-800'} hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition-colors`}
-            >
-              Rework Requests
-            </button>
-            <button
-              onClick={() => setCurrentFilter('assigned')}
-              className={`${currentFilter === 'assigned' ? 'bg-yellow-600' : 'bg-gray-800'} hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded-lg transition-colors`}
-            >
-              Assigned by User
-            </button>
-          </div>
-
-          {/* My Tasks List */}
-          <div className="bg-gray-800 rounded-lg shadow-lg p-6 space-y-4">
-            {myTasks
-              .filter(task => currentFilter === 'all' ? true : task.type === currentFilter)
-              .map((task) => (
-                <div
-                  key={task.id}
-                  className={`flex items-center justify-between cursor-pointer hover:bg-gray-700 p-2 rounded-lg transition-colors
-                    ${task.type === 'rework' ? 'border-l-4 border-red-500' : ''}
-                    ${task.type === 'assigned' ? 'border-l-4 border-yellow-500' : ''}
-                  `}
-                  onClick={() => navigate(`/tasks/${task.id}`)}
-                >
-                  <div className="flex items-center space-x-4">
-                    {task.icon}
-                    <div>
-                      <p className="font-semibold">{task.title}</p>
-                      <p className="text-sm text-gray-400">{task.dueDate}</p>
-                    </div>
+        <div className="bg-gray-800 p-4 rounded-lg">
+          {filteredTasks.map((task) => {
+            const isAssignable = task.id === assignableTask?.id;
+            const isCompleted = task.status === 'completed';
+            return (
+              <div
+                key={task.id}
+                className={`border-b border-gray-700 p-4 ${isAssignable ? 'bg-blue-800' : isCompleted ? 'bg-gray-900' : 'bg-gray-800'}`}
+              >
+                <div className="flex justify-between items-center">
+                  <div onClick={() => navigate(`/tasks/${task.id}`)} className="cursor-pointer flex-grow">
+                    <h3 className="font-bold">{task.element_name}</h3>
+                    <p className="text-sm text-gray-400">
+                      Project: {task.project_name} - Stage: {task.stage_name}
+                    </p>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <p className="text-gray-500 text-sm">{task.project}</p>
-                    {task.type === 'rework' && (
-                      <span className="bg-red-500 text-white text-xs font-semibold px-2 py-0.5 rounded-full">Rework</span>
+                  <div className="text-right">
+                    {isAssignable ? (
+                      <div className="flex items-center">
+                        <select
+                          value={selectedUser}
+                          onChange={(e) => setSelectedUser(e.target.value)}
+                          className="bg-gray-700 text-white rounded-lg p-2"
+                        >
+                          <option value="">Select User</option>
+                          {employees.map(user => (
+                            <option key={user.id} value={user.id}>{user.name}</option>
+                          ))}
+                        </select>
+                        <button
+                          onClick={() => handleAssignTask(task.id, selectedUser)}
+                          disabled={!selectedUser}
+                          className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded ml-2"
+                        >
+                          Assign
+                        </button>
+                      </div>
+                    ) : (
+                      <p className="text-sm">Status: <span className={`font-semibold ${task.status === 'completed' ? 'text-green-500' : 'text-yellow-500'}`}>{task.status}</span></p>
                     )}
-                    {task.type === 'assigned' && (
-                      <span className="bg-yellow-500 text-white text-xs font-semibold px-2 py-0.5 rounded-full">Assigned</span>
-                    )}
+                    <p className="text-xs text-gray-500">Last updated: {new Date(task.updated_at).toLocaleDateString()}</p>
                   </div>
                 </div>
-              ))}
-          </div>
-        </div>
-
-        {/* Active Projects Section (Smaller Column) */}
-        <div className="lg:col-span-1">
-          <h2 className="text-3xl font-bold mb-6">Active Projects</h2>
-          <div className="space-y-6">
-            {activeProjects.map((project, index) => (
-              <div key={index} className="bg-gray-800 p-6 rounded-lg shadow-lg">
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="text-xl font-bold">{project.name}</h3>
-                  <div className="flex -space-x-2 overflow-hidden">
-                    {Array.from({ length: project.team }).map((_, i) => (
-                      <img
-                        key={i}
-                        className="inline-block h-8 w-8 rounded-full ring-2 ring-gray-800"
-                        src={`https://i.pravatar.cc/150?img=${i + 1}`}
-                        alt=""
-                      />
-                    ))}
-                  </div>
-                </div>
-                <p className="text-blue-400 text-sm mb-4">{project.type}</p>
-                <div className="w-full bg-gray-700 rounded-full h-2.5 mb-2">
-                  <div
-                    className="bg-blue-600 h-2.5 rounded-full"
-                    style={{ width: `${project.progress}%` }}
-                  ></div>
-                </div>
-                <div className="flex justify-between text-xs text-gray-400">
-                  <span>Progress</span>
-                  <span>{project.progress}%</span>
-                </div>
-                <p className="text-sm text-gray-400 mt-2">
-                  Deadline: {project.deadline}
-                </p>
               </div>
-            ))}
-          </div>
+            );
+          })}
         </div>
       </div>
+
+      {isFormOpen && (
+        <Modal isOpen={isFormOpen} onClose={handleCloseCreateTaskForm} title="Create New Task">
+          <CreateNewTaskForm onClose={handleCloseCreateTaskForm} />
+        </Modal>
+      )}
     </div>
   );
 }

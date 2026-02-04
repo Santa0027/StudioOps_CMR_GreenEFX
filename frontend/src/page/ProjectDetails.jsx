@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'; // Added useEffect
 import { useParams, useNavigate } from 'react-router-dom';
-import VersionHistory from './VersionHistory';
-import { getProject } from '../api/api'; // NEW IMPORT
+import VersionHistory from '../components/VersionHistory'
+import { getProject, uploadProjectVersion } from '../api/api'; // NEW IMPORT and uploadProjectVersion
 
 function ProjectDetails() {
   const { id } = useParams(); // Changed from projectName to id
@@ -19,7 +19,8 @@ function ProjectDetails() {
         setLoading(true);
         const res = await getProject(id); // Use id from useParams
         setProjectData(res.data);
-      } catch (err) {
+        console.log(res.data)
+      } catch (err) { 
         console.error('Failed to fetch project details:', err);
         setError('Failed to fetch project details.');
       } finally {
@@ -46,12 +47,40 @@ function ProjectDetails() {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'In Progress':
-        return 'bg-green-600'; // Using green for "In Progress" as per image
+      case 'not_started':
+        return 'bg-gray-500';
+      case 'in_progress':
+        return 'bg-blue-600';
+      case 'completed':
+        return 'bg-green-600';
+      case 'on_hold':
+        return 'bg-yellow-600';
+      case 'cancelled':
+        return 'bg-red-600';
+      case 'pending':
+        return 'bg-orange-500';
+      case 'active':
+        return 'bg-blue-500';
+      case 'rejected':
+        return 'bg-red-700';
       default:
         return 'bg-gray-600';
     }
   };
+
+  const getCompletionText = (status, progress) => {
+    if (status === 'completed') {
+      return `Completed`;
+    } else if (status === 'pending' || status === 'not_started') {
+      return `Pending`;
+    } else if (status === 'in_progress' && progress > 0) {
+      return `${Math.round(progress)}% In Progress`;
+    } else if (status === 'in_progress' && progress === 0) {
+      return `In Progress (0% complete)`;
+    }
+    return `Status: ${status.replace(/_/g, ' ')}`; // Fallback for other statuses
+  };
+
 
   const handleVersionFileChange = (event) => {
     setProjectVersionFile(event.target.files[0]);
@@ -60,31 +89,21 @@ function ProjectDetails() {
   const handleUploadForApproval = async () => {
     if (projectVersionFile) {
       const formData = new FormData();
-      formData.append('projectVersion', projectVersionFile);
-      formData.append('projectName', projectData.name);
+      formData.append('file', projectVersionFile); // Changed from projectVersion to file
+      formData.append('project_name', projectData.name); // Keep project_name or remove if not needed by backend
+      formData.append('description', `New version for ${projectData.name}`); // Add a default description
+      formData.append('asset_role', 'final'); // Default asset_role, can be made dynamic
+      formData.append('client_review', 'true'); // Default client_review, can be made dynamic
 
       try {
-        // Replace with your actual API endpoint
-        const response = await fetch(`/api/projects/${encodeURIComponent(projectData.id)}/upload-version`, {
-          method: 'POST',
-          body: formData,
-          // Depending on your backend, you might need to set headers like 'Content-Type': 'multipart/form-data'
-          // However, fetch with FormData usually handles this automatically.
-        });
-
-        if (response.ok) {
-          const result = await response.json();
-          console.log('Upload success:', result);
-          alert('Project version uploaded successfully for approval!');
-          setProjectVersionFile(null); // Clear selected file after upload
-        } else {
-          const errorText = await response.text();
-          console.error('Upload error:', response.status, errorText);
-          alert(`Failed to upload project version. Error: ${errorText}`);
-        }
-      } catch (error) {
-        console.error('Network or other upload error:', error);
-        alert('An error occurred during upload. Please try again.');
+        const res = await uploadProjectVersion(projectData.id, formData); // Use the new API function
+        console.log('Upload success:', res.data);
+        alert('Project version uploaded successfully for approval!');
+        setProjectVersionFile(null); // Clear selected file after upload
+        setShowUploadModal(false); // Close modal on success
+      } catch (err) {
+        console.error('Upload error:', err.response ? err.response.data : err);
+        alert(`Failed to upload project version. Error: ${err.response ? JSON.stringify(err.response.data) : err.message}`);
       }
     } else {
       alert('Please select a file to upload for approval.');
@@ -239,7 +258,7 @@ function ProjectDetails() {
 
       <div className="relative"> {/* Changed to relative for floating element positioning */}
         {/* Main Content */}
-        <div className="pr-[28rem] space-y-6"> {/* Adjusted right padding for aligned chat */}
+        <div className="pr-0 space-y-6"> {/* Adjusted right padding for aligned chat */}
           {/* Project Progress */}
           <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-6 rounded-lg shadow-lg">
             <h2 className="text-2xl font-bold mb-4">Project Progress</h2>
@@ -247,27 +266,23 @@ function ProjectDetails() {
               <div className="flex mb-2 items-center justify-between">
                 <div>
                   <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-white bg-gradient-to-r from-blue-600 to-purple-600">
-                    {projectData.progress}%
+                    {Math.round(projectData.overall_progress || 0)}%
                   </span>
+                  <p className="text-sm text-gray-200 mt-1">Overall Project Completion</p>
                 </div>
               </div>
               <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-purple-200">
                 <div
-                  style={{ width: `${projectData.progress}%` }}
+                  style={{ width: `${Math.round(projectData.overall_progress || 0)}%` }}
                   className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-blue-500"
                 ></div>
               </div>
             </div>
-            <div className="flex justify-between text-sm text-gray-200 mt-2">
-              <span>Pre-production</span>
-              <span>Production</span>
-              <span>Post-production</span>
-              <span>Complete</span>
-            </div>
+
             <div className="grid grid-cols-2 gap-4 mt-6">
               <div>
                 <p className="text-gray-300 text-sm">Client Name</p>
-                <p className="font-semibold">{projectData.client.name}</p>
+                <p className="font-semibold">{projectData.client_name}</p>
               </div>
               <div>
                 <p className="text-gray-300 text-sm">Start Date</p>
@@ -275,7 +290,7 @@ function ProjectDetails() {
               </div>
               <div>
                 <p className="text-gray-300 text-sm">Project Lead</p>
-                <p className="font-semibold">{projectData.project_lead.username}</p>
+                <p className="font-semibold">{projectData.created_by_details ? projectData.created_by_details.name : 'N/A'}</p>
               </div>
               <div>
                 <p className="text-gray-300 text-sm">Deadline</p>
@@ -283,6 +298,80 @@ function ProjectDetails() {
               </div>
             </div>
           </div>
+
+          {/* Project Workflow Section */}
+          {projectData.stages && projectData.stages.length > 0 && (
+            <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
+              <h2 className="text-2xl font-bold mb-4">Project Workflow</h2>
+              <div className="space-y-4">
+                {projectData.stages.map((stage) => (
+                  <div key={stage.id} className="bg-gray-700 p-4 rounded-md">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-xl font-bold">{stage.template_name}</h3>
+                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusColor(stage.status)}`}>
+                        {stage.status.replace(/_/g, ' ')}
+                      </span>
+                    </div>
+                    {/* Progress bar for each stage */}
+                    <div className="relative pt-1">
+                        <div className="flex mb-2 items-center justify-between">
+                            <div>
+                                <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-white bg-gradient-to-r from-blue-500 to-purple-500">
+                                    {Math.round(stage.stage_progress || 0)}%
+                                </span>
+                                <p className="text-sm text-gray-300 mt-1">
+                                  {getCompletionText(stage.status, stage.stage_progress || 0)}
+                                </p>
+                            </div>
+                        </div>
+                        <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-purple-100">
+                            <div
+                                style={{ width: `${Math.round(stage.stage_progress || 0)}%` }}
+                                className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-blue-400"
+                            ></div>
+                        </div>
+                    </div>
+
+                    {stage.elements && stage.elements.length > 0 ? (
+                      <div className="space-y-3 mt-3"> {/* Changed ul to div for better styling control */}
+                        {stage.elements.map((element) => (
+                          <div key={element.id} className="bg-gray-600 p-3 rounded-md">
+                            <div className="flex items-center justify-between mb-1">
+                              <h4 className="text-md font-semibold">{element.template_name}</h4>
+                              <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusColor(element.status)}`}>
+                                {element.status.replace(/_/g, ' ')}
+                              </span>
+                            </div>
+                            {/* Progress bar for each element */}
+                            <div className="relative pt-1">
+                                <div className="flex mb-2 items-center justify-between">
+                                    <div>
+                                        <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-white bg-gradient-to-r from-green-500 to-teal-500">
+                                            {Math.round(element.progress || 0)}% {/* Assuming element has a 'progress' field */}
+                                        </span>
+                                        <p className="text-sm text-gray-400 mt-1">
+                                          {getCompletionText(element.status, element.progress || 0)}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="overflow-hidden h-2 mb-0 text-xs flex rounded bg-teal-100">
+                                    <div
+                                        style={{ width: `${Math.round(element.progress || 0)}%` }}
+                                        className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-green-400"
+                                    ></div>
+                                </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-gray-400">No elements defined for this stage.</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="flex flex-wrap -mx-3 mb-6">
             {/* Team Members */}
@@ -294,11 +383,12 @@ function ProjectDetails() {
                     <div key={index} className="flex items-center">
                       <img
                         className="h-10 w-10 rounded-full mr-4"
-                        src={member.profile_picture || `https://i.pravatar.cc/150?img=${index + 1}`} // Assuming profile_picture exists or fallback
-                        alt={member.username}
+                        src={member.profile_picture || `https://i.pravatar.cc/150?img=${member.id}`} // Assuming profile_picture exists or fallback
+                        alt={member.name}
+                        title={member.name}
                       />
                       <div>
-                        <p className="font-semibold">{member.username}</p>
+                        <p className="font-semibold">{member.name}</p>
                         {/* Assuming role might be part of the assignment or user model */}
                         {/* <p className="text-sm text-gray-400">{member.role}</p> */}
                       </div>
@@ -353,24 +443,6 @@ function ProjectDetails() {
             <h2 className="text-2xl font-bold mb-4">Reference Links</h2>
             <p className="text-blue-400 break-all">{projectData.reference_links}</p>
           </div>
-
-          {/* Attachments */}
-          <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
-            <h2 className="text-2xl font-bold mb-4">Attachments</h2>
-            {projectData.attachments.length > 0 ? (
-              <div className="space-y-2">
-                {projectData.attachments.map((attachment, index) => (
-                  <a key={index} href={attachment.url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline flex items-center">
-                    <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.102 1.101m-4.507 4.507a2 2 0 11-2.828-2.828l.793-.793A4.001 4.001 0 0112 10.172v.001z"></path></svg>
-                    {attachment.name}
-                  </a>
-                ))}
-              </div>
-            ) : (
-              <p className="text-gray-400">No attachments.</p>
-            )}
-          </div>
-
           {/* Asset Library */}
           <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
             <h2 className="text-2xl font-bold mb-4">Asset Library</h2>
@@ -404,7 +476,7 @@ function ProjectDetails() {
               </label>
             </div>
             <div className="grid grid-cols-3 gap-4">
-              {projectData.assets.map((asset, index) => (
+              {projectData.assets?.map((asset, index) => (
                 <div key={index} className="bg-gray-700 rounded-lg overflow-hidden">
                   <img
                     className="w-full h-24 object-cover"
@@ -430,67 +502,6 @@ function ProjectDetails() {
           <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
             <h2 className="text-2xl font-bold mb-4">Project Versions</h2>
             <VersionHistory projectId={projectData.id} />
-          </div>
-        </div>
-
-        {/* Activity Feed */}
-        <div className="md:col-span-1 bg-gray-800 p-6 rounded-lg shadow-lg fixed right-6 top-24 w-[29rem] h-[calc(100vh-12rem)] overflow-y-auto"> {/* Adjusted width for better alignment */}
-          <h2 className="text-2xl font-bold mb-4">Activity Feed</h2>
-          <div className="space-y-6">
-            {projectData.activity_feed.map((activity, index) => (
-              <div key={index} className="flex space-x-4">
-                <img
-                  className="h-10 w-10 rounded-full"
-                  src={activity.avatar}
-                  alt={activity.user}
-                />
-                <div>
-                  <p>
-                    <span className="font-semibold">{activity.user}</span>{' '}
-                    {activity.action}
-                  </p>
-                  {activity.assetName && (
-                    <p className="text-blue-400 text-sm">{activity.assetName}</p>
-                  )}
-                  {activity.comment && (
-                    <p className="text-gray-300 text-sm italic">{activity.comment}</p>
-                  )}
-                  {activity.task && (
-                    <div className="flex items-center text-sm text-gray-300">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        {activity.task}
-                    </div>
-                  )}
-                  <p className="text-xs text-gray-500 mt-1">{activity.time}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-6 border-t border-gray-700 pt-6">
-            <h3 className="font-semibold mb-2">Add a comment...</h3>
-            <div className="flex">
-                <textarea
-                    className="flex-grow bg-gray-700 rounded-lg p-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    rows="3"
-                    placeholder="Type your comment here..."
-                ></textarea>
-                <button className="ml-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center">
-                    <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-6 w-6"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                    >
-                    <path
-                        fillRule="evenodd"
-                        d="M10.854 7.146a.5.5 0 010 .708L7.707 11.001l3.147 3.146a.5.5 0 01-.708.708l-3.5-3.5a.5.5 0 010-.708l3.5-3.5a.5.5 0 01.708 0z"
-                        clipRule="evenodd"
-                    />
-                    </svg>
-                </button>
-            </div>
           </div>
         </div>
       </div>
