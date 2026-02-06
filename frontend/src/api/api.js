@@ -123,4 +123,90 @@ export const createProjectStageElementTemplateForStage = (stageId, data) => api.
 export const updateProjectStageElementTemplate = (stageId, elementId, data) => api.put(`/stage-templates/${stageId}/elements/${elementId}/`, data);
 export const deleteProjectStageElementTemplate = (stageId, elementId) => api.delete(`/stage-templates/${stageId}/elements/${elementId}/`);
 
+// ---------------------------------------------- Stage Element Version APIs -------------------------
+export const createStageElementVersion = (elementId, versionData) => api.post(`/stage-elements/${elementId}/versions/`, versionData);
+// --------------------------------------------- end Stage Element Version APIs --------------------
+
+// ---------------------------------------------- Asset Upload APIs -------------------------
+export const uploadAssetForStageElement = (elementId, formData) => api.post(`/stage-elements/${elementId}/upload_asset/`, formData, {
+    headers: {
+        'Content-Type': 'multipart/form-data',
+    },
+});
+// --------------------------------------------- end Asset Upload APIs --------------------
+
+// ---------------------------------------------- Task Comment APIs -------------------------
+export const getTaskComments = (taskId) => api.get(`/stage-elements/${taskId}/comments/`);
+export const createTaskComment = (taskId, commentData) => api.post(`/stage-elements/${taskId}/comments/`, commentData);
+// --------------------------------------------- end Task Comment APIs --------------------
+
 // --------------------------------------------- end Project Stage Element Template APIs -------------
+
+// ---------------------------------------------- Service APIs -------------------------------------
+
+export const getServices = () => api.get("/services/");
+export const getService = (id) => api.get(`/services/${id}/`);
+export const createService = (data) => api.post("/services/", data);
+export const updateService = (id, data) => api.put(`/services/${id}/`, data);
+export const deleteService = (id) => api.delete(`/services/${id}/`);
+
+// --------------------------------------------- end Service APIs -----------------------------------
+
+
+// ---------------------------------------------- LeadSource APIs ----------------------------------
+
+export const getLeadSources = () => api.get("/lead-sources/");
+export const getLeadSource = (id) => api.get(`/lead-sources/${id}/`);
+export const createLeadSource = (data) => api.post("/lead-sources/", data);
+export const updateLeadSource = (id, data) => api.put(`/lead-sources/${id}/`, data);
+export const deleteLeadSource = (id) => api.delete(`/lead-sources/${id}/`);
+
+// --------------------------------------------- end LeadSource APIs --------------------------------
+
+
+// ---------------------------------------------- LeadAttachment APIs ------------------------------
+
+export const getLeadAttachments = (leadId) => api.get(`/lead-attachments/`, { params: { lead: leadId } });
+export const getLeadAttachment = (id) => api.get(`/lead-attachments/${id}/`);
+export const createLeadAttachment = (data) => api.post("/lead-attachments/", data); // Data should be FormData for file uploads
+export const updateLeadAttachment = (id, data) => api.put(`/lead-attachments/${id}/`, data);
+export const deleteLeadAttachment = (id) => api.delete(`/lead-attachments/${id}/`);
+
+// --------------------------------------------- end LeadAttachment APIs ----------------------------
+
+
+// ---------------------------------------------- LeadServiceItem APIs -----------------------------
+
+export const getLeadServiceItems = (leadId) => api.get(`/lead-service-items/`, { params: { lead: leadId } });
+export const getLeadServiceItem = (id) => api.get(`/lead-service-items/${id}/`);
+export const createLeadServiceItem = (data) => api.post("/lead-service-items/", data);
+export const updateLeadServiceItem = (id, data) => api.put(`/lead-service-items/${id}/`, data);
+export const deleteLeadServiceItem = (id) => api.delete(`/lead-service-items/${id}/`);
+
+// --------------------------------------------- end LeadServiceItem APIs --------------------------
+
+
+// ---------------------------------------------- Quotation APIs -----------------------------------
+
+export const getQuotations = (leadId) => api.get(`/quotations/`, { params: { lead: leadId } });
+export const getQuotation = (id) => api.get(`/quotations/${id}/`);
+export const createQuotation = (data) => api.post("/quotations/", data);
+export const updateQuotation = (id, data) => api.put(`/quotations/${id}/`, data);
+export const deleteQuotation = (id) => api.delete(`/quotations/${id}/`);
+
+export const generateQuotationPdf = (id) => api.post(`/quotations/${id}/generate_pdf/`);
+export const sendQuotation = (id) => api.post(`/quotations/${id}/send_quotation/`); // May need data for email details
+export const updateQuotationStatus = (id, status) => api.post(`/quotations/${id}/update_status/`, { status });
+
+// --------------------------------------------- end Quotation APIs --------------------------------
+
+
+// ---------------------------------------------- QuotationItem APIs --------------------------------
+
+export const getQuotationItems = (quotationId) => api.get(`/quotation-items/`, { params: { quotation: quotationId } });
+export const getQuotationItem = (id) => api.get(`/quotation-items/${id}/`);
+export const createQuotationItem = (data) => api.post("/quotation-items/", data);
+export const updateQuotationItem = (id, data) => api.put(`/quotation-items/${id}/`, data);
+export const deleteQuotationItem = (id) => api.delete(`/quotation-items/${id}/`);
+
+// --------------------------------------------- end QuotationItem APIs ----------------------------

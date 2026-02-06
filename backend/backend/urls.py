@@ -16,6 +16,8 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path,include
+from django.conf import settings # New import
+from django.conf.urls.static import static # New import
 from drf_spectacular.views import (
     SpectacularAPIView,
     SpectacularSwaggerView,
@@ -43,3 +45,6 @@ urlpatterns = [
         name="swagger-ui",
     ),
 ]
+
+if settings.DEBUG: # New conditional block
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT) # New media URL pattern

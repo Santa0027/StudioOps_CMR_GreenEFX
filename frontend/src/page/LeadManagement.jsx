@@ -218,7 +218,11 @@ const LeadManagement = () => {
                 <th className="px-4 py-3 border border-gray-700 text-left">Client Name</th>
                 <th className="px-4 py-3 border border-gray-700 text-left">Email</th>
                 <th className="px-4 py-3 border border-gray-700 text-left">Phone</th>
-                <th className="px-4 py-3 border border-gray-700 text-left">Assigned To</th> {/* New column */}
+                <th className="px-4 py-3 border border-gray-700 text-left">Source</th>
+                <th className="px-4 py-3 border border-gray-700 text-left">Lead Score</th>
+                <th className="px-4 py-3 border border-gray-700 text-left">Priority</th>
+                <th className="px-4 py-3 border border-gray-700 text-left">Next Action</th>
+                <th className="px-4 py-3 border border-gray-700 text-left">Assigned To</th>
                 <th className="px-4 py-3 border border-gray-700 text-left">Lead Status</th>
                 <th className="px-4 py-3 border border-gray-700 text-left">Actions</th>
               </tr>
@@ -232,6 +236,10 @@ const LeadManagement = () => {
                     <td className="px-4 py-2 border border-gray-700">{lead.enquiry?.client_name}</td>
                     <td className="px-4 py-2 border border-gray-700">{lead.enquiry?.client_email}</td>
                     <td className="px-4 py-2 border border-gray-700">{lead.enquiry?.client_phone}</td>
+                    <td className="px-4 py-2 border border-gray-700">{lead.source_details?.name || 'N/A'}</td>
+                    <td className="px-4 py-2 border border-gray-700">{lead.lead_score}</td>
+                    <td className="px-4 py-2 border border-gray-700">{lead.priority}</td>
+                    <td className="px-4 py-2 border border-gray-700">{lead.next_action}</td>
                     
                     {/* ASSIGN USER DROPDOWN */}
                     <td className="px-4 py-2 border border-gray-700">
@@ -243,7 +251,7 @@ const LeadManagement = () => {
                         <option value="" disabled>Select Staff</option>
                         {staffUsers.map((user) => (
                           <option key={user.id} value={user.id}>
-                            {user.user.name} {/* Corrected to user.username */}
+                            {user.name} {/* Corrected to user.name based on UserSerializer */}
                           </option>
                         ))}
                       </select>

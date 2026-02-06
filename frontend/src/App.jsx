@@ -12,8 +12,8 @@ import ProjectDetails from './page/ProjectDetails'; // Import ProjectDetails
 import PrivateRoute from './components/PrivateRoute'; // Import PrivateRoute
 import Layout from './components/Layout'; // Import Layout
 import VersionHistory from './components/VersionHistory'; // Import VersionHistory
-import TaskPage from './components/TaskPage'; // Import TaskPage
-import TaskDetails from './components/TaskDetails'; // Import TaskDetails
+import TaskPage from './page/TaskPage'; // Import TaskPage
+import TaskDetails from './page/TaskDetails'; // Import TaskDetails
 import ReworkRequests from './components/ReworkRequests'; // Import ReworkRequests
 import ReworkRequestDetails from './components/ReworkRequestDetails'; // Import ReworkRequestDetails
 import Permissions from './components/Permissions';

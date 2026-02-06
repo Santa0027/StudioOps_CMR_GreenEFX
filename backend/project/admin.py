@@ -125,3 +125,7 @@ class VersionAuditLogAdmin(admin.ModelAdmin):
     list_display = ("version", "action", "performed_by", "performed_at")
     list_filter = ("action",)
     search_fields = ("version__element__template__name", "performed_by__username")
+   
+# @admin.register(ProjectTaskAssignment)
+# class PoojectTaskassignmentAdmin(admin.ModelAdmin):
+#     list_display = ("task","user","initial_notes")    

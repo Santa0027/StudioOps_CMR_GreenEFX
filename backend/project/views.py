@@ -20,6 +20,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status # Import status for HTTP status codes
+from rest_framework.parsers import MultiPartParser, FormParser # New import
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema, OpenApiResponse
 from .tasks import process_project_asset
@@ -117,7 +118,7 @@ class ProjectViewSet(ModelViewSet):
         # but it won't be called by the current create method
         serializer.save(created_by=self.request.user)
 
-    @action(detail=True, methods=['post'], serializer_class=StageElementVersionUploadSerializer)
+    @action(detail=True, methods=['post'], serializer_class=StageElementVersionSerializer)
     def upload_version(self, request, pk=None):
         project = self.get_object()
         serializer = self.get_serializer(data=request.data, context={'request': request})
@@ -150,6 +151,22 @@ class ProjectStageElementViewSet(ModelViewSet):
             queryset = queryset.filter(stage__project_id=project_id)
         
         return queryset.distinct()
+
+    @action(detail=True, methods=['post'], parser_classes=[MultiPartParser, FormParser], serializer_class=ProjectAssetUploadSerializer)
+    def upload_asset(self, request, pk=None):
+        element = self.get_object()
+        print("--- Inside upload_asset view ---")
+        print("request.data:", request.data)
+        print("request.FILES:", request.FILES)
+        serializer = self.get_serializer(data=request.data, context={'element': element, 'request': request})
+        if serializer.is_valid():
+            serializer.save(uploaded_by=request.user) # Assuming request.user is available
+            # Optionally trigger async processing here if needed, e.g., for video transcoding
+            if process_project_asset: # Check if the task is imported and available
+                process_project_asset.delay(serializer.instance.id) # Assuming this task exists
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 @extend_schema(
@@ -424,15 +441,45 @@ class ProjectTaskAssignmentViewSet(ModelViewSet):
         # Filter assignments by the task_pk provided in the URL
         return ProjectTaskAssignment.objects.filter(task=self.kwargs['task_pk'])
 
-    def perform_create(self, serializer):
-        # Automatically assign the task based on the URL
-        task = get_object_or_404(ProjectStageElement, pk=self.kwargs['task_pk'])
-        serializer.save(task=task)
-
     def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        if serializer.is_valid(raise_exception=True):
-            self.perform_create(serializer)
-            headers = self.get_success_headers(serializer.data)
-            return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        task_pk = self.kwargs.get('task_pk')
+        
+        # Make a mutable copy of request.data and inject the task_pk
+        mutable_data = request.data.copy()
+        mutable_data['task'] = task_pk
+        
+        serializer = self.get_serializer(data=mutable_data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+    def perform_create(self, serializer):
+        serializer.save()
+
+
+# ==========================================================
+# TASK COMMENT VIEWS
+# ==========================================================
+
+@extend_schema(
+    tags=["Internal - Task Comments"],
+    summary="Manage comments for a specific task",
+)
+class TaskCommentViewSet(ModelViewSet):
+    """
+    CRUD for Task Comments.
+    Comments are nested under a specific ProjectStageElement (task).
+    """
+    serializer_class = TaskCommentSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        # Filter comments by the task_pk provided in the URL
+        return TaskComment.objects.filter(task=self.kwargs['task_pk'])
+
+    def perform_create(self, serializer):
+        # Automatically assign the task and user based on the context
+        task = get_object_or_404(ProjectStageElement, pk=self.kwargs['task_pk'])
+        serializer.save(task=task, user=self.request.user)

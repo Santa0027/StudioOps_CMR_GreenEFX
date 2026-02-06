@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import CreateNewTaskForm from './CreateNewTaskForm';
+import CreateNewTaskForm from '../components/CreateNewTaskForm';
 import { getProjectStageElements, getProjects, getEmployees, createTaskAssignment } from '../api/api'; // Import the API functions
-import Modal from './Modal'; // Assuming a Modal component for error/loading
+import Modal from '../components/Modal'; // Assuming a Modal component for error/loading
 
 function TaskPage() {
   const navigate = useNavigate();
@@ -178,6 +178,8 @@ function TaskPage() {
           {filteredTasks.map((task) => {
             const isAssignable = task.id === assignableTask?.id;
             const isCompleted = task.status === 'completed';
+            const isAssigned = task.assignments && task.assignments.length > 0; // New check
+
             return (
               <div
                 key={task.id}
@@ -189,9 +191,41 @@ function TaskPage() {
                     <p className="text-sm text-gray-400">
                       Project: {task.project_name} - Stage: {task.stage_name}
                     </p>
+                    {/* New: Current Work Preview */}
+                    {task.assets && task.assets.length > 0 && (
+                      <div className="mt-2">
+                        <img
+                          src={task.assets[0].file}
+                          alt="Current Work Preview"
+                          className="w-24 h-24 object-cover rounded-md border border-gray-600"
+                        />
+                      </div>
+                    )}
+                    {/* New: Initial Notes */}
+                    {task.initial_notes && (
+                      <p className="text-sm text-gray-300 mt-2">
+                        Notes: {task.initial_notes.substring(0, 100)}
+                        {task.initial_notes.length > 100 ? '...' : ''}
+                      </p>
+                    )}
+                    {/* New: Rework Notes */}
+                    {task.rejection_notes && (
+                      <p className="text-sm text-red-400 mt-1">
+                        Rework: {task.rejection_notes.substring(0, 100)}
+                        {task.rejection_notes.length > 100 ? '...' : ''}
+                      </p>
+                    )}
+                    {/* New: Comment Count */}
+                    {task.versions && task.versions.length > 0 && (
+                      <p className="text-sm text-blue-400 mt-1">
+                        {task.versions.length} Comments
+                      </p>
+                    )}
                   </div>
                   <div className="text-right">
-                    {isAssignable ? (
+                    {isAssigned ? ( // Check if already assigned
+                      <p className="text-sm text-green-500 font-semibold">Assigned</p>
+                    ) : isAssignable ? (
                       <div className="flex items-center">
                         <select
                           value={selectedUser}

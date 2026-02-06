@@ -6,6 +6,7 @@ const CreateNewTaskForm = ({ onClose }) => {
   const [description, setDescription] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [status, setStatus] = useState('pending');
+  const [initialNotes, setInitialNotes] = useState(''); // New state for initial notes
 
   const [projects, setProjects] = useState([]);
   const [selectedProjectId, setSelectedProjectId] = useState('');
@@ -109,6 +110,7 @@ const CreateNewTaskForm = ({ onClose }) => {
       contribution_percentage: 100, // Placeholder, default
       estimated_hours: estimatedHours,
       status: status,
+      initial_notes: initialNotes, // Added initial_notes
       rejection_notes: "",
       // taskName and description are associated with the template, not directly the ProjectStageElement
       // If the backend allows updating template details through ProjectStageElement creation/update,
@@ -162,6 +164,17 @@ const CreateNewTaskForm = ({ onClose }) => {
               className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
+              rows="4"
+            ></textarea>
+          </div>
+          {/* New: Initial Notes textarea */}
+          <div className="mb-4">
+            <label htmlFor="initialNotes" className="block text-white text-sm font-bold mb-2">Initial Notes:</label>
+            <textarea
+              id="initialNotes"
+              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+              value={initialNotes}
+              onChange={(e) => setInitialNotes(e.target.value)}
               rows="4"
             ></textarea>
           </div>

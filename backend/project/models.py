@@ -248,6 +248,7 @@ class ProjectStageElement(models.Model):
         ],
         default="pending"
     )
+    initial_notes = models.TextField(blank=True)
 
     rejection_notes = models.TextField(blank=True)
 
@@ -292,10 +293,37 @@ class ProjectTaskAssignment(models.Model):
     )
 
     role = models.CharField(max_length=100)
+    initial_notes = models.TextField(blank=True) # New field for initial notes
     assigned_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ("task", "user", "role")
+        unique_together = ("task", "user")
+
+
+# =====================================================
+# TASK COMMENTS
+# =====================================================
+
+class TaskComment(models.Model):
+    task = models.ForeignKey(
+        ProjectStageElement,
+        on_delete=models.CASCADE,
+        related_name="comments"
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="task_comments"
+    )
+    comment = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"Comment by {self.user.name} on {self.task.template.name}"
+
 
 
 # =====================================================
@@ -435,16 +463,6 @@ class ProjectAsset(models.Model):
 
         super().save(*args, **kwargs)
         
-    def project_asset_upload_path(instance, filename):
-        project_name = instance.element.stage.project.name.replace(" ", "_")
-        stage_name = instance.element.stage.template.name.replace(" ", "_")
-        role = instance.asset_role.lower()
-        
-        # Optional: sanitize filename
-        filename = filename.replace(" ", "_")
-        
-        return f"{project_name}/{stage_name}/{role}/{filename}"
-
     
 
 

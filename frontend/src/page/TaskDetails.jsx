@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react'; // Added useCallback
 import { useParams } from 'react-router-dom';
-import { getProjectStageElement } from '../api/api'; // Import the API function
-import Modal from './Modal'; // Assuming a Modal component for error/loading
+import { getProjectStageElement, getTaskComments, createTaskComment, uploadAssetForStageElement } from '../api/api'; // Added comment and upload functions
+import Modal from '../components/Modal';
+import { useAuth } from '../context/AuthContext';
 
 const GraphicDesignReview = ({ reviewData }) => (
   <div className="bg-gray-700 p-4 rounded-lg mb-4">
@@ -30,29 +31,60 @@ const VideoEditingReview = ({ reviewData }) => (
   </div>
 );
 
+const ASSET_TYPES = [
+  { value: 'psd', label: 'Photoshop' },
+  { value: 'ai', label: 'Illustrator' },
+  { value: 'ae', label: 'After Effects' },
+  { value: 'pr', label: 'Premiere Pro' },
+  { value: 'video', label: 'Video' },
+  { value: 'image', label: 'Image' },
+  { value: 'other', label: 'Other' },
+];
+
+const ASSET_ROLES = [
+  { value: 'source', label: 'Source File' },
+  { value: 'preview', label: 'Preview Render' },
+  { value: 'final', label: 'Final Deliverable' },
+];
+
 function TaskDetails() {
   const { taskId } = useParams();
   const [task, setTask] = useState(null);
+  const [comments, setComments] = useState([]); // New state for comments
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [newComment, setNewComment] = useState('');
-  const [newCommentType, setNewCommentType] = useState('comment');
+  const { user } = useAuth(); // Corrected usage
+
+  // State for upload modal
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [assetType, setAssetType] = useState('');
+  const [assetRole, setAssetRole] = useState('');
+  const [assetDescription, setAssetDescription] = useState('');
+
+  const fetchTaskAndComments = useCallback(async () => { // Renamed and updated
+    try {
+      setLoading(true);
+      const [taskResponse, commentsResponse] = await Promise.all([
+        getProjectStageElement(taskId),
+        getTaskComments(taskId),
+      ]);
+      setTask(taskResponse.data);
+      setComments(commentsResponse.data);
+      console.log(taskResponse.data);
+      console.log(commentsResponse.data);
+    } catch (err) {
+      setError("Failed to fetch task details or comments.");
+      console.error("Error fetching data:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [taskId]);
 
   useEffect(() => {
-    const fetchTask = async () => {
-      try {
-        setLoading(true);
-        const response = await getProjectStageElement(taskId);
-        setTask(response.data);
-      } catch (err) {
-        setError("Failed to fetch task details.");
-        console.error("Error fetching task details:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchTask();
-  }, [taskId]);
+    fetchTaskAndComments();
+  }, [fetchTaskAndComments]);
 
   const formatHours = (totalHours) => {
     if (totalHours === null || totalHours === undefined) {
@@ -64,24 +96,70 @@ function TaskDetails() {
     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
   };
 
-  const handleAddComment = () => {
-    if (newComment.trim() && task) {
-      // This is a mock implementation. In a real app, you would post the comment to an API
-      // and then update the state with the new comment from the API response.
-      const newNote = {
-        id: task.versions.length + 1,
-        created_by_name: 'Current User', // Replace with actual user from auth context
-        description: newComment,
-        status: newCommentType, // 'feedback' or 'comment'
-        created_at: new Date().toISOString(),
-        avatar: 'https://i.pravatar.cc/150?img=15', // Placeholder for current user
-      };
-      const updatedTask = {
-        ...task,
-        versions: [...task.versions, newNote]
+  const handleAddComment = async () => {
+    if (newComment.trim() && task && user) {
+      try {
+        setLoading(true);
+        const commentData = {
+          comment: newComment,
+        };
+        await createTaskComment(taskId, commentData);
+        const commentsResponse = await getTaskComments(taskId); // Re-fetch comments
+        setComments(commentsResponse.data);
+        setNewComment('');
+      } catch (err) {
+        setError("Failed to add comment.");
+        console.error("Error adding comment:", err);
+      } finally {
+        setLoading(false);
       }
-      setTask(updatedTask);
-      setNewComment('');
+    }
+  };
+
+  const handleOpenUploadModal = () => setShowUploadModal(true);
+  const handleCloseUploadModal = () => {
+    setShowUploadModal(false);
+    setSelectedFile(null);
+    setAssetType('');
+    setAssetRole('');
+    setAssetDescription('');
+  };
+
+  const handleFileChange = (event) => {
+    setSelectedFile(event.target.files[0]);
+  };
+
+  const handleUploadWork = async () => {
+    if (!selectedFile || !assetType || !assetRole || !task || !user) {
+      alert('Please select a file, asset type, and asset role.');
+      return;
+    }
+
+    console.log('--- Uploading Work ---');
+    console.log('Selected File:', selectedFile, 'Type:', typeof selectedFile);
+    console.log('Asset Type:', assetType, 'Type:', typeof assetType);
+    console.log('Asset Role:', assetRole, 'Type:', typeof assetRole);
+    console.log('Asset Description:', assetDescription, 'Type:', typeof assetDescription);
+    console.log('----------------------');
+
+    setLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      formData.append('asset_type', assetType);
+      formData.append('asset_role', assetRole);
+      formData.append('description', assetDescription);
+
+      await uploadAssetForStageElement(taskId, formData);
+      alert('Work uploaded successfully!');
+      handleCloseUploadModal();
+      await fetchTaskAndComments(); // Re-fetch task and comments to show the new asset
+    } catch (err) {
+      setError("Failed to upload work.");
+      console.error("Error uploading work:", err);
+      alert('Failed to upload work. Check console for details.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -223,7 +301,10 @@ function TaskDetails() {
               Pause Timer
             </button>
             <div className="flex space-x-4">
-              <button className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center">
+              <button
+                onClick={handleOpenUploadModal} // Hook up to open modal
+                className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center"
+              >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   className="h-5 w-5 mr-2"
@@ -247,45 +328,36 @@ function TaskDetails() {
           </div>
 
           {/* Notes / Feedback */}
+          {task.assignments.initial_notes && (
+            <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
+              <h2 className="text-xl font-bold mb-4">Initial Notes</h2>
+              <p className="text-gray-300 whitespace-pre-wrap">{task.initial_notes}</p>
+            </div>
+          )}
+          {/* New: Rejection Notes */}
+          {task.rejection_notes && (
+            <div className="bg-gray-800 p-6 rounded-lg shadow-lg border-l-4 border-red-500">
+              <h2 className="text-xl font-bold mb-4 text-red-400">Rework Request / Rejection Notes</h2>
+              <p className="text-red-300 whitespace-pre-wrap">{task.rejection_notes}</p>
+            </div>
+          )}
           <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
-            <h2 className="text-xl font-bold mb-4">Notes / Feedback</h2>
+            <h2 className="text-xl font-bold mb-4">Comments</h2>
             <div className="space-y-6">
-              {task.versions?.map((note) => (
-                <div key={note.id} className={`flex items-start space-x-3 p-3 rounded-lg border-l-4 ${getNoteBorderColor(note.status)}`}>
-                  {note.avatar ? (
-                    <img
-                      className="h-8 w-8 rounded-full flex-shrink-0"
-                      src={note.avatar}
-                      alt={note.created_by_name}
-                    />
-                  ) : (
-                    <div className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-gray-700 text-white text-xs font-bold">
-                      {note.created_by_name?.charAt(0)}
-                    </div>
-                  )}
+              {comments?.map((comment) => (
+                <div key={comment.id} className="flex items-start space-x-3 p-3 rounded-lg border-l-4 border-blue-500">
+                  <div className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-gray-700 text-white text-xs font-bold">
+                    {comment.user_name?.charAt(0)}
+                  </div>
                   <div>
-                    <p className="font-semibold text-sm">{note.created_by_name} <span className="text-gray-500 text-xs ml-2">{new Date(note.created_at).toLocaleString()}</span></p>
-                    <p className="text-gray-300 text-sm">{note.description}</p>
+                    <p className="font-semibold text-sm">{comment.user_name} <span className="text-gray-500 text-xs ml-2">{new Date(comment.created_at).toLocaleString()}</span></p>
+                    <p className="text-gray-300 text-sm">{comment.comment}</p>
                   </div>
                 </div>
               ))}
             </div>
             <div className="mt-6 border-t border-gray-700 pt-6">
               <h3 className="font-semibold mb-2">Add a comment...</h3>
-              <div className="flex space-x-2 mb-4">
-                <button
-                  onClick={() => setNewCommentType('comment')}
-                  className={`${newCommentType === 'comment' ? 'bg-blue-600' : 'bg-gray-700'} hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-lg transition-colors`}
-                >
-                  Comment
-                </button>
-                <button
-                  onClick={() => setNewCommentType('feedback')}
-                  className={`${newCommentType === 'feedback' ? 'bg-red-600' : 'bg-gray-700'} hover:bg-red-700 text-white text-sm px-4 py-2 rounded-lg transition-colors`}
-                >
-                  Feedback
-                </button>
-              </div>
               <div className="flex">
                 <textarea
                   className="flex-grow bg-gray-700 rounded-lg p-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -316,6 +388,82 @@ function TaskDetails() {
           </div>
         </div>
       </div>
+
+      {/* Upload Asset Modal */}
+      <Modal isOpen={showUploadModal} onClose={handleCloseUploadModal} title="Upload Work Asset">
+        <form onSubmit={(e) => { e.preventDefault(); handleUploadWork(); }}>
+          <div className="mb-4">
+            <label htmlFor="file-upload" className="block text-white text-sm font-bold mb-2">Select File:</label>
+            <input
+              type="file"
+              id="file-upload"
+              onChange={handleFileChange}
+              className="block w-full text-sm text-gray-500
+                file:mr-4 file:py-2 file:px-4
+                file:rounded-full file:border-0
+                file:text-sm file:font-semibold
+                file:bg-blue-500 file:text-white
+                hover:file:bg-blue-600 cursor-pointer"
+              required
+            />
+          </div>
+          <div className="mb-4">
+            <label htmlFor="asset-type" className="block text-white text-sm font-bold mb-2">Asset Type:</label>
+            <select
+              id="asset-type"
+              value={assetType}
+              onChange={(e) => setAssetType(e.target.value)}
+              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 text-white"
+              required
+            >
+              <option value="">Select Type</option>
+              {ASSET_TYPES.map(type => (
+                <option key={type.value} value={type.value}>{type.label}</option>
+              ))}
+            </select>
+          </div>
+          <div className="mb-4">
+            <label htmlFor="asset-role" className="block text-white text-sm font-bold mb-2">Asset Role:</label>
+            <select
+              id="asset-role"
+              value={assetRole}
+              onChange={(e) => setAssetRole(e.target.value)}
+              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 text-white"
+              required
+            >
+              <option value="">Select Role</option>
+              {ASSET_ROLES.map(role => (
+                <option key={role.value} value={role.value}>{role.label}</option>
+              ))}
+            </select>
+          </div>
+          <div className="mb-4">
+            <label htmlFor="asset-description" className="block text-white text-sm font-bold mb-2">Description (Optional):</label>
+            <textarea
+              id="asset-description"
+              value={assetDescription}
+              onChange={(e) => setAssetDescription(e.target.value)}
+              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 text-white"
+              rows="3"
+            ></textarea>
+          </div>
+          <div className="flex justify-between items-center mt-6">
+            <button
+              type="submit"
+              className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg"
+            >
+              Upload
+            </button>
+            <button
+              type="button"
+              onClick={handleCloseUploadModal}
+              className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

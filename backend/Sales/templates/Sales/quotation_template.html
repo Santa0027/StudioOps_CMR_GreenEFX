@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Quotation #{{ quotation.quotation_number }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h1 { color: #333; }
+        .quotation-details, .client-details { margin-bottom: 20px; border: 1px solid #eee; padding: 10px; }
+        .quotation-details p, .client-details p { margin: 5px 0; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .total { text-align: right; margin-top: 20px; }
+        .total h3 { margin: 5px 0; }
+        .notes { margin-top: 30px; }
+        .footer { text-align: center; margin-top: 50px; font-size: 0.8em; color: #777; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Quotation</h1>
+        <p>Issued: {{ quotation.issue_date|date:"F d, Y" }}</p>
+        <p>Expires: {{ quotation.expiry_date|date:"F d, Y" }}</p>
+    </div>
+
+    <div class="quotation-details">
+        <p><strong>Quotation Number:</strong> {{ quotation.quotation_number }}</p>
+        <p><strong>Status:</strong> {{ quotation.get_status_display }}</p>
+        <p><strong>Prepared By:</strong> {{ quotation.prepared_by.get_full_name|default:quotation.prepared_by.username }}</p>
+    </div>
+
+    <div class="client-details">
+        <h2>Client Details</h2>
+        <p><strong>Client Name:</strong> {{ quotation.lead.client.client_name }}</p>
+        <p><strong>Contact Person:</strong> {{ quotation.lead.client.contact_person|default:"N/A" }}</p>
+        <p><strong>Email:</strong> {{ quotation.lead.client.email|default:"N/A" }}</p>
+        <p><strong>Phone:</strong> {{ quotation.lead.client.phone|default:"N/A" }}</p>
+        <p><strong>Address:</strong> {{ quotation.lead.client.address|default:"N/A" }}</p>
+    </div>
+
+    <h2>Services / Items</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Description</th>
+                <th>Quantity</th>
+                <th>Unit Price</th>
+                <th>Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in quotation.items.all %}
+            <tr>
+                <td>{{ item.description }}</td>
+                <td>{{ item.quantity }}</td>
+                <td>{{ item.unit_price|floatformat:2 }}</td>
+                <td>{{ item.total_price|floatformat:2 }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="total">
+        <h3>Grand Total: ${{ quotation.total_amount|floatformat:2 }}</h3>
+    </div>
+
+    {% if quotation.notes %}
+    <div class="notes">
+        <h2>Notes:</h2>
+        <p>{{ quotation.notes|linebreaksbr }}</p>
+    </div>
+    {% endif %}
+
+    <div class="footer">
+        <p>&copy; {{ "now"|date:"Y" }} {{ SITE_NAME|default:"CRM StudioOps" }}. All rights reserved.</p>
+    </div>
+</body>
+</html>
