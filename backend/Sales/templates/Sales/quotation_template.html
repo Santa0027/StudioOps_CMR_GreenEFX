@@ -27,7 +27,7 @@
     <div class="quotation-details">
         <p><strong>Quotation Number:</strong> {{ quotation.quotation_number }}</p>
         <p><strong>Status:</strong> {{ quotation.get_status_display }}</p>
-        <p><strong>Prepared By:</strong> {{ quotation.prepared_by.get_full_name|default:quotation.prepared_by.username }}</p>
+        <p><strong>Prepared By:</strong> {{ quotation.prepared_by.get_full_name|default:quotation.prepared_by.name }}</p>
     </div>
 
     <div class="client-details">

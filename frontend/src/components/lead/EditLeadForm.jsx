@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getLeadSources } from '../../api/api'; // Import the new API function
 
 const EditLeadForm = ({ lead, onSave, onCancel, staffUsers }) => { // Accept staffUsers prop
   const [formData, setFormData] = useState({
@@ -7,14 +8,37 @@ const EditLeadForm = ({ lead, onSave, onCancel, staffUsers }) => { // Accept sta
     client_phone: '',
     enquiry_status: 'new', // Status for the nested Enquiry
     lead_status: 'open', // Status for the Lead itself
-    services_requested: '',
+    // services_requested: '', // Removed
     estimated_budget: '',
     expected_delivery_date: '',
     notes: '',
     assigned_to: '', // Add assigned_to field
+    source: '', // New field
+    source_campaign: '', // New field
+    lead_score: 0, // New field
+    priority: 'medium', // New field
+    next_action: '', // New field
+    next_action_date: '', // New field
+    lost_reason: '', // New field
   });
 
+  const [leadSources, setLeadSources] = useState([]);
+  const [error, setError] = useState(null);
+
   useEffect(() => {
+    // Fetch lead sources
+    const fetchLeadSources = async () => {
+      try {
+        const res = await getLeadSources();
+        setLeadSources(res.data);
+      } catch (err) {
+        setError(err);
+        console.error("Failed to fetch lead sources:", err);
+      }
+    };
+    fetchLeadSources();
+
+    // Initialize form data from lead prop
     if (lead && lead.enquiry) {
       setFormData({
         client_name: lead.enquiry.client_name || '',
@@ -22,11 +46,18 @@ const EditLeadForm = ({ lead, onSave, onCancel, staffUsers }) => { // Accept sta
         client_phone: lead.enquiry.client_phone || '',
         enquiry_status: lead.enquiry.status || 'new',
         lead_status: lead.status || 'open',
-        services_requested: lead.services_requested || '',
+        // services_requested: lead.services_requested || '', // Removed
         estimated_budget: lead.estimated_budget || '',
         expected_delivery_date: lead.expected_delivery_date ? lead.expected_delivery_date.split('T')[0] : '', // Format date for input
         notes: lead.notes || '',
         assigned_to: lead.assigned_to || '', // Initialize assigned_to from lead
+        source: lead.source || '', // Initialize new field
+        source_campaign: lead.source_campaign || '', // Initialize new field
+        lead_score: lead.lead_score || 0, // Initialize new field
+        priority: lead.priority || 'medium', // Initialize new field
+        next_action: lead.next_action || '', // Initialize new field
+        next_action_date: lead.next_action_date ? lead.next_action_date.split('T')[0] : '', // Initialize new field
+        lost_reason: lead.lost_reason || '', // Initialize new field
       });
     }
   }, [lead]);
@@ -51,11 +82,18 @@ const EditLeadForm = ({ lead, onSave, onCancel, staffUsers }) => { // Accept sta
         status: formData.enquiry_status,
       },
       status: formData.lead_status,
-      services_requested: formData.services_requested,
+      // services_requested: formData.services_requested, // Removed
       estimated_budget: formData.estimated_budget === '' ? null : parseFloat(formData.estimated_budget),
       expected_delivery_date: formData.expected_delivery_date || null,
       notes: formData.notes,
       assigned_to: formData.assigned_to === '' ? null : parseInt(formData.assigned_to), // Use selected assigned_to
+      source: formData.source === '' ? null : parseInt(formData.source), // New field
+      source_campaign: formData.source_campaign, // New field
+      lead_score: formData.lead_score === '' ? 0 : parseInt(formData.lead_score), // New field
+      priority: formData.priority, // New field
+      next_action: formData.next_action, // New field
+      next_action_date: formData.next_action_date || null, // New field
+      lost_reason: formData.lost_reason, // New field
     };
     onSave(updatedLead);
   };
@@ -158,42 +196,103 @@ const EditLeadForm = ({ lead, onSave, onCancel, staffUsers }) => { // Accept sta
             ))}
           </select>
         </div>
+        
+        {/* New Lead Detail Fields */}
         <div>
-          <label className="block text-sm font-medium mb-1" htmlFor="services_requested">
-            Services Requested
+          <label className="block text-sm font-medium mb-1" htmlFor="source">
+            Lead Source
+          </label>
+          <select
+            id="source"
+            value={formData.source}
+            onChange={handleChange}
+            className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-gray-100 focus:outline-none focus:border-indigo-500"
+          >
+            <option value="">Select Source</option>
+            {leadSources.map((source) => (
+              <option key={source.id} value={source.id}>
+                {source.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1" htmlFor="source_campaign">
+            Source Campaign
           </label>
           <input
             type="text"
-            id="services_requested"
-            value={formData.services_requested}
+            id="source_campaign"
+            value={formData.source_campaign}
             onChange={handleChange}
-            className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-gray-100 focus:outline-none focus:border-indigo-500" // Dark style
+            className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-gray-100 focus:outline-none focus:border-indigo-500"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1" htmlFor="estimated_budget">
-            Estimated Budget
+          <label className="block text-sm font-medium mb-1" htmlFor="lead_score">
+            Lead Score
           </label>
           <input
             type="number"
-            id="estimated_budget"
-            value={formData.estimated_budget}
+            id="lead_score"
+            value={formData.lead_score}
             onChange={handleChange}
-            className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-gray-100 focus:outline-none focus:border-indigo-500" // Dark style
+            className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-gray-100 focus:outline-none focus:border-indigo-500"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1" htmlFor="expected_delivery_date">
-            Expected Delivery Date
+          <label className="block text-sm font-medium mb-1" htmlFor="priority">
+            Priority
+          </label>
+          <select
+            id="priority"
+            value={formData.priority}
+            onChange={handleChange}
+            className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-gray-100 focus:outline-none focus:border-indigo-500"
+          >
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1" htmlFor="next_action">
+            Next Action
+          </label>
+          <input
+            type="text"
+            id="next_action"
+            value={formData.next_action}
+            onChange={handleChange}
+            className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-gray-100 focus:outline-none focus:border-indigo-500"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1" htmlFor="next_action_date">
+            Next Action Date
           </label>
           <input
             type="date"
-            id="expected_delivery_date"
-            value={formData.expected_delivery_date}
+            id="next_action_date"
+            value={formData.next_action_date}
             onChange={handleChange}
-            className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-gray-100 focus:outline-none focus:border-indigo-500" // Dark style
+            className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-gray-100 focus:outline-none focus:border-indigo-500"
           />
         </div>
+        {formData.lead_status === 'lost' && (
+          <div>
+            <label className="block text-sm font-medium mb-1" htmlFor="lost_reason">
+              Lost Reason
+            </label>
+            <textarea
+              id="lost_reason"
+              value={formData.lost_reason}
+              onChange={handleChange}
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-gray-100 focus:outline-none focus:border-indigo-500"
+              rows="2"
+            ></textarea>
+          </div>
+        )}
       </div>
 
       <div className="mb-4">

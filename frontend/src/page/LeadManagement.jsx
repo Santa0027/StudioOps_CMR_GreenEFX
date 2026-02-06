@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import AddLeadForm from '../components/lead/AddLeadForm';
 import EditLeadForm from '../components/lead/EditLeadForm'; // Import EditLeadForm
 import FollowUpModal from '../components/FollowUpModal.jsx'; // Import FollowUpModal
+import QuotationList from '../components/lead/QuotationList'; // Import QuotationList
 import { useAuth } from '../context/AuthContext'; // Import useAuth
 
 import { getleads,createlead,updatelead,deletelead,getEmployees} from '../api/api';
@@ -30,6 +31,8 @@ const LeadManagement = () => {
   const [error, setError] = useState(null);
   const [showFollowUpModal, setShowFollowUpModal] = useState(false);
   const [currentLeadForFollowUp, setCurrentLeadForFollowUp] = useState(null);
+  const [showQuotationManagement, setShowQuotationManagement] = useState(false);
+  const [currentLeadForQuotation, setCurrentLeadForQuotation] = useState(null);
 
   // Fetch leads from API
   const fetchLeads = async () => {
@@ -290,9 +293,18 @@ const LeadManagement = () => {
                           setCurrentLeadForFollowUp(lead);
                           setShowFollowUpModal(true);
                         }}
-                        className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded"
+                        className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded mr-2"
                       >
                         Follow Up
+                      </button>
+                      <button
+                        onClick={() => {
+                          setCurrentLeadForQuotation(lead);
+                          setShowQuotationManagement(true);
+                        }}
+                        className="bg-purple-500 hover:bg-purple-700 text-white font-bold py-1 px-2 rounded"
+                      >
+                        View Quotations
                       </button>
                     </td>
                   </tr>
@@ -312,6 +324,24 @@ const LeadManagement = () => {
           currentUserId={currentUserId}
           onFollowUpAdded={fetchLeads} // Refresh leads after a follow-up
         />
+      )}
+
+      {showQuotationManagement && currentLeadForQuotation && (
+        <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 p-6 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto relative">
+            <h2 className="text-xl font-bold text-white mb-4">Quotations for {currentLeadForQuotation.enquiry?.client_name}</h2>
+            <QuotationList leadId={currentLeadForQuotation.id} />
+            <button
+              onClick={() => {
+                setShowQuotationManagement(false);
+                setCurrentLeadForQuotation(null);
+              }}
+              className="absolute top-4 right-4 bg-red-600 hover:bg-red-700 text-white text-lg rounded-full w-8 h-8 flex items-center justify-center"
+            >
+              &times;
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
