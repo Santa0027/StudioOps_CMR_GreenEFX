@@ -119,6 +119,7 @@ function Sidebar({ isExpanded, toggleSidebar }) {
       subItems: [
         { name: 'Package Management', path: '/master/packages' },
         { name: 'Workflow Template Management', path: '/master/workflow-templates' },
+        {name : 'services', path: '/services'},
       ],
     },
     {

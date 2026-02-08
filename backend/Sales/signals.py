@@ -1,7 +1,8 @@
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save , post_delete
 from django.dispatch import receiver
 from .models import Lead , Enquiry, Clients
 from project.models import Project
+from .models import Quotation,QuotationItem
 from django.db import transaction
 
 @receiver(post_save, sender=Lead)
@@ -64,3 +65,13 @@ def create_lead_by_enquiry(sender, instance, created, **kwargs):
             notes=f"Auto-created from enquiry #{instance.id}. Original budget range: {instance.budget_range}. Original notes: {instance.notes}"
         )
         
+
+@receiver(post_save, sender=QuotationItem)
+@receiver(post_delete, sender=QuotationItem)
+ 
+@receiver(post_delete, sender=QuotationItem)
+def recalculate_quotation_total(sender, instance, **kwargs):
+    quotation = instance.quotation
+    total_amount = sum(item.total_price for item in quotation.items.all())
+    quotation.total_amount = total_amount
+    quotation.save(update_fields=['total_amount'])        

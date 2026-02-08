@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 from HR_Payroll.models import User # Import the User model
 # from project.models import ProjectTimeLog
 STATUS_CHOICES = [
@@ -161,6 +162,19 @@ class Quotation(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        if not self.quotation_number:
+            today = timezone.now().date()
+            # Get the count of quotations for today
+            today_quotations_count = Quotation.objects.filter(
+                issue_date__year=today.year,
+                issue_date__month=today.month,
+                issue_date__day=today.day
+            ).count()
+            # Format the quotation number
+            self.quotation_number = f"Q-{today.strftime('%Y%m%d')}-{today_quotations_count + 1:04d}"
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"Quotation {self.quotation_number} for {self.lead.client.client_name}"

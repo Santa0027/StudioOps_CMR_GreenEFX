@@ -58,12 +58,16 @@ class ProjectSerializer(serializers.ModelSerializer):
     created_by_details = UserSerializer(source='created_by', read_only=True)
     stages = ProjectStageSerializer(many=True, read_only=True) # Add nested stages
     overall_progress = serializers.DecimalField(max_digits=5, decimal_places=2, read_only=True)
+    
+    # New fields for service and package names
+    service_name = serializers.CharField(source='service.name', read_only=True)
+    package_name = serializers.CharField(source='package.name', read_only=True)
 
     class Meta:
         model = Project
         fields = [
             'id', 'name', 'description', 'client', 'client_name', 'project_type', 
-            'service_type', 'priority', 'status', 'start_date', 'due_date', 
+            'service', 'service_name', 'package', 'package_name', 'priority', 'status', 'start_date', 'due_date', 
             'end_date', 'budget', 'estimated_hours', 'initial_requirements', 
             'reference_links', 'created_by', 'created_by_details', 'updated_by', 'created_at', 
             'updated_at', 'assigned_users', 'overall_progress', 'stages' # Include stages in fields

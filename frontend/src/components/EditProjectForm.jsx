@@ -1,159 +1,118 @@
 import React, { useState, useEffect } from 'react';
-import { updateProject, getClients, getEmployees, getProjectStageTemplates } from '../api/api'; // Import API functions
+import {
+  X, FolderKanban, Building2, Layers, Briefcase, Flag,
+  Calendar, DollarSign, Clock, FileText, Link, Users, Save, Paperclip
+} from 'lucide-react';
+import { updateProject, getClients, getEmployees, getServices, getPackages } from '../api/api';
 
-const mockPackages = [
-  {
-    id: 'PKG-001',
-    name: 'Social Media Monthly Standard',
-    description: 'Standard monthly package for social media content.',
-    items: [
-      { name: 'Static Posters', quantity: 4, unit: 'count' },
-      { name: 'Short Video Reels', quantity: 1, unit: 'count' },
-      { name: 'Motion Graphics', quantity: 1, unit: 'count' },
-    ],
-    price: 1500,
-    frequency: 'Monthly',
-  },
-  {
-    id: 'PKG-002',
-    name: 'Website Launch Package',
-    description: 'Comprehensive package for launching a new website.',
-    items: [
-      { name: 'Website Pages Design', quantity: 5, unit: 'count' },
-      { name: 'Content Writing', quantity: 10, unit: 'pages' },
-      { name: 'SEO Setup', quantity: 1, unit: 'project' },
-    ],
-    price: 5000,
-    frequency: 'One-time',
-  },
+const priorityOptions = [
+  { value: 'low', label: 'Low', color: 'bg-slate-700 text-slate-300' },
+  { value: 'medium', label: 'Medium', color: 'bg-amber-500/20 text-amber-400' },
+  { value: 'high', label: 'High', color: 'bg-rose-500/20 text-rose-400' },
+  { value: 'critical', label: 'Critical', color: 'bg-red-500/20 text-red-400' },
 ];
 
-const priorityMap = {
-    'low': 'Low',
-    'medium': 'Medium',
-    'high': 'High',
-    'critical': 'Critical',
-};
-
-const serviceTypeMap = {
-    '3d_animation': '3D Animation',
-    'graphic_design': 'Graphic Design',
-    'video_editing': 'Video Editing',
-    'motion_graphics': 'Motion Graphics',
-    'vfx': 'VFX',
-    'package': 'Package',
-};
-
 const EditProjectForm = ({ project, onClose, onProjectUpdated }) => {
-  const [projectName, setProjectName] = useState(project.name || '');
-  const [clientId, setClientId] = useState(project.client || '');
-  const [priority, setPriority] = useState(project.priority || 'medium');
-  const [serviceType, setServiceType] = useState(project.service_type || '3d_animation');
-  const [selectionMode, setSelectionMode] = useState('package'); // Assume default or determine from project data
-  const [selectedPackage, setSelectedPackage] = useState(''); // Need to map project services to packages
-  const [singleServiceName, setSingleServiceName] = useState(''); // Need to map project services to single service
-  const [singleServiceBudget, setSingleServiceBudget] = useState('');
-  const [singleServiceHours, setSingleServiceHours] = useState('');
-  const [startDate, setStartDate] = useState(project.start_date ? new Date(project.start_date).toISOString().split('T')[0] : '');
-  const [dueDate, setDueDate] = useState(project.due_date ? new Date(project.due_date).toISOString().split('T')[0] : '');
-  const [budget, setBudget] = useState(project.budget || '');
-  const [estimateHours, setEstimateHours] = useState(project.estimated_hours || '');
-  const [teamMembers, setTeamMembers] = useState(project.assigned_users ? project.assigned_users.map(user => user.id) : []);
-  const [description, setDescription] = useState(project.description || '');
-  const [initialRequirements, setInitialRequirements] = useState(project.initial_requirements || '');
-  const [referenceLinks, setReferenceLinks] = useState(project.reference_links || '');
-  const [attachments, setAttachments] = useState([]); // Handle existing attachments if any, for now new only
+  const [formData, setFormData] = useState({
+    name: project.name || '',
+    client: project.client || '',
+    project_type: project.project_type || 'single_service',
+    service: project.service || '', // Now stores service ID
+    package: project.package || '', // Now stores package ID
+    priority: project.priority || 'medium',
+    start_date: project.start_date ? new Date(project.start_date).toISOString().split('T')[0] : '',
+    due_date: project.due_date ? new Date(project.due_date).toISOString().split('T')[0] : '',
+    budget: project.budget || '',
+    estimated_hours: project.estimated_hours || '',
+    description: project.description || '',
+    initial_requirements: project.initial_requirements || '',
+    reference_links: project.reference_links || '',
+    assigned_users: project.assigned_users ? project.assigned_users.map(user => user.id) : [],
+  });
+  
   const [clients, setClients] = useState([]);
   const [employees, setEmployees] = useState([]);
+  const [services, setServices] = useState([]); // New state for services
+  const [packages, setPackages] = useState([]); // New state for packages
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState(null);
-  const [workflowTemplates, setWorkflowTemplates] = useState([]); // New state for available templates
-  const [selectedWorkflowTemplates, setSelectedWorkflowTemplates] = useState([]); // New state for selected templates
+  const [validationErrors, setValidationErrors] = useState({});
+  const [attachments, setAttachments] = useState([]);
 
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
-        const clientsRes = await getClients();
+        const [clientsRes, employeesRes, servicesRes, packagesRes] = await Promise.all([
+          getClients(),
+          getEmployees(),
+          getServices(),
+          getPackages(),
+        ]);
         setClients(clientsRes.data);
-        const employeesRes = await getEmployees();
         setEmployees(employeesRes.data);
-        const templatesRes = await getProjectStageTemplates(); // Fetch workflow templates
-        setWorkflowTemplates(templatesRes.data);
+        setServices(servicesRes.data);
+        setPackages(packagesRes.data);
       } catch (err) {
         console.error('Failed to fetch initial data:', err);
-        setFormError('Failed to load clients, employees, or workflow templates.'); // Updated error message
+        setFormError('Failed to load clients, employees, services or packages.');
       }
     };
     fetchInitialData();
   }, []);
 
   useEffect(() => {
-    setProjectName(project.name || '');
-    setClientId(project.client || '');
-    setPriority(project.priority || 'medium');
-    setServiceType(project.service_type || '3d_animation');
-    setStartDate(project.start_date ? new Date(project.start_date).toISOString().split('T')[0] : '');
-    setDueDate(project.due_date ? new Date(project.due_date).toISOString().split('T')[0] : '');
-    setBudget(project.budget || '');
-    setEstimateHours(project.estimated_hours || '');
-    setTeamMembers(project.assigned_users ? project.assigned_users.map(user => user.id) : []);
-    setDescription(project.description || '');
-    setInitialRequirements(project.initial_requirements || '');
-    setReferenceLinks(project.reference_links || '');
-    setSelectedWorkflowTemplates(project.workflow_templates ? project.workflow_templates.map(template => template.id) : []); // Initialize selected workflow templates
-    // Reset selection mode and package/single service fields if needed based on project data
+    setFormData({
+      name: project.name || '',
+      client: project.client || '',
+      project_type: project.project_type || 'single_service',
+      service: project.service || '',
+      package: project.package || '',
+      priority: project.priority || 'medium',
+      start_date: project.start_date ? new Date(project.start_date).toISOString().split('T')[0] : '',
+      due_date: project.due_date ? new Date(project.due_date).toISOString().split('T')[0] : '',
+      budget: project.budget || '',
+      estimated_hours: project.estimated_hours || '',
+      description: project.description || '',
+      initial_requirements: project.initial_requirements || '',
+      reference_links: project.reference_links || '',
+      assigned_users: project.assigned_users ? project.assigned_users.map(user => user.id) : [],
+    });
+    // Clear validation errors when project changes
+    setValidationErrors({});
   }, [project]);
 
+  // Effect to reset service or package when project_type changes
   useEffect(() => {
-    if (selectionMode === 'package') {
-      if (selectedPackage) {
-        const pkg = mockPackages.find(p => p.id === selectedPackage);
-        if (pkg) {
-          setBudget(pkg.price.toString());
-          const totalHours = pkg.items.reduce((sum, item) => sum + (item.quantity * (item.unit === 'count' ? 8 : 1)), 0);
-          setEstimateHours(totalHours.toString());
-          setDescription(pkg.description);
-          setInitialRequirements(pkg.items.map(item => `${item.quantity} ${item.unit} ${item.name}`).join(', '));
-        }
-        // If no package selected, clear fields, but only if they weren't pre-filled by the project prop
-        if (!project.budget && !project.estimated_hours) {
-          setBudget('');
-          setEstimateHours('');
-          setDescription('');
-          setInitialRequirements('');
-        }
+    setFormData(prev => {
+      if (prev.project_type === 'single_service') {
+        return { ...prev, package: '' }; // Clear package if single service
+      } else if (prev.project_type === 'package') {
+        return { ...prev, service: '' }; // Clear service if package
       }
-    } else { // selectionMode === 'singleService'
-      setBudget(singleServiceBudget);
-      setEstimateHours(singleServiceHours);
-      setDescription(`Single service: ${singleServiceName}`);
-      setInitialRequirements(`Service: ${singleServiceName}, Budget: ${singleServiceBudget}, Estimated Hours: ${singleServiceHours}`);
-    }
-  }, [selectedPackage, selectionMode, singleServiceName, singleServiceBudget, singleServiceHours, project]);
+      return prev;
+    });
+  }, [formData.project_type]);
 
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    setValidationErrors(prev => ({ ...prev, [name]: undefined })); // Clear validation error for this field
+  };
 
   const handleSubmit = async () => {
-    setLoading(true);
     setFormError(null);
+    setValidationErrors({}); // Clear previous validation errors
 
-    const projectData = {
-        name: projectName,
-        client: clientId,
-        priority: priority,
-        service_type: serviceType,
-        start_date: startDate,
-        due_date: dueDate,
-        budget: budget,
-        estimated_hours: estimateHours,
-        description: description,
-        initial_requirements: initialRequirements,
-        reference_links: referenceLinks,
-        assigned_users: teamMembers,
-    };
+    const errors = validateForm(formData);
+    if (Object.keys(errors).length > 0) {
+      setValidationErrors(errors);
+      return;
+    }
+
+    setLoading(true);
 
     try {
-      await updateProject(project.id, projectData);
-      alert('Project updated successfully!');
+      await updateProject(project.id, formData);
       if (onProjectUpdated) onProjectUpdated();
       if (onClose) onClose();
     } catch (err) {
@@ -168,408 +127,449 @@ const EditProjectForm = ({ project, onClose, onProjectUpdated }) => {
           }
         }
         setFormError(`Failed to update project: ${errorMessages.join('; ')}`);
-        alert(`Failed to update project: ${errorMessages.join('; ')}`);
       } else {
         setFormError('Failed to update project. Please check your input.');
-        alert('Failed to update project. Please check your input.');
       }
     } finally {
       setLoading(false);
     }
   };
 
-  const handleModeChange = (mode) => {
-    setSelectionMode(mode);
-    if (mode === 'package') {
-      setSingleServiceName('');
-      setSingleServiceBudget('');
-      setSingleServiceHours('');
-    } else {
-      setSelectedPackage('');
+  const validateForm = (data) => {
+    const errors = {};
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Normalize today's date to compare only dates
+
+    // Project Name validation
+    if (!data.name.trim()) {
+      errors.name = 'Project name is required.';
+    } else if (data.name.trim().length < 3) {
+      errors.name = 'Project name must be at least 3 characters long.';
+    } else if (data.name.trim().length > 100) {
+      errors.name = 'Project name cannot exceed 100 characters.';
     }
+
+    // Client validation
+    if (!data.client) {
+      errors.client = 'Client selection is required.';
+    }
+
+    // Service/Package validation
+    if (data.project_type === 'single_service' && !data.service) {
+      errors.service = 'Service selection is required for single service projects.';
+    }
+    if (data.project_type === 'package' && !data.package) {
+      errors.package = 'Package selection is required for package projects.';
+    }
+
+    // Due Date validation
+    if (data.due_date) {
+      const dueDate = new Date(data.due_date);
+      if (dueDate < today) {
+        errors.due_date = 'Due date cannot be in the past.';
+      }
+      if (data.start_date) {
+        const startDate = new Date(data.start_date);
+        if (dueDate < startDate) {
+          errors.due_date = 'Due date cannot be before the start date.';
+        }
+      }
+    }
+
+    // Reference Links validation (simple URL check)
+    if (data.reference_links && !/^(ftp|http|https):\/\/[^ "]+$/.test(data.reference_links)) {
+      errors.reference_links = 'Please enter a valid URL for reference links.';
+    }
+
+    return errors;
+  };
+
+  const handleTeamMemberChange = (employeeId) => {
+    setFormData(prev => {
+      const current = prev.assigned_users;
+      if (current.includes(employeeId)) {
+        return { ...prev, assigned_users: current.filter(id => id !== employeeId) };
+      } else {
+        return { ...prev, assigned_users: [...current, employeeId] };
+      }
+    });
   };
 
   const handleFileChange = (e) => {
     setAttachments([...attachments, ...Array.from(e.target.files)]);
   };
 
-  const handleTeamMemberChange = (e) => {
-    const options = e.target.options;
-    const selectedMembers = [];
-    for (let i = 0, l = options.length; i < l; i++) {
-      if (options[i].selected) {
-        selectedMembers.push(options[i].value);
-      }
-    }
-    setTeamMembers(selectedMembers);
-  };
-
-  const handleTemplateChange = (e) => {
-    const { value, checked } = e.target;
-    const templateId = parseInt(value);
-    setSelectedWorkflowTemplates(prev => {
-        if (checked) {
-            return [...prev, templateId];
-        } else {
-            return prev.filter(id => id !== templateId);
-        }
-    });
-  };
-
-
-  const priorityOptions = Object.keys(priorityMap);
-  const serviceTypeOptions = Object.keys(serviceTypeMap);
+  const inputClasses = "w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200";
+  const labelClasses = "flex items-center gap-2 text-sm font-medium text-slate-300 mb-2";
 
   return (
-    <div className="bg-[#1C1C1E] p-8 rounded-lg shadow-lg max-w-4xl mx-auto border border-gray-700 max-h-[90vh] overflow-y-auto">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-3xl font-bold text-white">Edit Project</h2>
-        <button onClick={onClose} className="text-gray-400 hover:text-white">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-6 w-6"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+    <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl w-full max-w-4xl mx-auto overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between p-6 border-b border-slate-800 bg-gradient-to-r from-slate-900 to-slate-800">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-amber-500/10 rounded-lg">
+            <FolderKanban size={24} className="text-amber-500" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-white">Edit Project</h2>
+            <p className="text-sm text-slate-400">Modify project details below</p>
+          </div>
+        </div>
+        <button
+          onClick={onClose}
+          className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors"
+        >
+          <X size={20} />
+        </button>
       </div>
 
+      {/* Error Message */}
       {formError && (
-        <div className="bg-red-900 text-red-300 p-3 rounded-md mb-4">
+        <div className="mx-6 mt-6 p-4 bg-rose-500/10 border border-rose-500/20 rounded-lg text-rose-400">
           {formError}
         </div>
       )}
 
-      <p className="text-gray-400 mb-8">Modify the details below to update the project.</p>
-
-      <div className="bg-gray-800 rounded-lg shadow-lg p-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-          <div>
-            <label htmlFor="projectName" className="block text-gray-300 text-sm font-bold mb-2">
-              Project Name
-            </label>
-            <input
-              type="text"
-              id="projectName"
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-300 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 border-gray-600"
-              placeholder="e.g. Q3 Brand Campaign"
-              value={projectName}
-              onChange={(e) => setProjectName(e.target.value)}
-              required
-            />
-          </div>
-
-          <div>
-            <label htmlFor="client" className="block text-gray-300 text-sm font-bold mb-2">
-              Client
-            </label>
-            <div className="relative">
+      {/* Form */}
+      <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
+        {/* Basic Info */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold text-white flex items-center gap-2 pb-2 border-b border-slate-800">
+            <FolderKanban size={18} className="text-blue-500" />
+            Basic Information
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="name" className={labelClasses}>
+                <FileText size={14} />
+                Project Name *
+              </label>
+              <input
+                type="text"
+                name="name"
+                id="name"
+                value={formData.name}
+                onChange={handleChange}
+                className={`${inputClasses} ${validationErrors.name ? 'border-rose-500' : ''}`}
+                placeholder="e.g., Q3 Brand Campaign"
+                required
+              />
+              {validationErrors.name && <p className="text-rose-500 text-sm mt-1">{validationErrors.name}</p>}
+            </div>
+            <div>
+              <label htmlFor="client" className={labelClasses}>
+                <Building2 size={14} />
+                Client *
+              </label>
               <select
+                name="client"
                 id="client"
-                className="block appearance-none w-full bg-gray-700 border border-gray-600 text-gray-300 py-2 px-3 pr-8 rounded leading-tight focus:outline-none focus:shadow-outline"
-                value={clientId}
-                onChange={(e) => setClientId(e.target.value)}
+                value={formData.client}
+                onChange={handleChange}
+                className={`${inputClasses} ${validationErrors.client ? 'border-rose-500' : ''} cursor-pointer`}
                 required
               >
-                <option value="">Select a client</option>
+                <option value="">Select a Client</option>
                 {clients.map(client => (
                   <option key={client.id} value={client.id}>{client.client_name}</option>
                 ))}
               </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-300">
-                <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
-              </div>
+              {validationErrors.client && <p className="text-rose-500 text-sm mt-1">{validationErrors.client}</p>}
             </div>
           </div>
         </div>
 
-        <div className="mb-6">
-          <label className="block text-gray-300 text-sm font-bold mb-2">Project Type</label>
-          <div className="flex space-x-4 mb-4">
-            <button
-              type="button"
-              className={`py-2 px-4 rounded ${
-                selectionMode === 'package' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-              }`}
-              onClick={() => handleModeChange('package')}
-            >
-              Select Package
-            </button>
-            <button
-              type="button"
-              className={`py-2 px-4 rounded ${
-                selectionMode === 'singleService' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-              }`}
-              onClick={() => handleModeChange('singleService')}
-            >
-              Single Service (One-time)
-            </button>
+        {/* Project Type */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold text-white flex items-center gap-2 pb-2 border-b border-slate-800">
+            <Layers size={18} className="text-purple-500" />
+            Project Type
+          </h3>
+          <div className="flex gap-4">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="project_type"
+                value="single_service"
+                checked={formData.project_type === 'single_service'}
+                onChange={handleChange}
+                className="form-radio h-4 w-4 text-blue-600"
+              />
+              <span className="text-white">Single Service</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="project_type"
+                value="package"
+                checked={formData.project_type === 'package'}
+                onChange={handleChange}
+                className="form-radio h-4 w-4 text-blue-600"
+              />
+              <span className="text-white">Package</span>
+            </label>
           </div>
+        </div>
 
-          {selectionMode === 'package' && (
-            <div className="relative">
-              <label htmlFor="package" className="block text-gray-300 text-sm font-bold mb-2">Select Package (Optional)</label>
+        {/* Service or Package Selection */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold text-white flex items-center gap-2 pb-2 border-b border-slate-800">
+            <Briefcase size={18} className="text-purple-500" />
+            {formData.project_type === 'single_service' ? 'Select Service' : 'Select Package'}
+          </h3>
+          {formData.project_type === 'single_service' ? (
+            <div>
+              <label htmlFor="service" className={labelClasses}>
+                Service *
+              </label>
               <select
-                id="package"
-                className="block appearance-none w-full bg-gray-700 border border-gray-600 text-gray-300 py-2 px-3 pr-8 rounded leading-tight focus:outline-none focus:shadow-outline"
-                value={selectedPackage}
-                onChange={(e) => setSelectedPackage(e.target.value)}
+                name="service"
+                id="service"
+                value={formData.service}
+                onChange={handleChange}
+                className={`${inputClasses} ${validationErrors.service ? 'border-rose-500' : ''} cursor-pointer`}
               >
-                <option value="">-- No Package Selected --</option>
-                {mockPackages.map(pkg => (
+                <option value="">Select a Service</option>
+                {services.map(service => (
+                  <option key={service.id} value={service.id}>{service.name}</option>
+                ))}
+              </select>
+              {validationErrors.service && <p className="text-rose-500 text-sm mt-1">{validationErrors.service}</p>}
+            </div>
+          ) : (
+            <div>
+              <label htmlFor="package" className={labelClasses}>
+                Package *
+              </label>
+              <select
+                name="package"
+                id="package"
+                value={formData.package}
+                onChange={handleChange}
+                className={`${inputClasses} ${validationErrors.package ? 'border-rose-500' : ''} cursor-pointer`}
+              >
+                <option value="">Select a Package</option>
+                {packages.map(pkg => (
                   <option key={pkg.id} value={pkg.id}>{pkg.name} (${pkg.price})</option>
                 ))}
               </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-300">
-                <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
-              </div>
-            </div>
-          )}
-
-          {selectionMode === 'singleService' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label htmlFor="singleServiceName" className="block text-gray-300 text-sm font-bold mb-2">Service Name</label>
-                <div className="relative">
-                  <select
-                    id="singleServiceName"
-                    className="block appearance-none w-full bg-gray-700 border border-gray-600 text-gray-300 py-2 px-3 pr-8 rounded leading-tight focus:outline-none focus:shadow-outline"
-                    value={singleServiceName}
-                    onChange={(e) => setSingleServiceName(e.target.value)}
-                    required={selectionMode === 'singleService'}
-                  >
-                    <option value="">Select a service</option>
-                    {serviceTypeOptions.map(option => (
-                      <option key={option} value={option}>{serviceTypeMap[option]}</option>
-                    ))}
-                  </select>
-                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-300">
-                    <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
-                  </div>
-                </div>
-              </div>
-              <div>
-                <label htmlFor="singleServiceBudget" className="block text-gray-300 text-sm font-bold mb-2">Service Budget</label>
-                <input
-                  type="number"
-                  id="singleServiceBudget"
-                  className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-300 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 border-gray-600"
-                  placeholder="e.g. 1000"
-                  value={singleServiceBudget}
-                  onChange={(e) => setSingleServiceBudget(e.target.value)}
-                  required={selectionMode === 'singleService'}
-                />
-              </div>
-              <div className="md:col-span-2">
-                <label htmlFor="singleServiceHours" className="block text-gray-300 text-sm font-bold mb-2">Estimated Hours</label>
-                <input
-                  type="number"
-                  id="singleServiceHours"
-                  className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-300 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 border-gray-600"
-                  placeholder="e.g. 40"
-                  value={singleServiceHours}
-                  onChange={(e) => setSingleServiceHours(e.target.value)}
-                  required={selectionMode === 'singleService'}
-                />
-              </div>
+              {validationErrors.package && <p className="text-rose-500 text-sm mt-1">{validationErrors.package}</p>}
             </div>
           )}
         </div>
 
-        <div className="mb-6">
-          <label className="block text-gray-300 text-sm font-bold mb-2">Priority</label>
-          <div className="flex space-x-2">
+        {/* Priority */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold text-white flex items-center gap-2 pb-2 border-b border-slate-800">
+            <Flag size={18} className="text-amber-500" />
+            Priority
+          </h3>
+          <div className="flex flex-wrap gap-2">
             {priorityOptions.map((option) => (
               <button
-                key={option}
+                key={option.value}
                 type="button"
-                className={`py-2 px-4 rounded ${
-                  priority === option ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                onClick={() => setFormData(prev => ({ ...prev, priority: option.value }))}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  formData.priority === option.value
+                    ? 'ring-2 ring-blue-500 ' + option.color
+                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700'
                 }`}
-                onClick={() => setPriority(option)}
               >
-                {priorityMap[option]}
+                {option.label}
               </button>
             ))}
           </div>
         </div>
 
-        <div className="mb-6">
-          <label className="block text-gray-300 text-sm font-bold mb-2">Service Type</label>
-          <div className="flex flex-wrap gap-2">
-            {serviceTypeOptions.map((option) => (
-              <button
-                key={option}
-                type="button"
-                className={`py-2 px-4 rounded ${
-                  serviceType === option ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                }`}
-                onClick={() => setServiceType(option)}
-              >
-                {serviceTypeMap[option]}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-          <div>
-            <label htmlFor="startDate" className="block text-gray-300 text-sm font-bold mb-2">
-              Start Date
-            </label>
-            <input
-              type="date"
-              id="startDate"
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-300 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 border-gray-600"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              required
-            />
-          </div>
-          <div>
-            <label htmlFor="dueDate" className="block text-gray-300 text-sm font-bold mb-2">
-              Due Date
-            </label>
-            <input
-              type="date"
-              id="dueDate"
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-300 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 border-gray-600"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-              required
-            />
-          </div>
-          <div>
-            <label htmlFor="budget" className="block text-gray-300 text-sm font-bold mb-2">
-              Budget
-            </label>
-            <input
-              type="text"
-              id="budget"
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-300 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 border-gray-600"
-              placeholder="$ 5,000"
-              value={budget}
-              onChange={(e) => setBudget(e.target.value)}
-              readOnly={selectionMode === 'package' && !!selectedPackage || selectionMode === 'singleService'}
-              required
-            />
-          </div>
-          <div>
-            <label htmlFor="estimateHours" className="block text-gray-300 text-sm font-bold mb-2">
-              Estimate (Hours)
-            </label>
-            <input
-              type="number"
-              id="estimateHours"
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-300 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 border-gray-600"
-              placeholder="120"
-              value={estimateHours}
-              onChange={(e) => setEstimateHours(e.target.value)}
-              readOnly={selectionMode === 'package' && !!selectedPackage || selectionMode === 'singleService'}
-              required
-            />
-          </div>
-        </div>
-
-        <div className="mb-6">
-          <label className="block text-gray-300 text-sm font-bold mb-2">Assign Team Members</label>
-          <div className="relative">
-            <select
-              multiple
-              className="block appearance-none w-full bg-gray-700 border border-gray-600 text-gray-300 py-2 px-3 pr-8 rounded leading-tight focus:outline-none focus:shadow-outline h-32"
-              value={teamMembers}
-              onChange={handleTeamMemberChange}
-            >
-              {employees.map(employee => (
-                <option key={employee.id} value={employee.id}>
-                  {employee.user.name} ({employee.user.email})
-                </option>
-              ))}
-            </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-300">
-                <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
-              </div>
-          </div>
-        </div>
-
-        <div className="mb-6">
-          <label htmlFor="description" className="block text-gray-300 text-sm font-bold mb-2">
-            Description / Notes
-          </label>
-          <textarea
-            id="description"
-            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-300 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 border-gray-600 h-32"
-            placeholder="Add any additional notes or details about the project..."
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            readOnly={selectionMode === 'package' && !!selectedPackage}
-            required
-          ></textarea>
-        </div>
-
-        <div className="mb-6">
-          <label htmlFor="initialRequirements" className="block text-gray-300 text-sm font-bold mb-2">
-            Initial Requirements
-          </label>
-          <textarea
-            id="initialRequirements"
-            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-300 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 border-gray-600 h-32"
-            placeholder="Outline initial requirements for the project..."
-            value={initialRequirements}
-            onChange={(e) => setInitialRequirements(e.target.value)}
-            readOnly={selectionMode === 'package' && !!selectedPackage}
-            required
-          ></textarea>
-        </div>
-
-        <div className="mb-6">
-          <label htmlFor="referenceLinks" className="block text-gray-300 text-sm font-bold mb-2">
-            Reference Links
-          </label>
-          <input
-            type="text"
-            id="referenceLinks"
-            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-300 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 border-gray-600"
-            placeholder="Add relevant reference links (e.g., Figma, Trello, Confluence)"
-            value={referenceLinks}
-            onChange={(e) => setReferenceLinks(e.target.value)}
-          />
-        </div>
-
-        <div className="mb-6">
-          <label htmlFor="attachments" className="block text-gray-300 text-sm font-bold mb-2">
-            Attachments
-          </label>
-          <input
-            type="file"
-            id="attachments"
-            multiple
-            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-300 leading-tight focus:outline-none focus:shadow-outline bg-gray-700 border-gray-600"
-            onChange={handleFileChange}
-          />
-          {attachments.length > 0 && (
-            <div className="mt-2 text-sm text-gray-400">
-              Selected files: {attachments.map(file => file.name).join(', ')}
+        {/* Timeline & Budget */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold text-white flex items-center gap-2 pb-2 border-b border-slate-800">
+            <Calendar size={18} className="text-emerald-500" />
+            Timeline & Budget
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
+              <label htmlFor="start_date" className={labelClasses}>
+                <Calendar size={14} />
+                Start Date
+              </label>
+              <input
+                type="date"
+                name="start_date"
+                id="start_date"
+                value={formData.start_date}
+                onChange={handleChange}
+                className={inputClasses}
+              />
             </div>
-          )}
+            <div>
+              <label htmlFor="due_date" className={labelClasses}>
+                <Calendar size={14} />
+                Due Date
+              </label>
+              <input
+                type="date"
+                name="due_date"
+                id="due_date"
+                value={formData.due_date}
+                onChange={handleChange}
+                className={`${inputClasses} ${validationErrors.due_date ? 'border-rose-500' : ''}`}
+              />
+              {validationErrors.due_date && <p className="text-rose-500 text-sm mt-1">{validationErrors.due_date}</p>}
+            </div>
+            <div>
+              <label htmlFor="budget" className={labelClasses}>
+                <DollarSign size={14} />
+                Budget
+              </label>
+              <input
+                type="number"
+                name="budget"
+                id="budget"
+                value={formData.budget}
+                onChange={handleChange}
+                className={inputClasses}
+                placeholder="e.g., 5000"
+              />
+            </div>
+            <div>
+              <label htmlFor="estimated_hours" className={labelClasses}>
+                <Clock size={14} />
+                Estimated Hours
+              </label>
+              <input
+                type="number"
+                name="estimated_hours"
+                id="estimated_hours"
+                value={formData.estimated_hours}
+                onChange={handleChange}
+                className={inputClasses}
+                placeholder="e.g., 120"
+              />
+            </div>
+          </div>
         </div>
 
-        <div className="flex justify-end space-x-4">
-          <button type="button" className="bg-gray-700 hover:bg-gray-600 text-gray-300 font-bold py-2 px-4 rounded" onClick={onClose}>
-            Cancel
-          </button>
-          <button
-            type="button"
-            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-            onClick={handleSubmit}
-            disabled={loading}
-          >
-            {loading ? 'Updating...' : 'Update Project'}
-          </button>
+        {/* Team Members */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold text-white flex items-center gap-2 pb-2 border-b border-slate-800">
+            <Users size={18} className="text-violet-500" />
+            Team Members
+          </h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 p-4 bg-slate-950 border border-slate-800 rounded-xl max-h-40 overflow-y-auto">
+            {employees.map(employee => (
+              <label key={employee.id} className="flex items-center gap-2 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={formData.assigned_users.includes(employee.id)}
+                  onChange={() => handleTeamMemberChange(employee.id)}
+                  className="h-4 w-4 bg-slate-800 border-slate-600 rounded text-blue-600 focus:ring-blue-500 focus:ring-offset-slate-900"
+                />
+                <span className="text-sm text-slate-300 group-hover:text-white transition-colors truncate">
+                  {employee.user?.name || employee.name || `Employee ${employee.id}`}
+                </span>
+              </label>
+            ))}
+          </div>
         </div>
+
+        {/* Additional Details */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold text-white flex items-center gap-2 pb-2 border-b border-slate-800">
+            <FileText size={18} className="text-slate-400" />
+            Additional Details
+          </h3>
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="description" className={labelClasses}>Description</label>
+              <textarea
+                name="description"
+                id="description"
+                value={formData.description}
+                onChange={handleChange}
+                rows="3"
+                className={inputClasses + " resize-none"}
+                placeholder="Project description..."
+              />
+            </div>
+            <div>
+              <label htmlFor="initial_requirements" className={labelClasses}>Initial Requirements</label>
+              <textarea
+                name="initial_requirements"
+                id="initial_requirements"
+                value={formData.initial_requirements}
+                onChange={handleChange}
+                rows="3"
+                className={inputClasses + " resize-none"}
+                placeholder="Outline initial requirements..."
+              />
+            </div>
+            <div>
+              <label htmlFor="reference_links" className={labelClasses}>
+                <Link size={14} />
+                Reference Links
+              </label>
+              <input
+                type="text"
+                name="reference_links"
+                id="reference_links"
+                value={formData.reference_links}
+                onChange={handleChange}
+                className={`${inputClasses} ${validationErrors.reference_links ? 'border-rose-500' : ''}`}
+                placeholder="Add relevant reference links..."
+              />
+              {validationErrors.reference_links && <p className="text-rose-500 text-sm mt-1">{validationErrors.reference_links}</p>}
+            </div>
+            <div>
+              <label htmlFor="attachments" className={labelClasses}>
+                <Paperclip size={14} />
+                Attachments
+              </label>
+              <input
+                type="file"
+                id="attachments"
+                multiple
+                onChange={handleFileChange}
+                className={inputClasses}
+              />
+              {attachments.length > 0 && (
+                <p className="mt-2 text-sm text-slate-400">
+                  Selected: {attachments.map(f => f.name).join(', ')}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="flex items-center justify-end gap-3 p-6 border-t border-slate-800 bg-slate-900/50">
+        <button
+          type="button"
+          onClick={onClose}
+          className="px-5 py-2.5 rounded-xl font-semibold text-slate-300 bg-slate-800 hover:bg-slate-700 border border-slate-700 transition-all duration-200"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={handleSubmit}
+          disabled={loading}
+          className="px-6 py-2.5 rounded-xl font-semibold text-white bg-emerald-600 hover:bg-emerald-500 shadow-lg shadow-emerald-500/20 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+        >
+          {loading ? (
+            <>
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              Saving...
+            </>
+          ) : (
+            <>
+              <Save size={16} />
+              Save Changes
+            </>
+          )}
+        </button>
       </div>
     </div>
   );

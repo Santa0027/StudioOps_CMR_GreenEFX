@@ -54,10 +54,24 @@ class QuotationItemViewSet(viewsets.ModelViewSet):
     queryset = QuotationItem.objects.all()
     serializer_class = QuotationItemSerializer
 
+    def get_queryset(self):
+        queryset = self.queryset
+        quotation_id = self.request.query_params.get('quotation', None)
+        if quotation_id is not None:
+            queryset = queryset.filter(quotation_id=quotation_id)
+        return queryset
+
 
 class QuotationViewSet(viewsets.ModelViewSet):
     queryset = Quotation.objects.all()
     serializer_class = QuotationSerializer
+
+    def get_queryset(self):
+        queryset = self.queryset
+        lead_id = self.request.query_params.get('lead', None)
+        if lead_id is not None:
+            queryset = queryset.filter(lead_id=lead_id)
+        return queryset
 
     def perform_create(self, serializer):
         # Automatically set prepared_by to the current user

@@ -33,7 +33,9 @@ import ProjectStageElementTemplateManagementPage from './page/ProjectStageElemen
 import ReportAndAnalysis from './components/ReportAndAnalysis'; // Import ReportAndAnalysis
 import LeadManagement from './page/LeadManagement'; // Import LeadManagement
 import EnquiryManagement from './page/EnquiryManagement'; // Import EnquiryManagement
-import WorkflowTemplateManagement from './page/WorkflowTemplateManagement'; // Import the new WorkflowTemplateManagement component
+import ServiceList from './components/service/ServiceList'; // Import ServiceList
+import ServiceForm from './components/service/ServiceForm'; // Import ServiceForm
+import WorkflowTemplateManagement from './page/WorkflowTemplateManagement';
 
 function App() {
   return (
@@ -77,6 +79,9 @@ function App() {
           <Route path="/master/packages" element={<PackageManagement />} /> {/* Master module: Package Management */}
           <Route path="/master/packages/:packageId/items" element={<PackageItemPage />} />
           <Route path="/master/workflow-templates" element={<WorkflowTemplateManagement />} /> {/* New consolidated Workflow Template Management */}
+          <Route path="/services" element={<ServiceList />} /> {/* Master module: Service Management */}
+          <Route path="/services/new" element={<ServiceForm />} />
+          <Route path="/services/edit/:id" element={<ServiceForm />} />
           {/* Removed old ProjectStageTemplateManagement and ProjectStageElementTemplateManagementPage routes */}
         </Route>
       </Route>

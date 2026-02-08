@@ -49,8 +49,8 @@ class ProjectAssetInline(admin.TabularInline):
 
 @admin.register(Project)
 class ProjectAdmin(admin.ModelAdmin):
-    list_display = ("name", "client", "project_type", "service_type", "priority", "status", "start_date", "due_date")
-    list_filter = ("status", "priority", "service_type", "project_type")
+    list_display = ("name", "client", "project_type", "service", "package", "priority", "status", "start_date", "due_date")
+    list_filter = ("status", "priority", "project_type", "service", "package") 
     search_fields = ("name", "client__name", "description")
     inlines = [ProjectStageInline]
 

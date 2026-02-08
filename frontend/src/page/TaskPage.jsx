@@ -1,13 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { 
+  Plus, ListTodo, CheckCircle2, RotateCcw, User2, 
+  FolderKanban, Calendar, Clock, MessageSquare, Image, AlertTriangle
+} from 'lucide-react';
 import CreateNewTaskForm from '../components/CreateNewTaskForm';
-import { getProjectStageElements, getProjects, getEmployees, createTaskAssignment } from '../api/api'; // Import the API functions
-import Modal from '../components/Modal'; // Assuming a Modal component for error/loading
+import { getProjectStageElements, getProjects, getEmployees, createTaskAssignment } from '../api/api';
+import Modal from '../components/Modal';
+
+const STATUS_OPTIONS = [
+  { value: "pending", label: "Pending", color: "bg-slate-500/10 text-slate-400 ring-1 ring-slate-500/20" },
+  { value: "in_progress", label: "In Progress", color: "bg-blue-500/10 text-blue-400 ring-1 ring-blue-500/20" },
+  { value: "completed", label: "Completed", color: "bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/20" },
+  { value: "rework", label: "Rework", color: "bg-rose-500/10 text-rose-400 ring-1 ring-rose-500/20" },
+];
 
 function TaskPage() {
   const navigate = useNavigate();
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [currentFilter, setCurrentFilter] = useState('all'); // 'all', 'rework', 'assigned'
+  const [currentFilter, setCurrentFilter] = useState('all');
   const [tasks, setTasks] = useState([]);
   const [projects, setProjects] = useState([]);
   const [employees, setEmployees] = useState([]);
@@ -19,9 +30,7 @@ function TaskPage() {
   const processTasks = (tasksData) => {
     const tasksByStage = tasksData.reduce((acc, task) => {
       const stageName = task.stage_name;
-      if (!acc[stageName]) {
-        acc[stageName] = [];
-      }
+      if (!acc[stageName]) acc[stageName] = [];
       acc[stageName].push(task);
       return acc;
     }, {});
@@ -32,7 +41,7 @@ function TaskPage() {
       const firstPending = stageTasks.find(t => t.status !== 'completed');
       if (firstPending) {
         nextAssignableTask = firstPending;
-        break; // Found the first assignable task
+        break;
       }
     }
     setAssignableTask(nextAssignableTask);
@@ -61,12 +70,7 @@ function TaskPage() {
     fetchData();
   }, []);
 
-  const handleOpenCreateTaskForm = () => setIsFormOpen(true);
-  const handleCloseCreateTaskForm = () => {
-    setIsFormOpen(false);
-    // Optionally refetch tasks after closing the form if a task was created
-    // fetchData(); 
-  };
+  const handleCloseCreateTaskForm = () => setIsFormOpen(false);
 
   const handleAssignTask = async (taskId, userId) => {
     try {
@@ -79,184 +83,314 @@ function TaskPage() {
     }
   };
 
-  // Helper function to determine task type for filtering and display
   const getTaskType = (task) => {
-    if (task.rejection_notes && task.rejection_notes.length > 0) {
-      return 'rework';
-    }
-    if (task.id === assignableTask?.id) {
-        return 'assignable';
-    }
-    if (task.status === 'in_progress') { // Example: consider in_progress as assigned
-        return 'assigned';
-    }
+    if (task.rejection_notes && task.rejection_notes.length > 0) return 'rework';
+    if (task.id === assignableTask?.id) return 'assignable';
+    if (task.status === 'in_progress') return 'assigned';
     return 'normal';
   };
 
-  if (loading) {
+  const getStatusBadge = (status) => {
+    const statusObj = STATUS_OPTIONS.find(s => s.value === status) || STATUS_OPTIONS[0];
     return (
-      <Modal isOpen={loading} onClose={() => {}} title="Loading Data">
-        <p>Loading data...</p>
-      </Modal>
+      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${statusObj.color}`}>
+        {statusObj.label}
+      </span>
     );
-  }
+  };
 
-  if (error) {
-    return (
-      <Modal isOpen={!!error} onClose={() => setError(null)} title="Error">
-        <p>{error}</p>
-      </Modal>
-    );
-  }
+  if (loading) return (
+    <div className="flex items-center justify-center min-h-[calc(100vh-4rem)]">
+      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+    </div>
+  );
+
+  if (error) return (
+    <div className="flex items-center justify-center min-h-[calc(100vh-4rem)]">
+      <div className="text-center">
+        <p className="text-red-400 text-lg">Error loading tasks</p>
+        <p className="text-slate-500 text-sm mt-2">{error}</p>
+      </div>
+    </div>
+  );
 
   const filteredTasks = tasks.filter(task => {
     if (currentFilter === 'all') return true;
-    const type = getTaskType(task);
-    return type === currentFilter;
+    return getTaskType(task) === currentFilter;
   });
 
+  const reworkCount = tasks.filter(t => getTaskType(t) === 'rework').length;
+  const assignedCount = tasks.filter(t => getTaskType(t) === 'assigned').length;
+  const completedCount = tasks.filter(t => t.status === 'completed').length;
+
   return (
-    <div className="p-6 bg-gray-900 text-white min-h-screen">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Tasks</h1>
-        <div className="flex gap-4">
-          <button
-            onClick={handleOpenCreateTaskForm}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-          >
-            Create New Task
-          </button>
+    <div className="space-y-8 animate-in fade-in duration-500">
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-white tracking-tight">Tasks</h1>
+          <p className="text-slate-400 mt-2 text-lg">Track and manage all your project tasks.</p>
+        </div>
+        <button
+          onClick={() => setIsFormOpen(true)}
+          className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl font-semibold transition-all duration-200 shadow-lg bg-blue-600 hover:bg-blue-500 text-white shadow-blue-500/20"
+        >
+          <Plus size={20} />
+          Create New Task
+        </button>
+      </div>
+
+      {/* Quick Stats Summary */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-slate-900/50 p-5 rounded-xl border border-slate-800 backdrop-blur-sm">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-slate-400 text-sm font-medium">Total Tasks</p>
+              <p className="text-3xl font-bold text-white mt-1">{tasks.length}</p>
+            </div>
+            <div className="p-2 bg-blue-500/10 rounded-lg text-blue-500">
+              <ListTodo size={20} />
+            </div>
+          </div>
+        </div>
+        <div className="bg-slate-900/50 p-5 rounded-xl border border-slate-800 backdrop-blur-sm">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-slate-400 text-sm font-medium">Completed</p>
+              <p className="text-3xl font-bold text-emerald-400 mt-1">{completedCount}</p>
+            </div>
+            <div className="p-2 bg-emerald-500/10 rounded-lg text-emerald-500">
+              <CheckCircle2 size={20} />
+            </div>
+          </div>
+        </div>
+        <div className="bg-slate-900/50 p-5 rounded-xl border border-slate-800 backdrop-blur-sm">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-slate-400 text-sm font-medium">Rework</p>
+              <p className="text-3xl font-bold text-rose-400 mt-1">{reworkCount}</p>
+            </div>
+            <div className="p-2 bg-rose-500/10 rounded-lg text-rose-500">
+              <RotateCcw size={20} />
+            </div>
+          </div>
+        </div>
+        <div className="bg-slate-900/50 p-5 rounded-xl border border-slate-800 backdrop-blur-sm">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-slate-400 text-sm font-medium">Assigned</p>
+              <p className="text-3xl font-bold text-blue-400 mt-1">{assignedCount}</p>
+            </div>
+            <div className="p-2 bg-blue-500/10 rounded-lg text-blue-500">
+              <User2 size={20} />
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold mb-4">Active Projects</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {projects.map((project) => (
-            <div key={project.id} className="bg-gray-800 p-4 rounded-lg shadow-lg">
-              <h3 className="font-bold text-lg mb-2">{project.name}</h3>
-              <p className="text-sm text-gray-400 mb-2">{project.project_type}</p>
-              <div className="w-full bg-gray-700 rounded-full h-2.5 mb-2">
-                <div
-                  className="bg-blue-600 h-2.5 rounded-full"
-                  style={{ width: `${project.overall_progress}%` }}
-                ></div>
+      {/* Active Projects Section */}
+      <div className="space-y-4">
+        <h2 className="text-xl font-bold text-white flex items-center gap-2">
+          <FolderKanban size={20} className="text-blue-500" />
+          Active Projects
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {projects.slice(0, 6).map((project) => (
+            <div key={project.id} className="bg-slate-900 border border-slate-800 rounded-xl p-5 hover:border-slate-700 transition-colors">
+              <div className="flex items-start justify-between mb-3">
+                <h3 className="font-bold text-white">{project.name}</h3>
+                <span className="text-xs text-slate-400 bg-slate-800 px-2 py-1 rounded-lg">{project.project_type}</span>
               </div>
-              <div className="flex justify-between text-sm">
-                <span>Team: {project.assigned_users.length} members</span>
-                <span>Deadline: {new Date(project.due_date).toLocaleDateString()}</span>
+              <div className="mb-3">
+                <div className="flex justify-between text-xs text-slate-400 mb-1">
+                  <span>Progress</span>
+                  <span>{project.overall_progress || 0}%</span>
+                </div>
+                <div className="w-full bg-slate-700 rounded-full h-2">
+                  <div
+                    className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${project.overall_progress || 0}%` }}
+                  ></div>
+                </div>
+              </div>
+              <div className="flex justify-between text-sm text-slate-400">
+                <span className="flex items-center gap-1">
+                  <User2 size={14} />
+                  {project.assigned_users?.length || 0} members
+                </span>
+                <span className="flex items-center gap-1">
+                  <Calendar size={14} />
+                  {project.due_date ? new Date(project.due_date).toLocaleDateString() : 'No date'}
+                </span>
               </div>
             </div>
           ))}
         </div>
       </div>
 
-      <div>
-        <h2 className="text-2xl font-bold mb-4">Task List</h2>
-        <div className="flex justify-center mb-4">
-          <button
-            onClick={() => setCurrentFilter('all')}
-            className={`px-4 py-2 ${currentFilter === 'all' ? 'bg-blue-600' : 'bg-gray-700'} rounded-l-lg`}
-          >
-            All
-          </button>
-          <button
-            onClick={() => setCurrentFilter('rework')}
-            className={`px-4 py-2 ${currentFilter === 'rework' ? 'bg-yellow-600' : 'bg-gray-700'}`}
-          >
-            Rework ({tasks.filter(t => getTaskType(t) === 'rework').length})
-          </button>
-          <button
-            onClick={() => setCurrentFilter('assigned')}
-            className={`px-4 py-2 ${currentFilter === 'assigned' ? 'bg-green-600' : 'bg-gray-700'} rounded-r-lg`}
-          >
-            Assigned to Me ({tasks.filter(t => getTaskType(t) === 'assigned').length})
-          </button>
+      {/* Task List Section */}
+      <div className="space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <h2 className="text-xl font-bold text-white">Task List</h2>
+          
+          {/* Filter Tabs */}
+          <div className="flex bg-slate-900 rounded-xl p-1 border border-slate-800">
+            <button
+              onClick={() => setCurrentFilter('all')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                currentFilter === 'all' 
+                  ? 'bg-blue-600 text-white shadow-md' 
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              All
+            </button>
+            <button
+              onClick={() => setCurrentFilter('rework')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${
+                currentFilter === 'rework' 
+                  ? 'bg-rose-600 text-white shadow-md' 
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <RotateCcw size={14} />
+              Rework
+              {reworkCount > 0 && (
+                <span className="bg-rose-500/30 text-rose-200 text-xs px-1.5 py-0.5 rounded-full">{reworkCount}</span>
+              )}
+            </button>
+            <button
+              onClick={() => setCurrentFilter('assigned')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${
+                currentFilter === 'assigned' 
+                  ? 'bg-emerald-600 text-white shadow-md' 
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <User2 size={14} />
+              Assigned
+              {assignedCount > 0 && (
+                <span className="bg-emerald-500/30 text-emerald-200 text-xs px-1.5 py-0.5 rounded-full">{assignedCount}</span>
+              )}
+            </button>
+          </div>
         </div>
 
-        <div className="bg-gray-800 p-4 rounded-lg">
-          {filteredTasks.map((task) => {
-            const isAssignable = task.id === assignableTask?.id;
-            const isCompleted = task.status === 'completed';
-            const isAssigned = task.assignments && task.assignments.length > 0; // New check
+        {/* Task Cards */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden divide-y divide-slate-800">
+          {filteredTasks.length === 0 ? (
+            <div className="text-center py-16 text-slate-500 italic">No tasks found.</div>
+          ) : (
+            filteredTasks.map((task) => {
+              const isAssignable = task.id === assignableTask?.id;
+              const isCompleted = task.status === 'completed';
+              const isAssigned = task.assignments && task.assignments.length > 0;
+              const isRework = task.rejection_notes && task.rejection_notes.length > 0;
 
-            return (
-              <div
-                key={task.id}
-                className={`border-b border-gray-700 p-4 ${isAssignable ? 'bg-blue-800' : isCompleted ? 'bg-gray-900' : 'bg-gray-800'}`}
-              >
-                <div className="flex justify-between items-center">
-                  <div onClick={() => navigate(`/tasks/${task.id}`)} className="cursor-pointer flex-grow">
-                    <h3 className="font-bold">{task.element_name}</h3>
-                    <p className="text-sm text-gray-400">
-                      Project: {task.project_name} - Stage: {task.stage_name}
-                    </p>
-                    {/* New: Current Work Preview */}
-                    {task.assets && task.assets.length > 0 && (
-                      <div className="mt-2">
-                        <img
-                          src={task.assets[0].file}
-                          alt="Current Work Preview"
-                          className="w-24 h-24 object-cover rounded-md border border-gray-600"
-                        />
+              return (
+                <div
+                  key={task.id}
+                  className={`p-5 transition-colors ${
+                    isAssignable ? 'bg-blue-500/5' : 
+                    isRework ? 'bg-rose-500/5' : 
+                    isCompleted ? 'bg-emerald-500/5' : ''
+                  } hover:bg-slate-800/50`}
+                >
+                  <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                    <div className="flex-grow cursor-pointer" onClick={() => navigate(`/tasks/${task.id}`)}>
+                      <div className="flex items-start gap-3">
+                        {/* Task Preview Image */}
+                        {task.assets && task.assets.length > 0 && (
+                          <div className="w-16 h-16 rounded-lg overflow-hidden bg-slate-800 border border-slate-700 shrink-0">
+                            <img
+                              src={task.assets[0].file}
+                              alt="Preview"
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        )}
+                        
+                        <div className="flex-grow">
+                          <h3 className="font-bold text-white hover:text-blue-400 transition-colors">{task.element_name}</h3>
+                          <p className="text-sm text-slate-400 flex items-center gap-2 mt-1">
+                            <FolderKanban size={14} />
+                            {task.project_name}
+                            <span className="text-slate-600">•</span>
+                            Stage: {task.stage_name}
+                          </p>
+                          
+                          {/* Notes Preview */}
+                          {task.initial_notes && (
+                            <p className="text-sm text-slate-400 mt-2 line-clamp-1">
+                              {task.initial_notes}
+                            </p>
+                          )}
+                          
+                          {/* Rework Warning */}
+                          {isRework && (
+                            <div className="flex items-center gap-2 mt-2 text-rose-400 text-sm">
+                              <AlertTriangle size={14} />
+                              <span className="line-clamp-1">{task.rejection_notes}</span>
+                            </div>
+                          )}
+                          
+                          {/* Meta Info */}
+                          <div className="flex items-center gap-4 mt-3">
+                            {task.versions && task.versions.length > 0 && (
+                              <span className="flex items-center gap-1 text-xs text-slate-500">
+                                <MessageSquare size={12} />
+                                {task.versions.length} Comments
+                              </span>
+                            )}
+                            <span className="flex items-center gap-1 text-xs text-slate-500">
+                              <Clock size={12} />
+                              {new Date(task.updated_at).toLocaleDateString()}
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                    )}
-                    {/* New: Initial Notes */}
-                    {task.initial_notes && (
-                      <p className="text-sm text-gray-300 mt-2">
-                        Notes: {task.initial_notes.substring(0, 100)}
-                        {task.initial_notes.length > 100 ? '...' : ''}
-                      </p>
-                    )}
-                    {/* New: Rework Notes */}
-                    {task.rejection_notes && (
-                      <p className="text-sm text-red-400 mt-1">
-                        Rework: {task.rejection_notes.substring(0, 100)}
-                        {task.rejection_notes.length > 100 ? '...' : ''}
-                      </p>
-                    )}
-                    {/* New: Comment Count */}
-                    {task.versions && task.versions.length > 0 && (
-                      <p className="text-sm text-blue-400 mt-1">
-                        {task.versions.length} Comments
-                      </p>
-                    )}
-                  </div>
-                  <div className="text-right">
-                    {isAssigned ? ( // Check if already assigned
-                      <p className="text-sm text-green-500 font-semibold">Assigned</p>
-                    ) : isAssignable ? (
-                      <div className="flex items-center">
-                        <select
-                          value={selectedUser}
-                          onChange={(e) => setSelectedUser(e.target.value)}
-                          className="bg-gray-700 text-white rounded-lg p-2"
-                        >
-                          <option value="">Select User</option>
-                          {employees.map(user => (
-                            <option key={user.id} value={user.id}>{user.name}</option>
-                          ))}
-                        </select>
-                        <button
-                          onClick={() => handleAssignTask(task.id, selectedUser)}
-                          disabled={!selectedUser}
-                          className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded ml-2"
-                        >
-                          Assign
-                        </button>
-                      </div>
-                    ) : (
-                      <p className="text-sm">Status: <span className={`font-semibold ${task.status === 'completed' ? 'text-green-500' : 'text-yellow-500'}`}>{task.status}</span></p>
-                    )}
-                    <p className="text-xs text-gray-500">Last updated: {new Date(task.updated_at).toLocaleDateString()}</p>
+                    </div>
+                    
+                    {/* Right Side Actions */}
+                    <div className="flex flex-col items-end gap-3 shrink-0">
+                      {isAssigned ? (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/20">
+                          <CheckCircle2 size={12} />
+                          Assigned
+                        </span>
+                      ) : isAssignable ? (
+                        <div className="flex items-center gap-2">
+                          <select
+                            value={selectedUser}
+                            onChange={(e) => setSelectedUser(e.target.value)}
+                            className="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-300 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                          >
+                            <option value="">Select User</option>
+                            {employees.map(user => (
+                              <option key={user.id} value={user.id}>{user.name}</option>
+                            ))}
+                          </select>
+                          <button
+                            onClick={() => handleAssignTask(task.id, selectedUser)}
+                            disabled={!selectedUser}
+                            className="px-4 py-2 rounded-lg text-sm font-semibold bg-blue-600 hover:bg-blue-500 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            Assign
+                          </button>
+                        </div>
+                      ) : (
+                        getStatusBadge(task.status)
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })
+          )}
         </div>
       </div>
 
+      {/* Create Task Modal */}
       {isFormOpen && (
         <Modal isOpen={isFormOpen} onClose={handleCloseCreateTaskForm} title="Create New Task">
           <CreateNewTaskForm onClose={handleCloseCreateTaskForm} />

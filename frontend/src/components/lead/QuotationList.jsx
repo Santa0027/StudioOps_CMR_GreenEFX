@@ -36,6 +36,7 @@ const QuotationList = ({ leadId }) => {
       setLoading(true);
       const res = await getQuotations(leadId);
       setQuotations(res.data);
+      console.log(res.data)
     } catch (err) {
       setError(err);
       console.error("Failed to fetch quotations:", err);

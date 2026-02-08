@@ -2,8 +2,7 @@ from django.db import models
 from django.core.exceptions import ValidationError
 from django.db.models import Sum, Max
 from HR_Payroll.models import User
-from Sales.models import Clients
-
+from Sales.models import Clients, Service  # Import Service
 
 # =====================================================
 # PROJECT
@@ -23,15 +22,6 @@ class Project(models.Model):
         ("medium", "Medium"),
         ("high", "High"),
         ("critical", "Critical"),
-    ]
-
-    SERVICE_TYPE_CHOICES = [
-        ("3d_animation", "3D Animation"),
-        ("graphic_design", "Graphic Design"),
-        ("video_editing", "Video Editing"),
-        ("motion_graphics", "Motion Graphics"),
-        ("vfx", "VFX"),
-        ("package", "Package"),
     ]
 
     PROJECT_TYPE_CHOICES = [
@@ -54,10 +44,20 @@ class Project(models.Model):
         default="single_service"
     )
 
-    service_type = models.CharField(
-        max_length=50,
-        choices=SERVICE_TYPE_CHOICES,
-        default="graphic_design"
+    service = models.ForeignKey(
+        Service,
+        on_delete=models.SET_NULL,
+        related_name="projects",
+        null=True,
+        blank=True
+    )
+
+    package = models.ForeignKey(
+        'Package', # Use string reference if Package is defined later in the same file
+        on_delete=models.SET_NULL,
+        related_name="projects",
+        null=True,
+        blank=True
     )
 
     priority = models.CharField(
@@ -103,6 +103,36 @@ class Project(models.Model):
 
     def __str__(self):
         return self.name
+
+    def clean(self):
+        super().clean()
+        if self.project_type == "single_service":
+            if not self.service:
+                raise ValidationError(
+                    {"service": "Service must be selected for single service projects."}
+                )
+            if self.package:
+                raise ValidationError(
+                    {"package": "Package cannot be selected for single service projects."}
+                )
+        elif self.project_type == "package":
+            if not self.package:
+                raise ValidationError(
+                    {"package": "Package must be selected for package projects."}
+                )
+            if self.service:
+                raise ValidationError(
+                    {"service": "Service cannot be selected for package projects."}
+                )
+        else: # Should not happen due to choices, but for robustness
+            if self.service and self.package:
+                raise ValidationError(
+                    "Only one of service or package can be selected."
+                )
+            if not self.service and not self.package:
+                raise ValidationError(
+                    "Either a service or a package must be selected."
+                )
 
     @property
     def overall_progress(self):
