@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-
 function Sidebar({ isExpanded, toggleSidebar }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -138,116 +137,133 @@ function Sidebar({ isExpanded, toggleSidebar }) {
   ];
 
   return (
-    <div className={`bg-[#1C1C1E] h-screen p-6 flex flex-col rounded-r-lg shadow-lg relative transition-all duration-300 ${isExpanded ? 'w-64' : 'w-20 items-center'}`}>
-      <div className={`flex items-center mb-10 ${!isExpanded && 'justify-center'}`}>
-        <div className="w-10 h-10 bg-green-700 rounded-full flex items-center justify-center mr-3">
-          <span className="text-white font-bold text-lg">SO</span>
+    <div 
+        className={`bg-slate-900 h-screen flex flex-col border-r border-slate-800 relative transition-all duration-300 ease-in-out z-20 ${isExpanded ? 'w-64' : 'w-20'}`}
+        role="navigation"
+    >
+      {/* Header / Brand */}
+      <div className={`flex items-center h-20 px-6 ${!isExpanded && 'justify-center px-0'}`}>
+        <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl flex items-center justify-center shadow-lg shadow-blue-900/40 shrink-0">
+          <span className="text-white font-bold text-lg leading-none">SO</span>
         </div>
         {isExpanded && (
-          <div>
-            <h2 className="text-xl font-bold text-white">StudioOps</h2>
-            <p className="text-gray-400 text-sm">Workflow System</p>
+          <div className="ml-3 overflow-hidden ml-3">
+            <h2 className="text-lg font-bold text-white tracking-wide whitespace-nowrap">StudioOps</h2>
+            <p className="text-slate-400 text-xs font-medium tracking-wider uppercase">Workspace</p>
           </div>
         )}
       </div>
 
-      <nav className="flex-grow">
-        <ul>
-          {navItems.map((item) => (
-            <li key={item.name} className="mb-4">
-              {item.subItems ? (
-                <div>
-                  <div
-                    className={`flex items-center p-3 rounded-lg text-white font-medium hover:bg-gray-700 transition-colors duration-200 cursor-pointer
-                      ${(item.name === 'Projects' && location.pathname.startsWith('/projects')) ||
-                        (item.name === 'Users Management' && location.pathname.startsWith('/users')) ||
-                        (item.name === 'Finance & Billing' && (location.pathname.startsWith('/finance-billing') || location.pathname.startsWith('/invoice'))) ||
-                        (item.name === 'Master Modules' && location.pathname.startsWith('/master')) || // New active state check
-                        (item.name === 'System Settings' && location.pathname.startsWith('/settings')) ||
-                        (item.subItems.some(subItem => location.pathname === subItem.path))
-                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' : 'text-gray-400'}
-                      ${!isExpanded && 'justify-center'}`}
-                    onClick={() => isExpanded && toggleMenu(item.name)}
-                  >
-                    <span className={`mr-4 ${!isExpanded && 'mr-0'}`}>
-                      {item.icon}
-                    </span>
-                    {isExpanded && item.name}
-                    {isExpanded && item.subItems && (
-                      <span className="ml-auto">
-                        {expandedMenus[item.name] ? (
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7" />
-                          </svg>
-                        ) : (
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                          </svg>
-                        )}
-                      </span>
+      <nav className="flex-grow overflow-y-auto custom-scrollbar pt-2 px-3 pb-6 space-y-1">
+          {navItems.map((item) => {
+            const isItemActive = (item.subItems && (
+                item.subItems.some(sub => location.pathname === sub.path) ||
+                (item.name === 'Projects' && location.pathname.startsWith('/projects')) ||
+                (item.name === 'Users Management' && location.pathname.startsWith('/users')) ||
+                (item.name === 'Finance & Billing' && (location.pathname.startsWith('/finance-billing') || location.pathname.startsWith('/invoice'))) ||
+                (item.name === 'Master Modules' && location.pathname.startsWith('/master')) ||
+                (item.name === 'System Settings' && location.pathname.startsWith('/settings'))
+            )) || location.pathname === item.path;
+
+            const isSubMenuExpanded = expandedMenus[item.name];
+
+            return (
+                <div key={item.name} className="mb-1">
+                    {item.subItems ? (
+                        <>
+                            <div
+                                onClick={() => isExpanded && toggleMenu(item.name)}
+                                className={`flex items-center px-3 py-2.5 rounded-lg cursor-pointer transition-all duration-200 group
+                                    ${isItemActive 
+                                        ? 'bg-blue-600/10 text-blue-400' 
+                                        : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}
+                                    ${!isExpanded && 'justify-center'}
+                                `}
+                            >
+                                <span className={`flex-shrink-0 transition-colors ${isItemActive ? 'text-blue-400' : 'text-slate-500 group-hover:text-slate-300'}`}>
+                                    {item.icon}
+                                </span>
+                                
+                                {isExpanded && (
+                                    <>
+                                        <span className="ml-3 font-medium text-sm flex-1">{item.name}</span>
+                                        <span className={`ml-2 transform transition-transform duration-200 ${isSubMenuExpanded ? 'rotate-180' : ''}`}>
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                                            </svg>
+                                        </span>
+                                    </>
+                                )}
+                            </div>
+
+                            {/* Submenu */}
+                            {isExpanded && isSubMenuExpanded && (
+                                <div className="mt-1 ml-4 pl-3 border-l border-slate-800 space-y-1">
+                                    {item.subItems.map(subItem => (
+                                        <Link
+                                            key={subItem.name}
+                                            to={subItem.path}
+                                            className={`block py-2 px-3 rounded-md text-sm font-medium transition-colors
+                                                ${location.pathname === subItem.path 
+                                                    ? 'text-white bg-slate-800' 
+                                                    : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/50'}
+                                            `}
+                                        >
+                                            {subItem.name}
+                                        </Link>
+                                    ))}
+                                </div>
+                            )}
+                        </>
+                    ) : (
+                        <Link
+                            to={item.path}
+                            className={`flex items-center px-3 py-2.5 rounded-lg transition-all duration-200 group
+                                ${isItemActive 
+                                    ? 'bg-blue-600 shadow-md shadow-blue-900/20 text-white' 
+                                    : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}
+                                ${!isExpanded && 'justify-center'}
+                            `}
+                        >
+                            <span className={`flex-shrink-0 transition-colors ${isItemActive ? 'text-blue-100' : 'text-slate-500 group-hover:text-slate-300'}`}>
+                                {item.icon}
+                            </span>
+                            {isExpanded && <span className="ml-3 font-medium text-sm">{item.name}</span>}
+                        </Link>
                     )}
-                  </div>
-                  {isExpanded && expandedMenus[item.name] && (
-                    <ul className="ml-6 mt-2 space-y-2">
-                      {item.subItems.map(subItem => (
-                        <li key={subItem.name}>
-                          <Link
-                            to={subItem.path}
-                            className={`flex items-center p-2 rounded-lg text-sm font-medium hover:bg-gray-700 transition-colors duration-200
-                              ${location.pathname === subItem.path ? 'text-blue-400' : 'text-gray-400'}`}
-                          >
-                            {subItem.name}
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
                 </div>
-              ) : (
-                <Link
-                  to={item.path}
-                  className={`flex items-center p-3 rounded-lg text-white font-medium hover:bg-gray-700 transition-colors duration-200
-                    ${location.pathname === item.path ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' : 'text-gray-400'}
-                    ${!isExpanded && 'justify-center'}`}
-                >
-                  <span className={`mr-4 ${!isExpanded && 'mr-0'}`}>
-                    {item.icon}
-                  </span>
-                  {isExpanded && item.name}
-                </Link>
-              )}
-            </li>
-          ))}
-        </ul>
+            );
+          })}
       </nav>
 
       {/* Toggle Button */}
       <button
         onClick={toggleSidebar}
-        className="absolute top-1/2 -right-3 transform -translate-y-1/2 p-1 bg-gray-700 rounded-full text-white focus:outline-none z-10"
+        className="absolute top-8 -right-3 p-1.5 bg-slate-800 border border-slate-700 rounded-full text-slate-400 hover:text-white shadow-lg cursor-pointer z-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/40"
       >
         {isExpanded ? (
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
             <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
           </svg>
         ) : (
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
             <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
           </svg>
         )}
       </button>
 
-      <div className="mt-auto">
+      {/* Logout/Footer */}
+      <div className="p-4 border-t border-slate-800">
         <button
           onClick={handleLogout}
-          className={`flex items-center w-full p-3 rounded-lg text-red-400 font-medium hover:bg-gray-700 transition-colors duration-200 ${!isExpanded && 'justify-center'}`}
+          className={`flex items-center w-full px-3 py-2.5 rounded-lg text-rose-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors duration-200 group ${!isExpanded && 'justify-center'}`}
         >
-          <span className={`mr-4 ${!isExpanded && 'mr-0'}`}>
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clipRule="evenodd" />
-            </svg>
-          </span>
-          {isExpanded && 'Logout'}
+            <span className={`flex-shrink-0 ${!isExpanded ? 'mr-0' : 'mr-3'}`}>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clipRule="evenodd" />
+                </svg>
+            </span>
+            {isExpanded && <span className="font-medium text-sm">Logout</span>}
         </button>
       </div>
     </div>

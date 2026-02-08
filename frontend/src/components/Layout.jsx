@@ -10,10 +10,15 @@ function Layout() {
   };
 
   return (
-    <div className="flex h-screen bg-[#1a1a1a] text-white">
+    <div className="flex h-screen bg-slate-950 text-slate-100 font-sans anti-aliased selection:bg-blue-500 selection:text-white">
       <Sidebar isExpanded={isSidebarExpanded} toggleSidebar={toggleSidebar} />
-      <main className={`flex-1 p-6 overflow-auto transition-all duration-300 ${isSidebarExpanded ? 'ml-0' : 'ml-[-16rem]'}`}>
-        <Outlet />
+      <main 
+        className="flex-1 p-4 md:p-8 overflow-y-auto overflow-x-hidden relative transition-all duration-300 ease-soft-spring"
+        role="main"
+      >
+        <div className="max-w-7xl mx-auto w-full">
+            <Outlet />
+        </div>
       </main>
     </div>
   );

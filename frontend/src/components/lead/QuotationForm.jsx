@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Calendar, FileText, Save, X } from 'lucide-react';
 
 const QuotationForm = ({ quotation, onSave, onCancel, leadId }) => {
   const [formData, setFormData] = useState({
@@ -22,18 +23,14 @@ const QuotationForm = ({ quotation, onSave, onCancel, leadId }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // Ensure expiry_date is a valid date string
-    const formattedExpiryDate = formData.expiry_date || ''; // Handle empty string if date not selected
+    const formattedExpiryDate = formData.expiry_date || ''; 
 
     const dataToSave = {
       ...formData,
       expiry_date: formattedExpiryDate,
-      // For updates, the lead ID should be taken from the existing quotation object
-      // For new quotations, it comes from leadId prop
       lead: quotation ? quotation.lead : leadId,
-      // Any other fields that need to be sent (e.g., initial status, total_amount if calculated client-side)
     };
-    // Ensure lead is passed as an integer ID
+   
     if (dataToSave.lead) {
       dataToSave.lead = parseInt(dataToSave.lead);
     }
@@ -42,41 +39,54 @@ const QuotationForm = ({ quotation, onSave, onCancel, leadId }) => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <label htmlFor="expiry_date" className="block text-sm font-medium text-gray-300">Expiry Date</label>
-        <input
-          type="date"
-          id="expiry_date"
-          value={formData.expiry_date}
-          onChange={handleChange}
-          className="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm text-white focus:ring-indigo-500 focus:border-indigo-500"
-          required
-        />
+    <form onSubmit={handleSubmit} className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-300">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label htmlFor="expiry_date" className="block text-sm font-medium text-slate-400 mb-2">Expiry Date</label>
+          <div className="relative">
+             <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+             <input
+              type="date"
+              id="expiry_date"
+              value={formData.expiry_date}
+              onChange={handleChange}
+              className="w-full bg-slate-900 border border-slate-700 rounded-lg pl-10 pr-3 py-2.5 text-sm text-slate-200 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors [color-scheme:dark]"
+              required
+            />
+          </div>
+        </div>
       </div>
+      
       <div>
-        <label htmlFor="notes" className="block text-sm font-medium text-gray-300">Notes</label>
-        <textarea
-          id="notes"
-          value={formData.notes}
-          onChange={handleChange}
-          rows="3"
-          className="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm text-white focus:ring-indigo-500 focus:border-indigo-500"
-        ></textarea>
+        <label htmlFor="notes" className="block text-sm font-medium text-slate-400 mb-2">Notes & Terms</label>
+        <div className="relative">
+           <FileText className="absolute left-3 top-3 text-slate-500" size={16} />
+           <textarea
+            id="notes"
+            value={formData.notes}
+            onChange={handleChange}
+            rows="4"
+            className="w-full bg-slate-900 border border-slate-700 rounded-lg pl-10 pr-3 py-2.5 text-sm text-slate-200 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors resize-none placeholder-slate-600"
+            placeholder="Add relevant notes, terms, or conditions..."
+          ></textarea>
+        </div>
       </div>
-      <div className="flex justify-end space-x-2">
+
+      <div className="flex justify-end space-x-3 pt-4 border-t border-slate-800">
         <button
           type="button"
           onClick={onCancel}
-          className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-gray-600 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+          className="px-4 py-2 border border-slate-700 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-colors flex items-center gap-2"
         >
+          <X size={16} />
           Cancel
         </button>
         <button
           type="submit"
-          className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium shadow-lg shadow-blue-500/20 transition-all flex items-center gap-2"
         >
-          {quotation ? 'Save Changes' : 'Add Quotation'}
+          <Save size={16} />
+          {quotation ? 'Update Quotation' : 'Create Quotation'}
         </button>
       </div>
     </form>
