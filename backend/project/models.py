@@ -3,6 +3,16 @@ from django.core.exceptions import ValidationError
 from django.db.models import Sum, Max
 from HR_Payroll.models import User
 from Sales.models import Clients, Service  # Import Service
+from django.db.models import JSONField # Import JSONField
+from .utils.storages import NASStorage, S3MediaStorage, CustomLocalMediaStorage # Import all storage classes
+
+def get_project_asset_storage(instance, filename):
+    if instance.storage_location == 'cloud':
+        return S3MediaStorage()
+    elif instance.storage_location == 'local':
+        return CustomLocalMediaStorage()
+    else: # Default to NAS for creative assets if not specified (or if storage_location is 'nas')
+        return NASStorage()
 
 # =====================================================
 # PROJECT
@@ -58,6 +68,15 @@ class Project(models.Model):
         related_name="projects",
         null=True,
         blank=True
+    )
+
+    folder_structure_template = models.ForeignKey(
+        'FolderStructureTemplate',
+        on_delete=models.SET_NULL,
+        related_name="projects",
+        null=True,
+        blank=True,
+        help_text="Optional: The folder structure template to use for this project."
     )
 
     priority = models.CharField(
@@ -444,6 +463,7 @@ class ProjectAsset(models.Model):
     STORAGE_LOCATION_CHOICES = [
         ("local", "Local Server"),
         ("cloud", "Cloud Server"),
+        ("nas", "NAS Server"),
     ]
 
     ASSET_ROLE_CHOICES = [
@@ -461,11 +481,11 @@ class ProjectAsset(models.Model):
     uploaded_by = models.ForeignKey(User, on_delete=models.PROTECT)
     asset_type = models.CharField(max_length=20, choices=ASSET_TYPE_CHOICES)
     asset_role = models.CharField(max_length=20, choices=ASSET_ROLE_CHOICES)
-    file = models.FileField(upload_to=project_asset_upload_path)
+    file = models.FileField(upload_to=project_asset_upload_path, storage=get_project_asset_storage)
     storage_location = models.CharField(
         max_length=10,
         choices=STORAGE_LOCATION_CHOICES,
-        default="local"
+        default="nas"
     )
 
     client_review = models.BooleanField(default=False)
@@ -481,6 +501,18 @@ class ProjectAsset(models.Model):
         ordering = ["-version_number"]
 
     def save(self, *args, **kwargs):
+        # Automatically determine storage_location if not already set
+        if not self.storage_location:
+            if self.asset_role in ['preview', 'final'] or self.asset_type in ['image', 'video']:
+                # Review assets (preview/final) or general media types default to local for Django serving
+                self.storage_location = 'local'
+            elif self.asset_role == 'source' or self.asset_type in ['psd', 'ai', 'ae', 'pr']:
+                # Source files and project files default to NAS
+                self.storage_location = 'nas'
+            else:
+                # Default for 'other' asset types/roles
+                self.storage_location = 'nas' # Or 'local' based on preference for generic types
+
         if not self.pk:
             last_version = ProjectAsset.objects.filter(
                 element=self.element,
@@ -577,3 +609,18 @@ class PackageItem(models.Model):
 
     def __str__(self):
         return f"{self.quantity} {self.unit} {self.name} for {self.package.name}"
+
+# =====================================================
+# FOLDER STRUCTURE TEMPLATES
+# =====================================================
+
+class FolderStructureTemplate(models.Model):
+    name = models.CharField(max_length=255, unique=True, help_text="A unique name for the folder structure template.")
+    description = models.TextField(blank=True, help_text="A brief description of this template.")
+    structure = JSONField(help_text="JSON representation of the folder structure tree.")
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.name

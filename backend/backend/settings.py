@@ -12,10 +12,10 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 from datetime import timedelta
+from project.utils.storages import CustomLocalMediaStorage, NASStorage
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
@@ -25,9 +25,6 @@ SECRET_KEY = 'django-insecure-i#p%44s4&_wf%)@ahig#l9^9p%g^e(&w5-n0f7ps5ihv+n0x%d
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
-
-
-
 
 # Application definition
 
@@ -50,21 +47,41 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'django_celery_results',
     'HR_Payroll.apps.HR_PayrollConfig',
+    'utils', # Add utils app here
+    'storages', # Added for S3 storage
 ]
 
+# AWS S3 Settings (for django-storages)
+AWS_ACCESS_KEY_ID = 'YOUR_AWS_ACCESS_KEY_ID'
+AWS_SECRET_ACCESS_KEY = 'YOUR_AWS_SECRET_ACCESS_KEY'
+AWS_STORAGE_BUCKET_NAME = 'your-s3-bucket-name'
+AWS_S3_REGION_NAME = 'your-s3-region' # e.g., 'us-east-1'
+AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
+AWS_S3_FILE_OVERWRITE = False
+AWS_DEFAULT_ACL = None # Or 'public-read' if you want publicly accessible files
+AWS_S3_VERIFY = True # For security
+
+# Optional: If you want to use a custom endpoint for S3 compatible storage like MinIO
+# AWS_S3_ENDPOINT_URL = 'http://localhost:9000' # For MinIO example
+# AWS_S3_USE_SSL = True
+# AWS_S3_VERIFY = False # Set to False for MinIO with self-signed certs
+
+# For media files in S3
+AWS_LOCATION = 'media' # Subfolder in your S3 bucket
+AWS_S3_OBJECT_PARAMETERS = {
+    'CacheControl': 'max-age=86400', # Cache for 1 day
+}
+
+# For static files in S3 (if you want to serve them from S3)
+# STATICFILES_STORAGE = 'project.utils.storages.StaticS3Storage' # Will define later
+# STATIC_LOCATION = 'static' # Subfolder in your S3 bucket
+# STATIC_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/{STATIC_LOCATION}/'
 
 AUTH_USER_MODEL = 'HR_Payroll.User'
 
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
 ]
-
-
-# REST_FRAMEWORK = {
-#     'DEFAULT_AUTHENTICATION_CLASSES': (
-#         'rest_framework_simplejwt.authentication.JWTAuthentication',
-#     )
-# }
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
@@ -83,7 +100,6 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
-
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
@@ -91,8 +107,6 @@ SIMPLE_JWT = {
     'BLACKLIST_AFTER_ROTATION': True,
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
-
-
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
@@ -125,7 +139,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'backend.wsgi.application'
 
-
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
@@ -135,7 +148,6 @@ DATABASES = {
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
-
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
@@ -155,7 +167,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
@@ -166,7 +177,6 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 
 USE_TZ = True
-
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
@@ -182,14 +192,12 @@ STATIC_URL = 'static/'
 #     "hrpayroll.middleware.AuditMiddleware",
 # ]
 
-
 CELERY_BROKER_URL = "redis://localhost:6379/0"
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 
 # INSTALLED_APPS += ["django_celery_results"]
 CELERY_RESULT_BACKEND = "django-db"
-
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "StudioOps API",
@@ -216,6 +224,7 @@ CORS_ALLOW_HEADERS = [
     'user-agent',
     'x-csrftoken',
     'x-requested-with',
+    'x-nas-media-url', # Added for NAS_MEDIA_URL
 ]
 
 CORS_ALLOW_METHODS = [
@@ -237,3 +246,10 @@ CSRF_TRUSTED_ORIGINS = [
 MEDIA_ROOT = BASE_DIR / 'media'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#media-url
 MEDIA_URL = 'media/'
+
+# Custom storage settings
+DEFAULT_FILE_STORAGE = 'project.utils.storages.CustomLocalMediaStorage'
+
+# NAS Storage settings
+NAS_MEDIA_ROOT = '/mnt/StudioOps' # This should match the location in NASStorage class
+NAS_MEDIA_URL = '/nas-media/'

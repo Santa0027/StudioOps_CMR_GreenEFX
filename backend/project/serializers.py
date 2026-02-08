@@ -62,6 +62,8 @@ class ProjectSerializer(serializers.ModelSerializer):
     # New fields for service and package names
     service_name = serializers.CharField(source='service.name', read_only=True)
     package_name = serializers.CharField(source='package.name', read_only=True)
+    folder_structure_template_name = serializers.CharField(source='folder_structure_template.name', read_only=True)
+
 
     class Meta:
         model = Project
@@ -70,7 +72,7 @@ class ProjectSerializer(serializers.ModelSerializer):
             'service', 'service_name', 'package', 'package_name', 'priority', 'status', 'start_date', 'due_date', 
             'end_date', 'budget', 'estimated_hours', 'initial_requirements', 
             'reference_links', 'created_by', 'created_by_details', 'updated_by', 'created_at', 
-            'updated_at', 'assigned_users', 'overall_progress', 'stages' # Include stages in fields
+            'updated_at', 'assigned_users', 'overall_progress', 'stages', 'folder_structure_template', 'folder_structure_template_name' # Include stages in fields
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'created_by', 'updated_by']
 
@@ -384,6 +386,16 @@ class ProjectStageTemplateSerializer(serializers.ModelSerializer):
                 ProjectStageElementTemplate.objects.create(stage=instance, **template_data)
 
         return instance
+
+# =====================================================
+# FOLDER STRUCTURE TEMPLATE SERIALIZERS
+# =====================================================
+
+class FolderStructureTemplateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FolderStructureTemplate
+        fields = '__all__'
+        read_only_fields = ['id', 'created_at', 'updated_at']
 
 # =====================================================
 # TASK COMMENT SERIALIZER

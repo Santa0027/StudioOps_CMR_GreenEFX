@@ -3,7 +3,10 @@ import {
   X, FolderKanban, Building2, Layers, Briefcase, Flag,
   Calendar, DollarSign, Clock, FileText, Link, Users, Save, Paperclip
 } from 'lucide-react';
-import { updateProject, getClients, getEmployees, getServices, getPackages } from '../api/api';
+import { updateProject, getClients, getEmployees, getServices, getPackages, getFolderStructureTemplates } from '../api/api';
+
+// Placeholder for base projects directory - ideally this comes from a global config or user settings
+const BASE_PROJECTS_DIR = '/mnt/projects'; // Example path, adjust as needed
 
 const priorityOptions = [
   { value: 'low', label: 'Low', color: 'bg-slate-700 text-slate-300' },
@@ -28,12 +31,15 @@ const EditProjectForm = ({ project, onClose, onProjectUpdated }) => {
     initial_requirements: project.initial_requirements || '',
     reference_links: project.reference_links || '',
     assigned_users: project.assigned_users ? project.assigned_users.map(user => user.id) : [],
+    folder_structure_template: project.folder_structure_template || '', // New field
   });
   
   const [clients, setClients] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [services, setServices] = useState([]); // New state for services
   const [packages, setPackages] = useState([]); // New state for packages
+  const [folderStructureTemplates, setFolderStructureTemplates] = useState([]); // New state
+  const [basePath, setBasePath] = useState(BASE_PROJECTS_DIR); // New state for base path
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState(null);
   const [validationErrors, setValidationErrors] = useState({});
@@ -42,19 +48,21 @@ const EditProjectForm = ({ project, onClose, onProjectUpdated }) => {
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
-        const [clientsRes, employeesRes, servicesRes, packagesRes] = await Promise.all([
+        const [clientsRes, employeesRes, servicesRes, packagesRes, folderTemplatesRes] = await Promise.all([
           getClients(),
           getEmployees(),
           getServices(),
           getPackages(),
+          getFolderStructureTemplates(), // Fetch folder structure templates
         ]);
         setClients(clientsRes.data);
         setEmployees(employeesRes.data);
         setServices(servicesRes.data);
         setPackages(packagesRes.data);
+        setFolderStructureTemplates(folderTemplatesRes.data); // Set folder templates state
       } catch (err) {
         console.error('Failed to fetch initial data:', err);
-        setFormError('Failed to load clients, employees, services or packages.');
+        setFormError('Failed to load clients, employees, services, packages or folder templates.');
       }
     };
     fetchInitialData();
@@ -76,6 +84,7 @@ const EditProjectForm = ({ project, onClose, onProjectUpdated }) => {
       initial_requirements: project.initial_requirements || '',
       reference_links: project.reference_links || '',
       assigned_users: project.assigned_users ? project.assigned_users.map(user => user.id) : [],
+      folder_structure_template: project.folder_structure_template || '', // New field
     });
     // Clear validation errors when project changes
     setValidationErrors({});
@@ -111,8 +120,14 @@ const EditProjectForm = ({ project, onClose, onProjectUpdated }) => {
 
     setLoading(true);
 
+    const projectData = {
+        ...formData,
+        folder_structure_template_id: formData.folder_structure_template,
+        base_path: basePath,
+    };
+
     try {
-      await updateProject(project.id, formData);
+      await updateProject(project.id, projectData); // Pass projectData instead of formData
       if (onProjectUpdated) onProjectUpdated();
       if (onClose) onClose();
     } catch (err) {
@@ -520,6 +535,39 @@ const EditProjectForm = ({ project, onClose, onProjectUpdated }) => {
                 placeholder="Add relevant reference links..."
               />
               {validationErrors.reference_links && <p className="text-rose-500 text-sm mt-1">{validationErrors.reference_links}</p>}
+            </div>
+            <div>
+              <label htmlFor="folder_structure_template" className={labelClasses}>
+                <FolderKanban size={14} />
+                Folder Structure Template
+              </label>
+              <select
+                name="folder_structure_template"
+                id="folder_structure_template"
+                value={formData.folder_structure_template}
+                onChange={handleChange}
+                className={inputClasses + " cursor-pointer"}
+              >
+                <option value="">No Template Selected</option>
+                {folderStructureTemplates.map(template => (
+                  <option key={template.id} value={template.id}>{template.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="base_path" className={labelClasses}>
+                <FolderKanban size={14} />
+                Base Path for Folders
+              </label>
+              <input
+                type="text"
+                name="base_path"
+                id="base_path"
+                value={basePath}
+                onChange={(e) => setBasePath(e.target.value)}
+                className={inputClasses}
+                placeholder="/path/to/your/projects"
+              />
             </div>
             <div>
               <label htmlFor="attachments" className={labelClasses}>

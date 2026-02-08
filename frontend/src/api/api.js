@@ -210,3 +210,10 @@ export const updateQuotationItem = (id, data) => api.put(`/quotation-items/${id}
 export const deleteQuotationItem = (id) => api.delete(`/quotation-items/${id}/`);
 
 // --------------------------------------------- end QuotationItem APIs ----------------------------
+
+// ---------------------------------------------- Folder Structure Template APIs ---------------------
+export const getFolderStructureTemplates = () => api.get("/folder-structure-templates/");
+export const createFolderStructureTemplate = (data) => api.post("/folder-structure-templates/", data);
+export const updateFolderStructureTemplate = (id, data) => api.put(`/folder-structure-templates/${id}/`, data);
+export const deleteFolderStructureTemplate = (id) => api.delete(`/folder-structure-templates/${id}/`);
+// --------------------------------------------- end Folder Structure Template APIs ------------------

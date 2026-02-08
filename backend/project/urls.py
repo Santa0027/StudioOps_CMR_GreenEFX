@@ -102,6 +102,13 @@ router.register(
 stage_templates_router = routers.NestedDefaultRouter(router, 'stage-templates', lookup='stage')
 stage_templates_router.register('elements', ProjectStageElementTemplateViewSet, basename='stage-template-elements')
 
+# Folder Structure Templates CRUD (Top-level)
+router.register(
+    "folder-structure-templates",
+    FolderStructureTemplateViewSet,
+    basename="folder-structure-templates"
+)
+
 
 # ==========================================================
 # CLIENT APIs (Client Portal / Review Access)

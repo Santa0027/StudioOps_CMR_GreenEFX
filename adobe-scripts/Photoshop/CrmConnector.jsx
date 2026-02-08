@@ -6,7 +6,7 @@
  */
 
 var BASE_URL = "http://127.0.0.1:8000/api/";
-var SERVER_BASE_PATH = "/path/to/your/server/projects/"; // <<<<<<< IMPORTANT: SET THIS TO YOUR SERVER'S BASE PATH
+var SERVER_BASE_PATH = "/mnt/StudioOps/"; // <<<<<<< IMPORTANT: SET THIS TO YOUR SERVER'S BASE PATH
 var authToken = null;
 var tasksData = []; // To hold the full task objects
 

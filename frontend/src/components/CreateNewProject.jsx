@@ -3,8 +3,11 @@ import {
   X, FolderKanban, Building2, Layers, Briefcase, Flag, 
   Calendar, DollarSign, Clock, FileText, Link, CheckSquare
 } from 'lucide-react';
-import { getClients, getProjectStageTemplates, createProject, getServices, getPackages } from '../api/api';
+import { getClients, getProjectStageTemplates, createProject, getServices, getPackages, getFolderStructureTemplates } from '../api/api';
 import { useNavigate } from "react-router-dom";
+
+// Placeholder for base projects directory - ideally this comes from a global config or user settings
+const BASE_PROJECTS_DIR = '/mnt/projects'; // Example path, adjust as needed
 
 const CreateNewProject = ({ onClose, onProjectAdded }) => {
   const [formData, setFormData] = useState({
@@ -23,11 +26,14 @@ const CreateNewProject = ({ onClose, onProjectAdded }) => {
     initial_requirements: '',
     reference_links: '',
     workflow_templates: [],
+    folder_structure_template: '', // New field for folder structure template ID
   });
   const [clients, setClients] = useState([]);
   const [workflowTemplates, setWorkflowTemplates] = useState([]);
   const [services, setServices] = useState([]); // New state for services
   const [packages, setPackages] = useState([]); // New state for packages
+  const [folderStructureTemplates, setFolderStructureTemplates] = useState([]); // New state
+  const [basePath, setBasePath] = useState(BASE_PROJECTS_DIR); // New state for base path
   const [error, setError] = useState(null);
   const [validationErrors, setValidationErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -36,16 +42,18 @@ const CreateNewProject = ({ onClose, onProjectAdded }) => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [clientsRes, templatesRes, servicesRes, packagesRes] = await Promise.all([
+        const [clientsRes, templatesRes, servicesRes, packagesRes, folderTemplatesRes] = await Promise.all([
           getClients(),
           getProjectStageTemplates(),
           getServices(), // Fetch services
           getPackages(), // Fetch packages
+          getFolderStructureTemplates(), // Fetch folder structure templates
         ]);
         setClients(clientsRes.data);
         setWorkflowTemplates(templatesRes.data);
         setServices(servicesRes.data); // Set services state
         setPackages(packagesRes.data); // Set packages state
+        setFolderStructureTemplates(folderTemplatesRes.data); // Set folder templates state
       } catch (err) {
         setError('Failed to fetch necessary data. Please try again later.');
         console.error(err);
@@ -101,6 +109,8 @@ const CreateNewProject = ({ onClose, onProjectAdded }) => {
     const projectData = {
       ...formData,
       workflow_template_ids: formData.workflow_templates,
+      folder_structure_template_id: formData.folder_structure_template,
+      base_path: basePath,
     };
     delete projectData.workflow_templates;
 
@@ -498,6 +508,39 @@ const CreateNewProject = ({ onClose, onProjectAdded }) => {
                 rows="2"
                 className={inputClasses + " resize-none"}
                 placeholder="Add relevant reference links..."
+              />
+            </div>
+            <div>
+              <label htmlFor="folder_structure_template" className={labelClasses}>
+                <FolderKanban size={14} />
+                Folder Structure Template
+              </label>
+              <select
+                name="folder_structure_template"
+                id="folder_structure_template"
+                value={formData.folder_structure_template}
+                onChange={handleChange}
+                className={inputClasses + " cursor-pointer"}
+              >
+                <option value="">No Template Selected</option>
+                {folderStructureTemplates.map(template => (
+                  <option key={template.id} value={template.id}>{template.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="base_path" className={labelClasses}>
+                <FolderKanban size={14} />
+                Base Path for Folders
+              </label>
+              <input
+                type="text"
+                name="base_path"
+                id="base_path"
+                value={basePath}
+                onChange={(e) => setBasePath(e.target.value)}
+                className={inputClasses}
+                placeholder="/path/to/your/projects"
               />
             </div>
           </div>

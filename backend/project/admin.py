@@ -10,7 +10,8 @@ from .models import (
     ProjectTimeLog,
     ProjectAsset,
     ClientReviewLog,
-    VersionAuditLog
+    VersionAuditLog,
+    FolderStructureTemplate,
 )
 
 
@@ -129,3 +130,9 @@ class VersionAuditLogAdmin(admin.ModelAdmin):
 # @admin.register(ProjectTaskAssignment)
 # class PoojectTaskassignmentAdmin(admin.ModelAdmin):
 #     list_display = ("task","user","initial_notes")    
+
+@admin.register(FolderStructureTemplate)
+class FolderStructureTemplateAdmin(admin.ModelAdmin):
+    list_display = ("name", "description", "created_at", "updated_at")
+    search_fields = ("name", "description")
+    list_filter = ("created_at", "updated_at")

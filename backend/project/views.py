@@ -23,10 +23,11 @@ from rest_framework import status # Import status for HTTP status codes
 from rest_framework.parsers import MultiPartParser, FormParser # New import
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema, OpenApiResponse
-from .tasks import process_project_asset
+from .tasks import process_project_asset, create_project_folder_structure
 
 from .models import *
 from .serializers import *
+from utils.folder_structure_generator import parse_structure_to_tree, create_folders
 from .permissions import IsInternalUser, IsClientUser
 from .throttles import AssetStreamRateThrottle
 
@@ -56,6 +57,8 @@ class ProjectViewSet(ModelViewSet):
 
         # Extract workflow_template_ids from the copied data, if present
         workflow_template_ids = data.pop('workflow_template_ids', [])
+        folder_structure_template_id = data.pop('folder_structure_template_id', None) # Extract new field
+        base_path = data.pop('base_path', None) # Extract base_path for folder creation
         
         # Validate and create the project instance using the modified data
         serializer = self.get_serializer(data=data)
@@ -106,11 +109,41 @@ class ProjectViewSet(ModelViewSet):
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
         
+        # Trigger Celery task for folder creation if template and base_path are provided
+        if folder_structure_template_id and base_path:
+            create_project_folder_structure.delay(
+                project.id,
+                folder_structure_template_id,
+                base_path
+            )
+
         # Re-serialize the project to include the newly created stages in the response
         project.refresh_from_db()
         final_serializer = self.get_serializer(project)
         headers = self.get_success_headers(final_serializer.data)
         return Response(final_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        data = request.data.copy()
+
+        folder_structure_template_id = data.pop('folder_structure_template_id', None)
+        base_path = data.pop('base_path', None)
+
+        serializer = self.get_serializer(instance, data=data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        # Trigger Celery task for folder creation if template and base_path are provided
+        if folder_structure_template_id and base_path:
+            create_project_folder_structure.delay(
+                instance.id,
+                folder_structure_template_id,
+                base_path
+            )
+
+        return Response(serializer.data)
 
     def perform_create(self, serializer):
         # This perform_create is now redundant because create method is overridden
@@ -483,3 +516,65 @@ class TaskCommentViewSet(ModelViewSet):
         # Automatically assign the task and user based on the context
         task = get_object_or_404(ProjectStageElement, pk=self.kwargs['task_pk'])
         serializer.save(task=task, user=self.request.user)
+
+# ==========================================================
+# FOLDER STRUCTURE TEMPLATE VIEWS
+# ==========================================================
+
+@extend_schema(
+    tags=["Internal - Folder Structure Templates"],
+    summary="Create & manage folder structure templates and generate project folders",
+)
+class FolderStructureTemplateViewSet(ModelViewSet):
+    """
+    CRUD for FolderStructureTemplate.
+    - Allows creation, retrieval, update, and deletion of folder templates.
+    - Provides an action to generate physical folder structures for projects.
+    """
+    queryset = FolderStructureTemplate.objects.all()
+    serializer_class = FolderStructureTemplateSerializer
+    permission_classes = [IsAuthenticated] # Or IsInternalUser as appropriate for your project
+
+    @action(detail=True, methods=['post'], url_path='generate-structure')
+    def generate_structure(self, request, pk=None):
+        template = self.get_object()
+        project_id = request.data.get('project_id')
+        base_path = request.data.get('base_path') # e.g., '/mnt/projects' or comes from settings
+
+        if not project_id or not base_path:
+            return Response(
+                {"detail": "project_id and base_path are required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            project = Project.objects.get(pk=project_id)
+        except Project.DoesNotExist:
+            return Response(
+                {"detail": f"Project with id {project_id} not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Construct the full path for the new project
+        # Example: base_path/ClientName/ProjectName
+        # You'll need to adjust this based on your desired project path structure
+        client_name = project.client.client_name.replace(" ", "_") # Assuming client has a name field
+        project_name = project.name.replace(" ", "_")
+        full_project_path = os.path.join(base_path, client_name, project_name)
+
+        # Retrieve the structured data from the template
+        folder_tree = template.structure
+
+        # Use the utility function to create folders
+        success = create_folders(full_project_path, folder_tree)
+
+        if success:
+            return Response(
+                {"detail": f"Folder structure generated successfully at {full_project_path}"},
+                status=status.HTTP_200_OK
+            )
+        else:
+            return Response(
+                {"detail": "Failed to generate folder structure."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

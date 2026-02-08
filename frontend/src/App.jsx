@@ -36,6 +36,7 @@ import EnquiryManagement from './page/EnquiryManagement'; // Import EnquiryManag
 import ServiceList from './components/service/ServiceList'; // Import ServiceList
 import ServiceForm from './components/service/ServiceForm'; // Import ServiceForm
 import WorkflowTemplateManagement from './page/WorkflowTemplateManagement';
+import FolderStructureTemplateList from './components/FolderStructureTemplateList'; // Import the new component
 
 function App() {
   return (
@@ -79,6 +80,7 @@ function App() {
           <Route path="/master/packages" element={<PackageManagement />} /> {/* Master module: Package Management */}
           <Route path="/master/packages/:packageId/items" element={<PackageItemPage />} />
           <Route path="/master/workflow-templates" element={<WorkflowTemplateManagement />} /> {/* New consolidated Workflow Template Management */}
+          <Route path="/master/folder-structures" element={<FolderStructureTemplateList />} /> {/* New Folder Structure Templates Management */}
           <Route path="/services" element={<ServiceList />} /> {/* Master module: Service Management */}
           <Route path="/services/new" element={<ServiceForm />} />
           <Route path="/services/edit/:id" element={<ServiceForm />} />
