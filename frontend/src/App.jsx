@@ -37,6 +37,8 @@ import ServiceList from './components/service/ServiceList'; // Import ServiceLis
 import ServiceForm from './components/service/ServiceForm'; // Import ServiceForm
 import WorkflowTemplateManagement from './page/WorkflowTemplateManagement';
 import FolderStructureTemplateList from './components/FolderStructureTemplateList'; // Import the new component
+import StorageSettings from './components/StorageSettings'; // Import StorageSettings
+import FolderStructureTemplateManagement from './components/FolderStructureTemplateManagement'; // Import FolderStructureTemplateManagement
 
 function App() {
   return (
@@ -59,7 +61,13 @@ function App() {
           <Route path="/projects/status" element={<ProjectStatus />} />
           <Route path="/calendar" element={<Calendar />} />
           <Route path="/users" element={<UserManagement />} />
-          <Route path="/settings" element={<Settings />} />
+          
+          <Route path="/settings" element={<Settings />}>
+            <Route index element={<Navigate to="storage" />} /> {/* Default sub-route */}
+            <Route path="storage" element={<StorageSettings />} />
+            <Route path="folder-templates" element={<FolderStructureTemplateManagement />} />
+          </Route>
+
           <Route path="/clients" element={<ClientManagement />} />
           <Route path="/rework-requests" element={<ReworkRequests />} />
           <Route path="/rework-requests/:id" element={<ReworkRequestDetails />} />

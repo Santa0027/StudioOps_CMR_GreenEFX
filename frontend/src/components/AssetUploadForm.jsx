@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { X, UploadCloud, HardDrive, Globe, Server, FileText } from 'lucide-react';
+import { X, UploadCloud, FileText } from 'lucide-react'; // Removed HardDrive, Globe, Server as they were for STORAGE_LOCATION_CHOICES icons
 import { uploadAssetForStageElement } from '../api/api'; // Assuming uploadAssetForStageElement API call exists
 
 const AssetUploadForm = ({ onClose, onAssetUploaded, projectStageElementId }) => {
   const [file, setFile] = useState(null);
   const [assetType, setAssetType] = useState('');
   const [assetRole, setAssetRole] = useState('');
-  const [storageLocation, setStorageLocation] = useState('nas'); // Default to NAS
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -28,12 +27,6 @@ const AssetUploadForm = ({ onClose, onAssetUploaded, projectStageElementId }) =>
     { value: 'final', label: 'Final Deliverable' },
   ];
 
-  const STORAGE_LOCATION_CHOICES = [
-    { value: 'nas', label: 'NAS Server', icon: <HardDrive size={16} /> },
-    { value: 'local', label: 'Local Server', icon: <Server size={16} /> },
-    { value: 'cloud', label: 'Cloud Server', icon: <Globe size={16} /> },
-  ];
-
   const handleFileChange = (e) => {
     setFile(e.target.files[0]);
     setValidationErrors(prev => ({ ...prev, file: undefined }));
@@ -43,23 +36,9 @@ const AssetUploadForm = ({ onClose, onAssetUploaded, projectStageElementId }) =>
     const { name, value } = e.target;
     if (name === "assetType") setAssetType(value);
     if (name === "assetRole") setAssetRole(value);
-    if (name === "storageLocation") setStorageLocation(value);
     if (name === "description") setDescription(value);
     setValidationErrors(prev => ({ ...prev, [name]: undefined }));
   };
-
-  useEffect(() => {
-    // Logic to set default storage based on assetType and assetRole
-    if (assetRole === 'preview' || assetRole === 'final') { // Assuming 'review' is represented by preview/final assets stored locally for client review
-        setStorageLocation('local');
-    } else if (assetRole === 'source' || ['psd', 'ai', 'ae', 'pr', 'video'].includes(assetType)) {
-        // Source files and project files typically go to NAS
-        setStorageLocation('nas');
-    } else {
-        // Fallback to a default, perhaps 'nas' or 'local' based on general policy
-        setStorageLocation('nas');
-    }
-  }, [assetType, assetRole]); // Re-run when assetType or assetRole changes
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -70,7 +49,6 @@ const AssetUploadForm = ({ onClose, onAssetUploaded, projectStageElementId }) =>
     if (!file) errors.file = 'File is required.';
     if (!assetType) errors.assetType = 'Asset type is required.';
     if (!assetRole) errors.assetRole = 'Asset role is required.';
-    if (!storageLocation) errors.storageLocation = 'Storage location is required.';
     if (!projectStageElementId) errors.projectStageElementId = 'Project Stage Element ID is missing.';
 
     if (Object.keys(errors).length > 0) {
@@ -85,11 +63,10 @@ const AssetUploadForm = ({ onClose, onAssetUploaded, projectStageElementId }) =>
     uploadData.append('file', file);
     uploadData.append('asset_type', assetType);
     uploadData.append('asset_role', assetRole);
-    uploadData.append('storage_location', storageLocation);
     uploadData.append('description', description);
 
     try {
-      await uploadAssetForStageElement(projectStageElementId, uploadData); // This API call needs to be created
+      await uploadAssetForStageElement(projectStageElementId, uploadData);
       if (onAssetUploaded) onAssetUploaded();
       onClose();
     } catch (err) {
@@ -200,32 +177,11 @@ const AssetUploadForm = ({ onClose, onAssetUploaded, projectStageElementId }) =>
             required
           >
             <option value="">Select Asset Role</option>
-            {ASSET_ROLE_CHOICES.map(choice => (
+            {ASSET_ROLES.map(choice => (
               <option key={choice.value} value={choice.value}>{choice.label}</option>
             ))}
           </select>
           {validationErrors.asset_role && <p className="text-rose-500 text-sm mt-1">{validationErrors.asset_role}</p>}
-        </div>
-
-        {/* Storage Location */}
-        <div>
-          <label htmlFor="storageLocation" className={labelClasses}>
-            <UploadCloud size={14} />
-            Storage Location *
-          </label>
-          <select
-            name="storageLocation"
-            id="storageLocation"
-            value={storageLocation}
-            onChange={handleChange}
-            className={`${inputClasses} ${validationErrors.storage_location ? 'border-rose-500' : ''} cursor-pointer`}
-            required
-          >
-            {STORAGE_LOCATION_CHOICES.map(choice => (
-              <option key={choice.value} value={choice.value}>{choice.label}</option>
-            ))}
-          </select>
-          {validationErrors.storage_location && <p className="text-rose-500 text-sm mt-1">{validationErrors.storage_location}</p>}
         </div>
 
         {/* Description */}

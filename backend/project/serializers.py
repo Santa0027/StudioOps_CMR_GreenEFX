@@ -2,6 +2,8 @@ from rest_framework import serializers
 from .models import *
 from HR_Payroll.models import User
 from django.db.models import Sum
+from django.conf import settings # Import settings
+from .utils.storages import generate_s3_presigned_url # Import for S3 presigned URL generation
 
 
 # =====================================================
@@ -200,9 +202,22 @@ class ProjectAssetSerializer(serializers.ModelSerializer):
     def get_file(self, obj):
         if obj.file:
             request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(obj.file.url)
-            return obj.file.url # Fallback if request context is not available
+            if obj.storage_location == 'cloud':
+                return generate_s3_presigned_url(obj.file.name)
+
+            elif obj.storage_location == 'nas':
+                if request:
+                    # Construct absolute URL using NAS_MEDIA_URL
+                    # obj.file returns a StorageFile object which can be cast to string for its name
+                    return request.build_absolute_uri(settings.NAS_MEDIA_URL + str(obj.file))
+                return settings.NAS_MEDIA_URL + str(obj.file) # Fallback if request context is not available
+
+            elif obj.storage_location == 'local':
+                if request:
+                    return request.build_absolute_uri(obj.file.url)
+                return obj.file.url # Fallback if request context is not available
+
+            return obj.file.url # Default fallback
         return None
 
 
