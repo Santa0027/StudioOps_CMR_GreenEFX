@@ -70,7 +70,9 @@ function App() {
 
           <Route path="/clients" element={<ClientManagement />} />
           <Route path="/rework-requests" element={<ReworkRequests />} />
-          <Route path="/rework-requests/:id" element={<ReworkRequestDetails />} />
+          <Route path="/rework-request
+          s
+          /:id" element={<ReworkRequestDetails />} />
           <Route path="/permissions" element={<Permissions />} />
           {/* Removed attendance routes as they are now integrated into UserManagement */}
           <Route path="/roles/create" element={<CreateRole />} />
