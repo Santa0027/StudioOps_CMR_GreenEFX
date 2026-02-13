@@ -52,7 +52,7 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'django_celery_results',
     'apps.HR_Payroll.apps.HR_PayrollConfig',
-
+        # 'apps.common.apps.CommonConfig', # Use the AppConfig path
     'common.utils', # Add utils app here
     'storages', # Added for S3 storage
 ]

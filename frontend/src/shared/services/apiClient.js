@@ -99,8 +99,17 @@ export const createTaskAssignment = (taskId, assignmentData) => api.post(`/stage
 export const getProjectStageElements = (projectId) => api.get(`/stage-elements/`, { params: { project_id: projectId } });
 export const getProjectStageElement = (id) => api.get(`/stage-elements/${id}/`);
 export const createProjectStageElement = (data) => api.post("/stage-elements/", data);
-export const updateProjectStageElement = (id, data) => api.put(`/stage-elements/${id}/`, data);
+export const updateProjectStageElement = (id, data) => api.patch(`/stage-elements/${id}/`, data); // Changed to patch
 export const deleteProjectStageElement = (id) => api.delete(`/stage-elements/${id}/`);
+
+// New actions for manager and client approval workflows
+export const requestManagerApproval = (taskId) => api.post(`/stage-elements/${taskId}/request_manager_approval/`);
+export const approveManagerReview = (taskId) => api.post(`/stage-elements/${taskId}/approve_manager_review/`);
+export const rejectManagerReview = (taskId, reworkNotes) => api.post(`/stage-elements/${taskId}/reject_manager_review/`, { rework_notes: reworkNotes });
+export const stageForClientReview = (taskId) => api.post(`/stage-elements/${taskId}/stage_for_client_review/`);
+export const clientApprove = (taskId) => api.post(`/stage-elements/${taskId}/client_approve/`);
+export const clientReject = (taskId, reworkNotes) => api.post(`/stage-elements/${taskId}/client_reject/`, { rework_notes: reworkNotes });
+
 // --------------------------------------------- end Project Stage Element APIs --------------------
 
 // ---------------------------------------------- Package APIs -------------------------------------
@@ -218,7 +227,7 @@ export const updateQuotationStatus = (id, status) => api.post(`/quotations/${id}
 
 // ---------------------------------------------- QuotationItem APIs --------------------------------
 
-export const getQuotationItems = (quotationId) => api.get(`/quotation-items/`, { params: { quotation: quotationId } });
+export const getQuotationItems = (quotationId) => api.get(`/quotations/`, { params: { quotation: quotationId } });
 export const getQuotationItem = (id) => api.get(`/quotation-items/${id}/`);
 export const createQuotationItem = (data) => api.post("/quotation-items/", data);
 export const updateQuotationItem = (id, data) => api.put(`/quotation-items/${id}/`, data);

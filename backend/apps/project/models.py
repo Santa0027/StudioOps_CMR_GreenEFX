@@ -287,22 +287,90 @@ class ProjectStageElement(models.Model):
     actual_hours = models.PositiveIntegerField(null=True, blank=True)
 
     status = models.CharField(
-        max_length=20,
+        max_length=25,
         choices=[
             ("pending", "Pending"),
             ("in_progress", "In Progress"),
+            ("waiting_review", "Waiting for Review"), # Manager review
+            ("waiting_client_review", "Waiting for Client Review"), # Client review
+            ("blocked", "Blocked"),
             ("completed", "Completed"),
             ("rejected", "Rejected"),
+            ("on_hold", "On Hold"),
         ],
         default="pending"
     )
     initial_notes = models.TextField(blank=True)
 
     rejection_notes = models.TextField(blank=True)
+    previous_status = models.CharField(
+        max_length=20,
+        choices=[
+            ("pending", "Pending"),
+            ("in_progress", "In Progress"),
+            ("waiting_review", "Waiting for Review"),
+            ("blocked", "Blocked"),
+            ("completed", "Completed"),
+            ("rejected", "Rejected"),
+            ("on_hold", "On Hold"),
+        ],
+        null=True,
+        blank=True
+    )
+
+    # New fields for Manager Approval Workflow
+    MANAGER_APPROVAL_STATUS_CHOICES = [
+        ("pending", "Pending"),
+        ("approved", "Approved"),
+        ("rejected", "Rejected"),
+    ]
+    manager_approval_status = models.CharField(
+        max_length=20,
+        choices=MANAGER_APPROVAL_STATUS_CHOICES,
+        default="pending"
+    )
+    manager_rework_notes = models.TextField(blank=True)
+    manager_approved_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        related_name="approved_stage_elements",
+        null=True,
+        blank=True
+    )
+    manager_approved_at = models.DateTimeField(null=True, blank=True)
+
+    # New fields for Client Approval Workflow
+    CLIENT_APPROVAL_STATUS_CHOICES_CONST = [
+        ("not_applicable", "Not Applicable"), # If client approval isn't needed for this task
+        ("requested", "Requested"),
+        ("approved", "Approved"),
+        ("rejected", "Rejected"),
+    ]
+    client_approval_status = models.CharField(
+        max_length=20,
+        choices=CLIENT_APPROVAL_STATUS_CHOICES_CONST,
+        default="not_applicable"
+    )
+    client_rework_notes = models.TextField(blank=True)
+    client_approved_by = models.ForeignKey( # This might link to a ClientUser model, but for now linking to User
+        User,
+        on_delete=models.SET_NULL,
+        related_name="client_approved_stage_elements",
+        null=True,
+        blank=True
+    )
+    client_approved_at = models.DateTimeField(null=True, blank=True)
+
+    staged_for_client_review = models.BooleanField(default=False)
+
 
     class Meta:
         ordering = ["order"]
         unique_together = ("stage", "template")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._loaded_values = {'status': self.status}
 
     def clean(self):
         if not (0 < self.contribution_percentage <= 100):
@@ -318,9 +386,116 @@ class ProjectStageElement(models.Model):
             raise ValidationError(
                 "Total contribution of all stage elements cannot exceed 100%"
             )
+        super().clean() # Call the parent clean method AFTER custom validation.
+
+        # Status transition validation
+        if self.pk and self.status != self._loaded_values.get('status'): # Status has changed
+            self.validate_status_transition(self._loaded_values.get('status'), self.status)
+
+        # Rejection notes validation
+        if self.status == 'rejected' and not self.rejection_notes:
+            raise ValidationError("Rejection notes are required when status is 'Rejected'.")
+
+    def _check_approval_status(self):
+        """
+        Helper to check if manager and client approvals are met for completion.
+        Returns (is_manager_approved, is_client_approved)
+        """
+        manager_approved = self.manager_approval_status == "approved"
+        
+        # Client approval is considered met if it's not applicable, or if it's approved
+        client_approved = (
+            self.client_approval_status == "not_applicable" or
+            self.client_approval_status == "approved"
+        )
+        return manager_approved, client_approved
+
+    def validate_status_transition(self, old_status, new_status):
+        # Define valid transitions
+        valid_transitions = {
+            "pending": ["in_progress", "blocked", "on_hold", "rejected"],
+            "in_progress": ["waiting_review", "blocked", "on_hold", "completed", "rejected", "waiting_client_review"],
+            "waiting_review": ["in_progress", "waiting_client_review", "rejected"],
+            "waiting_client_review": ["in_progress", "completed", "rejected"],
+            "blocked": ["pending", "in_progress", "on_hold", "rejected"],
+            "on_hold": ["pending", "in_progress", "blocked", "rejected"],
+            "completed": ["in_progress", "rejected"], # Allow re-opening for fixes, or rejection
+            "rejected": ["pending", "in_progress"], # Allow re-opening rejected tasks
+        }
+
+        if new_status not in valid_transitions.get(old_status, []):
+            raise ValidationError(f"Invalid status transition from '{old_status}' to '{new_status}'.")
+        
+        # Additional validation for manager and client approval workflows
+        if new_status == "waiting_review":
+            if old_status == "in_progress" and self.manager_approval_status != "pending":
+                raise ValidationError("Manager approval status must be 'pending' to move to 'waiting_review'.")
+
+        elif new_status == "waiting_client_review":
+            if old_status == "waiting_review": # Can only move to waiting_client_review from waiting_review (after manager approval)
+                if self.manager_approval_status != "approved":
+                    raise ValidationError("Task must be manager approved to move to 'Waiting for Client Review'.")
+                if not self.staged_for_client_review:
+                    raise ValidationError("Task must be staged for client review to move to 'Waiting for Client Review'.")
+                self.client_approval_status = "requested"
+            else: # Other transitions to waiting_client_review (e.g. from in_progress if manager not involved)
+                if self.client_approval_status not in ["not_applicable", "requested"]:
+                    raise ValidationError("Client approval status must be 'not_applicable' or 'requested' to move to 'Waiting for Client Review'.")
+
+
+        elif new_status == "completed":
+            manager_approved, client_approved = self._check_approval_status()
+            if not manager_approved:
+                raise ValidationError("Manager must approve the task before it can be completed.")
+            if not client_approved:
+                raise ValidationError("Client must approve the task (or it must be 'not_applicable') before it can be completed.")
+            
+        elif new_status == "in_progress":
+            # If a task is moved back to in_progress from waiting_review (e.g., for rework)
+            # or from completed, reset approval statuses
+            if old_status in ["waiting_review", "waiting_client_review", "completed", "rejected"]:
+                self.manager_approval_status = "pending"
+                self.manager_rework_notes = ""
+                self.client_approval_status = "not_applicable"
+                self.client_rework_notes = ""
+                self.staged_for_client_review = False
+        
+        elif new_status == "rejected":
+            # If a task is rejected, reset approval statuses
+            if old_status in ["waiting_review", "waiting_client_review", "completed", "in_progress"]:
+                self.manager_approval_status = "pending"
+                self.manager_rework_notes = ""
+                self.client_approval_status = "not_applicable"
+                self.client_rework_notes = ""
+                self.staged_for_client_review = False
 
     def __str__(self):
         return f"{self.stage} → {self.template.name}"
+
+    def save(self, *args, user=None, **kwargs):
+        # Check if this is an update and if the status has changed
+        if self.pk and 'status' in self._loaded_values and self.status != self._loaded_values['status']:
+            # Create a TaskStatusLog entry
+            if user:
+                TaskStatusLog.objects.create(
+                    task=self,
+                    user=user,
+                    old_status=self._loaded_values['status'],
+                    new_status=self.status
+                )
+            else:
+                # Handle case where user is not provided (e.g., system-initiated change)
+                # You might want to log this as a system user or raise an error
+                print("Warning: ProjectStageElement status changed without a user provided for logging.")
+        
+        # Store the old status before saving the new one (needed for next update)
+        # This was already present, ensuring previous_status is correctly set
+        if self.pk: 
+            self.previous_status = self._loaded_values.get('status')
+
+        super().save(*args, **kwargs)
+        # Update _loaded_values after saving to reflect the new state
+        self._loaded_values['status'] = self.status
 
 
 # =====================================================
@@ -486,7 +661,12 @@ class ProjectAsset(models.Model):
         choices=STORAGE_LOCATION_CHOICES,
         default="nas"
     )
-
+    relative_path = models.CharField(
+        max_length=1024,
+        blank=True,
+        null=True,
+        help_text="Path relative to the uploaded folder, if part of a folder upload."
+    )
     client_review = models.BooleanField(default=False)
     version_number = models.PositiveIntegerField(editable=False)
     description = models.TextField(blank=True)
@@ -528,7 +708,7 @@ class ProjectAsset(models.Model):
             # Save the file to the target storage
             # The name might be dynamically generated by project_asset_upload_path
             # We need to manually call project_asset_upload_path to get the destination path
-            destination_filename = self.project_asset_upload_path(self, uploaded_filename) # pass self as instance
+            destination_filename = ProjectAsset.project_asset_upload_path(self, uploaded_filename) # pass self as instance
             saved_file_name = target_storage._save(destination_filename, ContentFile(uploaded_file_content))
 
             # Update the file field to point to the saved file's name in the new storage
@@ -648,3 +828,28 @@ class FolderStructureTemplate(models.Model):
 
     def __str__(self):
         return self.name
+
+# =====================================================
+# TASK STATUS LOG
+# =====================================================
+
+class TaskStatusLog(models.Model):
+    task = models.ForeignKey(
+        ProjectStageElement,
+        on_delete=models.CASCADE,
+        related_name="status_logs"
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name="task_status_changes"
+    )
+    old_status = models.CharField(max_length=20)
+    new_status = models.CharField(max_length=20)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-timestamp"]
+
+    def __str__(self):
+        return f"Task {self.task.id} status changed from {self.old_status} to {self.new_status} by {self.user.name} at {self.timestamp}"

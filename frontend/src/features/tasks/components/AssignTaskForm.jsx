@@ -36,6 +36,12 @@ const AssignTaskForm = ({ onClose, task }) => {
       return;
     }
 
+    // Client-side check for duplicate assignment
+    if (task.assignments && task.assignments.some(assignment => String(assignment.user) === selectedUser)) {
+      setError('This user is already assigned to this task.');
+      return;
+    }
+
     const assignmentData = {
       user: selectedUser,
       role: role,
@@ -48,8 +54,27 @@ const AssignTaskForm = ({ onClose, task }) => {
         onClose(); // Close the modal on success
       }, 1000);
     } catch (err) {
-      setError('Failed to assign task.');
-      console.error(err);
+      console.error("Error assigning task:", err);
+      if (err.response && err.response.data) {
+        // Try to get a specific error message
+        let errorMessage = 'Failed to assign task.';
+        if (err.response.data.detail) {
+          errorMessage = err.response.data.detail;
+        } else if (err.response.data.non_field_errors) {
+          errorMessage = err.response.data.non_field_errors[0];
+        } else {
+          // Iterate over field errors and get the first one
+          for (const key in err.response.data) {
+            if (Array.isArray(err.response.data[key]) && err.response.data[key].length > 0) {
+              errorMessage = `${key}: ${err.response.data[key][0]}`;
+              break;
+            }
+          }
+        }
+        setError(errorMessage);
+      } else {
+        setError('Failed to assign task. Please try again.');
+      }
     }
   };
 

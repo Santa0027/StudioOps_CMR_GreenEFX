@@ -35,7 +35,7 @@ class UserAdmin(BaseUserAdmin):
                 )
             },
         ),
-        ("Audit", {"fields": ("created_by", "created_at")}),
+        ("Audit", {"fields": ("created_by",)}),
     )
 
     add_fieldsets = (
@@ -54,6 +54,8 @@ class UserAdmin(BaseUserAdmin):
             },
         ),
     )
+    readonly_fields = ("created_at",)
+
 
 
 @admin.register(Employee)

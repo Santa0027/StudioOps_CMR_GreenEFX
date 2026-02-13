@@ -24,6 +24,8 @@ from rest_framework.parsers import MultiPartParser, FormParser # New import
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema, OpenApiResponse
 from .tasks import process_project_asset, create_project_folder_structure
+from django.utils import timezone
+import os # Import os for path manipulation
 
 from .models import *
 from .serializers import *
@@ -185,6 +187,14 @@ class ProjectStageElementViewSet(ModelViewSet):
         
         return queryset.distinct()
 
+    def perform_create(self, serializer):
+        # Pass the request.user to the save method for TaskStatusLog
+        serializer.save(user=self.request.user)
+
+    def perform_update(self, serializer):
+        # Pass the request.user to the save method for TaskStatusLog
+        serializer.save(user=self.request.user)
+
     @action(detail=True, methods=['post'], parser_classes=[MultiPartParser, FormParser], serializer_class=ProjectAssetUploadSerializer)
     def upload_asset(self, request, pk=None):
         element = self.get_object()
@@ -200,6 +210,198 @@ class ProjectStageElementViewSet(ModelViewSet):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsInternalUser])
+    def request_manager_approval(self, request, pk=None):
+        """
+        Allows a user to request manager approval for a task.
+        Sets manager_approval_status to 'pending' and task status to 'waiting_review'.
+        """
+        task = self.get_object()
+        
+        # Check current status, only allow if not already waiting for review or completed
+        if task.status in ['waiting_review', 'completed', 'waiting_client_review']:
+            return Response(
+                {"detail": f"Task is already '{task.status}' and cannot request manager approval."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        task.manager_approval_status = "pending"
+        task.status = "waiting_review"
+        task.manager_rework_notes = "" # Clear any previous rework notes
+        task.save(user=request.user) # Pass user for logging
+
+        serializer = self.get_serializer(task)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsInternalUser])
+    def approve_manager_review(self, request, pk=None):
+        """
+        Allows a manager to approve a task.
+        Changes manager_approval_status to 'approved' and sets approved_by/at.
+        """
+        task = self.get_object()
+
+        if task.manager_approval_status == "approved":
+            return Response(
+                {"detail": "Task is already manager approved."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        if task.status != "waiting_review":
+            return Response(
+                {"detail": "Task is not in 'waiting_review' status for manager approval."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        task.manager_approval_status = "approved"
+        task.manager_approved_by = request.user
+        task.manager_approved_at = timezone.now()
+        task.status = "in_progress" # Manager approved, now ready for next step (e.g., client staging)
+        task.save(user=request.user)
+
+        serializer = self.get_serializer(task)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsInternalUser])
+    def reject_manager_review(self, request, pk=None):
+        """
+        Allows a manager to reject a task, requiring rework notes.
+        Changes manager_approval_status to 'rejected' and task status to 'in_progress'.
+        """
+        task = self.get_object()
+        rework_notes = request.data.get("rework_notes", "").strip()
+
+        if not rework_notes:
+            return Response(
+                {"rework_notes": "Rework notes are required when rejecting manager review."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        if task.manager_approval_status == "rejected":
+            return Response(
+                {"detail": "Task is already manager rejected."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        if task.status != "waiting_review":
+            return Response(
+                {"detail": "Task is not in 'waiting_review' status for manager rejection."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        task.manager_approval_status = "rejected"
+        task.manager_rework_notes = rework_notes
+        task.status = "in_progress"  # Back to in_progress for rework
+        task.manager_approved_by = None # Clear previous approval
+        task.manager_approved_at = None # Clear previous approval time
+        task.save(user=request.user)
+
+        serializer = self.get_serializer(task)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsInternalUser])
+    def stage_for_client_review(self, request, pk=None):
+        """
+        Allows an internal user to stage a task for client review.
+        Requires manager approval first.
+        Sets staged_for_client_review to True, client_approval_status to 'requested',
+        and task status to 'waiting_client_review'.
+        """
+        task = self.get_object()
+
+        if task.manager_approval_status != "approved":
+            return Response(
+                {"detail": "Task must be manager approved before staging for client review."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        if task.staged_for_client_review:
+            return Response(
+                {"detail": "Task is already staged for client review."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        if task.status == "waiting_client_review":
+            return Response(
+                {"detail": "Task is already in 'waiting_client_review' status."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        task.staged_for_client_review = True
+        task.client_approval_status = "requested"
+        task.status = "waiting_client_review"
+        task.client_rework_notes = "" # Clear any previous rework notes
+        task.save(user=request.user)
+
+        serializer = self.get_serializer(task)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsClientUser])
+    def client_approve(self, request, pk=None):
+        """
+        Allows a client to approve a task that has been staged for their review.
+        """
+        task = self.get_object()
+
+        if not task.staged_for_client_review or task.client_approval_status != "requested":
+            return Response(
+                {"detail": "Task is not currently awaiting client approval."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        if task.client_approval_status == "approved":
+            return Response(
+                {"detail": "Task is already client approved."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        task.client_approval_status = "approved"
+        task.client_approved_by = request.user
+        task.client_approved_at = timezone.now()
+        
+        # If manager also approved, set to completed, otherwise keep it as waiting_client_review
+        # or another appropriate status if further internal steps are needed.
+        # For simplicity, if manager approved and client approved, it's completed.
+        if task.manager_approval_status == "approved":
+            task.status = "completed"
+        # else: task remains waiting_client_review, or could go to 'in_progress' if manager approval isn't final step
+
+        task.save(user=request.user)
+
+        serializer = self.get_serializer(task)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsClientUser])
+    def client_reject(self, request, pk=None):
+        """
+        Allows a client to reject a task, requiring rework notes.
+        Changes client_approval_status to 'rejected' and task status to 'in_progress'.
+        """
+        task = self.get_object()
+        rework_notes = request.data.get("rework_notes", "").strip()
+
+        if not rework_notes:
+            return Response(
+                {"rework_notes": "Rework notes are required when rejecting client review."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        if not task.staged_for_client_review or task.client_approval_status != "requested":
+            return Response(
+                {"detail": "Task is not currently awaiting client approval."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        if task.client_approval_status == "rejected":
+            return Response(
+                {"detail": "Task is already client rejected."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        task.client_approval_status = "rejected"
+        task.client_rework_notes = rework_notes
+        task.status = "in_progress"  # Back to in_progress for rework
+        task.client_approved_by = None # Clear previous approval
+        task.client_approved_at = None # Clear previous approval time
+        task.staged_for_client_review = False # No longer staged
+        task.save(user=request.user)
+
+        serializer = self.get_serializer(task)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
 
 
 @extend_schema(
@@ -225,6 +427,27 @@ class ProjectAssetViewSet(ModelViewSet):
         # For now, commenting out the process_project_asset.delay call to avoid an error
         # process_project_asset.delay(asset.id) # TODO: Pass the actual created asset ID
 
+    @action(detail=True, methods=['post'], permission_classes=[IsInternalUser])
+    def set_client_review_status(self, request, pk=None):
+        """
+        Sets the client_review status for a specific ProjectAsset.
+        This determines if the asset is visible to clients.
+        """
+        asset = self.get_object()
+        is_client_review = request.data.get("is_client_review")
+
+        if is_client_review is None or not isinstance(is_client_review, bool):
+            return Response(
+                {"is_client_review": "This field is required and must be a boolean."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        asset.client_review = is_client_review
+        asset.save()
+
+        serializer = self.get_serializer(asset)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
 
 @extend_schema(
     tags=["Internal - Stage Element Versions"],
@@ -236,9 +459,14 @@ class StageElementVersionViewSet(ModelViewSet):
     - Tracks hours spent per revision
     - Supports rollback
     """
-    queryset = StageElementVersion.objects.all()
     serializer_class = StageElementVersionSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        project_pk = self.kwargs.get('project_pk')
+        if project_pk:
+            return StageElementVersion.objects.filter(element__stage__project_id=project_pk)
+        return StageElementVersion.objects.all()
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)

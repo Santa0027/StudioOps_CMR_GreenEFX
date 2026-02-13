@@ -67,10 +67,15 @@ router.register(
 # - Each internal or client-driven revision
 # - Rollback support
 # - Tracks hours spent per revision
-router.register(
-    "versions",
-    StageElementVersionViewSet,
-)
+# router.register(
+#     "versions",
+#     StageElementVersionViewSet,
+#     basename="stage-element-versions"
+# )
+
+# Nested router for Stage Element Versions under projects
+versions_router = routers.NestedDefaultRouter(router, r'projects', lookup='project')
+versions_router.register(r'versions', StageElementVersionViewSet, basename='project-versions')
 
 # Time Logs
 # - Track working hours per task
@@ -157,7 +162,7 @@ router.register(
 # POST /api/assets/
 # GET /api/client/assets/
 # All CRUD and ReadOnly routes based on viewsets
-urlpatterns = router.urls + packages_router.urls + stage_templates_router.urls + assignments_router.urls + comments_router.urls
+urlpatterns = router.urls + packages_router.urls + stage_templates_router.urls + assignments_router.urls + comments_router.urls + versions_router.urls
 urlpatterns += [
     path("client/assets/<int:asset_id>/stream/", AssetStreamView.as_view(), name="asset-stream"),
 ]

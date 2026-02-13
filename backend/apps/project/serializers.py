@@ -7,85 +7,12 @@ from .utils.storages import generate_s3_presigned_url # Import for S3 presigned 
 
 
 # =====================================================
-# PROJECT SERIALIZER
+# USER SERIALIZER
 # =====================================================
-
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'name', 'email']
-
-# =====================================================
-# PROJECT STAGE ELEMENT SERIALIZER
-# (Tasks inside a stage)
-# =====================================================
-class ProjectStageElementSerializer(serializers.ModelSerializer):
-    # Display task template name
-    template_name = serializers.CharField(
-        source="template.name",
-        read_only=True
-    )
-
-    class Meta:
-        model = ProjectStageElement
-        fields = [
-            'id', 'template_name', 'stage', 'template', 'order', 'contribution_percentage', 
-            'estimated_hours', 'actual_hours', 'status', 'initial_notes', 'rejection_notes'
-        ]
-
-
-# =====================================================
-# PROJECT STAGE SERIALIZER
-# (Pre-Production, Editing, Effects, etc.)
-# =====================================================
-class ProjectStageSerializer(serializers.ModelSerializer):
-    # Display stage template name (instead of only ID)
-    template_name = serializers.CharField(
-        source="template.name",
-        read_only=True
-    )
-    elements = ProjectStageElementSerializer(many=True, read_only=True) # Add nested elements
-    stage_progress = serializers.DecimalField(max_digits=5, decimal_places=2, read_only=True)
-
-    class Meta:
-        model = ProjectStage
-        fields = [
-            'id', 'project', 'template', 'template_name', 'order', 'status', 'rejection_notes', 'elements', 'stage_progress'
-        ]
-
-
-class ProjectSerializer(serializers.ModelSerializer):
-    client_name = serializers.CharField(source='client.client_name', read_only=True)
-    assigned_users = serializers.SerializerMethodField()
-    created_by_details = UserSerializer(source='created_by', read_only=True)
-    stages = ProjectStageSerializer(many=True, read_only=True) # Add nested stages
-    overall_progress = serializers.DecimalField(max_digits=5, decimal_places=2, read_only=True)
-    
-    # New fields for service and package names
-    service_name = serializers.CharField(source='service.name', read_only=True)
-    package_name = serializers.CharField(source='package.name', read_only=True)
-    folder_structure_template_name = serializers.CharField(source='folder_structure_template.name', read_only=True)
-
-
-    class Meta:
-        model = Project
-        fields = [
-            'id', 'name', 'description', 'client', 'client_name', 'project_type', 
-            'service', 'service_name', 'package', 'package_name', 'priority', 'status', 'start_date', 'due_date', 
-            'end_date', 'budget', 'estimated_hours', 'initial_requirements', 
-            'reference_links', 'created_by', 'created_by_details', 'updated_by', 'created_at', 
-            'updated_at', 'assigned_users', 'overall_progress', 'stages', 'folder_structure_template', 'folder_structure_template_name' # Include stages in fields
-        ]
-        read_only_fields = ['id', 'created_at', 'updated_at', 'created_by', 'updated_by']
-
-    def get_assigned_users(self, obj):
-        # Get all users assigned to tasks in this project
-        tasks = ProjectStageElement.objects.filter(stage__project=obj)
-        user_ids = ProjectTaskAssignment.objects.filter(task__in=tasks).values_list('user_id', flat=True).distinct()
-        users = User.objects.filter(id__in=user_ids)
-        return UserSerializer(users, many=True).data
-
-
 
 # =====================================================
 # TASK ASSIGNMENT SERIALIZER
@@ -103,22 +30,6 @@ class ProjectTaskAssignmentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ProjectTaskAssignment
-        fields = "__all__"
-
-
-# =====================================================
-# TIME LOG SERIALIZER
-# (Hours logged by users)
-# =====================================================
-class ProjectTimeLogSerializer(serializers.ModelSerializer):
-    # Expose user name for UI
-    user_name = serializers.CharField(
-        source="user.name",
-        read_only=True
-    )
-
-    class Meta:
-        model = ProjectTimeLog
         fields = "__all__"
 
 
@@ -189,14 +100,12 @@ class ProjectAssetSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ProjectAsset
-        fields = '__all__'
-
-        # System-managed fields
-        read_only_fields = (
-            "version_number",
-            "created_at",
-            "approved_at",
-            "uploaded_by",
+        fields = (
+            "id", "element", "uploaded_by", "uploaded_by_name", "asset_type",
+            "asset_role", "file", "storage_location", "relative_path",
+            "client_review", "version_number", "description", "processed",
+            "relative_path", # Added relative_path
+            "created_at", "approved_at",
         )
 
     def get_file(self, obj):
@@ -220,7 +129,6 @@ class ProjectAssetSerializer(serializers.ModelSerializer):
             return obj.file.url # Default fallback
         return None
 
-
 # =====================================================
 # CLIENT ASSET SERIALIZER
 # (Only what client is allowed to see)
@@ -241,58 +149,133 @@ class ClientProjectAssetSerializer(serializers.ModelSerializer):
 
 
 # =====================================================
-# CLIENT REVIEW LOG SERIALIZER
-# (Client approvals / rejections)
+# PROJECT STAGE ELEMENT SERIALIZER
+# (Tasks inside a stage)
 # =====================================================
-class ClientReviewLogSerializer(serializers.ModelSerializer):
-    # Display reviewer name
-    reviewed_by_name = serializers.CharField(
-        source="reviewed_by.name",
-        read_only=True
-    )
-
-    class Meta:
-        model = ClientReviewLog
-        fields = "__all__"
-
-        # Review timestamp is system-generated
-        read_only_fields = ("reviewed_at",)
-
-
-
-# =====================================================
-# STAGE ELEMENT DETAIL SERIALIZER (INTERNAL)
-# (Full deep view with relations)
-# =====================================================
-class ProjectStageElementDetailSerializer(serializers.ModelSerializer):
-    project_name = serializers.CharField(
-        source="stage.project.name",
-        read_only=True
-    )
+class ProjectStageElementSerializer(serializers.ModelSerializer):
+    # Display task template name
     template_name = serializers.CharField(
         source="template.name",
         read_only=True
     )
-    versions = StageElementVersionSerializer(
-        many=True,
-        read_only=True
-    )
-    assets = ProjectAssetSerializer(
-        many=True,
-        read_only=True
-    )
-    assignments = ProjectTaskAssignmentSerializer(
-        many=True,
-        read_only=True
-    )
+    manager_approved_by_name = serializers.CharField(source='manager_approved_by.name', read_only=True)
+    client_approved_by_name = serializers.CharField(source='client_approved_by.name', read_only=True)
+
 
     class Meta:
         model = ProjectStageElement
         fields = [
-            'id', 'stage', 'template', 'order', 'contribution_percentage',
-            'estimated_hours', 'actual_hours', 'status', 'rejection_notes',
-            'project_name', 'template_name', 'versions', 'assets', 'assignments'
+            'id', 'template_name', 'stage', 'template', 'order', 'contribution_percentage', 
+            'estimated_hours', 'actual_hours', 'status', 'initial_notes', 'rejection_notes',
+            'manager_approval_status', 'manager_rework_notes', 'manager_approved_by', 'manager_approved_by_name', 'manager_approved_at',
+            'client_approval_status', 'client_rework_notes', 'client_approved_by', 'client_approved_by_name', 'client_approved_at',
+            'staged_for_client_review',
         ]
+        read_only_fields = ['manager_approved_by', 'manager_approved_at', 'client_approved_by', 'client_approved_at']
+
+    def validate_status(self, value):
+        if self.instance:  # If updating an existing instance
+            old_status = self.instance.status
+            new_status = value
+            # Create a dummy instance to call the model's validation method
+            temp_instance = ProjectStageElement(status=old_status)
+            try:
+                temp_instance.validate_status_transition(old_status, new_status)
+            except ValidationError as e:
+                raise serializers.ValidationError(str(e))
+        else:  # If creating a new instance
+            # For a new task, only 'pending' or 'in_progress' are typically valid initial statuses
+            if value not in ["pending", "in_progress"]:
+                raise serializers.ValidationError(
+                    f"Invalid initial status '{value}' for a new task. Must be 'pending' or 'in_progress'."
+                )
+        return value
+
+    def validate(self, data):
+        # Retrieve existing instance if available
+        instance = self.instance
+
+        # Validate contribution_percentage range
+        contribution_percentage = data.get('contribution_percentage')
+        if contribution_percentage is not None:
+            if not (0 < contribution_percentage <= 100):
+                raise serializers.ValidationError(
+                    {"contribution_percentage": "Contribution must be between 0 and 100."}
+                )
+        
+        # Conditional validation for rejection_notes
+        status = data.get('status', instance.status if instance else None)
+        if status == 'rejected':
+            rejection_notes = data.get('rejection_notes', instance.rejection_notes if instance else None)
+            if not rejection_notes or rejection_notes.strip() == '':
+                raise serializers.ValidationError(
+                    {"rejection_notes": "Rejection notes are required when status is 'Rejected'."}
+                )
+
+        # Manager Approval Status Validation
+        manager_approval_status = data.get('manager_approval_status', instance.manager_approval_status if instance else "pending")
+        if manager_approval_status == 'rejected':
+            manager_rework_notes = data.get('manager_rework_notes', instance.manager_rework_notes if instance else None)
+            if not manager_rework_notes or manager_rework_notes.strip() == '':
+                raise serializers.ValidationError(
+                    {"manager_rework_notes": "Manager rework notes are required when manager approval status is 'Rejected'."}
+                )
+        
+        # Client Approval Status Validation
+        client_approval_status = data.get('client_approval_status', instance.client_approval_status if instance else "not_applicable")
+        if client_approval_status == 'rejected':
+            client_rework_notes = data.get('client_rework_notes', instance.client_rework_notes if instance else None)
+            if not client_rework_notes or client_rework_notes.strip() == '':
+                raise serializers.ValidationError(
+                    {"client_rework_notes": "Client rework notes are required when client approval status is 'Rejected'."}
+                )
+
+        # Ensure manager_approved_by is set when manager_approval_status is 'approved'
+        if manager_approval_status == 'approved' and not data.get('manager_approved_by'):
+            if instance and not instance.manager_approved_by: # Only if it's not already set in the instance
+                raise serializers.ValidationError(
+                    {"manager_approved_by": "Manager who approved must be provided when manager_approval_status is 'approved'."}
+                )
+
+        # Ensure client_approved_by is set when client_approval_status is 'approved'
+        if client_approval_status == 'approved' and not data.get('client_approved_by'):
+            if instance and not instance.client_approved_by: # Only if it's not already set in the instance
+                raise serializers.ValidationError(
+                    {"client_approved_by": "Client who approved must be provided when client_approval_status is 'approved'."}
+                )
+
+        # A task can only be completed if both manager and client (if applicable) have approved.
+        if status == 'completed':
+            if manager_approval_status != 'approved':
+                raise serializers.ValidationError(
+                    {"status": "Task cannot be completed without manager approval."}
+                )
+            if client_approval_status not in ['not_applicable', 'approved']:
+                raise serializers.ValidationError(
+                    {"status": "Task cannot be completed without client approval when client review is applicable."}
+                )
+        
+        # Handle automatic transition for staged_for_client_review
+        staged_for_client_review = data.get('staged_for_client_review', instance.staged_for_client_review if instance else False)
+        if staged_for_client_review and not (instance and instance.staged_for_client_review): # If it's being set to True
+            if manager_approval_status != 'approved':
+                raise serializers.ValidationError(
+                    {"staged_for_client_review": "Task cannot be staged for client review without manager approval."}
+                )
+            # Automatically set client_approval_status to "requested"
+            data['client_approval_status'] = "requested"
+            data['status'] = "waiting_client_review" # Also transition main status
+
+        # If client approval is requested (e.g., manually set), ensure it's staged
+        if data.get('client_approval_status') == 'requested' and not staged_for_client_review:
+            # Check if client_approval_status is *being changed* to 'requested'
+            old_client_approval_status = instance.client_approval_status if instance else "not_applicable"
+            if data.get('client_approval_status') != old_client_approval_status: # Only validate if status is actually changing
+                raise serializers.ValidationError(
+                    {"staged_for_client_review": "Task must be staged for client review when client approval is requested."}
+                )
+
+        return data
 
 
 # =====================================================
@@ -316,6 +299,132 @@ class ClientProjectStageElementSerializer(serializers.ModelSerializer):
             "rejection_notes",
             "assets",
         )
+
+
+# =====================================================
+# PROJECT STAGE ELEMENT DETAIL SERIALIZER (INTERNAL)
+# (Full deep view with relations)
+# =====================================================
+class ProjectStageElementDetailSerializer(serializers.ModelSerializer):
+    project_name = serializers.CharField(
+        source="stage.project.name",
+        read_only=True
+    )
+    template_name = serializers.CharField(
+        source="template.name",
+        read_only=True
+    )
+    versions = StageElementVersionSerializer(
+        many=True,
+        read_only=True
+    )
+    assets = ProjectAssetSerializer(
+        many=True,
+        read_only=True
+    )
+    assignments = ProjectTaskAssignmentSerializer(
+        many=True,
+        read_only=True
+    )
+    manager_approved_by_name = serializers.CharField(source='manager_approved_by.name', read_only=True)
+    client_approved_by_name = serializers.CharField(source='client_approved_by.name', read_only=True)
+
+
+    class Meta:
+        model = ProjectStageElement
+        fields = [
+            'id', 'stage', 'template', 'order', 'contribution_percentage',
+            'estimated_hours', 'actual_hours', 'status', 'rejection_notes',
+            'manager_approval_status', 'manager_rework_notes', 'manager_approved_by', 'manager_approved_by_name', 'manager_approved_at',
+            'client_approval_status', 'client_rework_notes', 'client_approved_by', 'client_approved_by_name', 'client_approved_at',
+            'staged_for_client_review',
+            'project_name', 'template_name', 'versions', 'assets', 'assignments'
+        ]
+
+
+# =====================================================
+# CLIENT REVIEW LOG SERIALIZER
+# (Client approvals / rejections)
+# =====================================================
+class ClientReviewLogSerializer(serializers.ModelSerializer):
+    # Display reviewer name
+    reviewed_by_name = serializers.CharField(
+        source="reviewed_by.name",
+        read_only=True
+    )
+
+    class Meta:
+        model = ClientReviewLog
+        fields = "__all__"
+
+        # Review timestamp is system-generated
+        read_only_fields = ("reviewed_at",)
+
+
+# =====================================================
+# PROJECT STAGE SERIALIZER
+# =====================================================
+class ProjectStageSerializer(serializers.ModelSerializer):
+    template_name = serializers.CharField(source='template.name', read_only=True)
+    elements = ProjectStageElementSerializer(many=True, read_only=True) # Nested elements
+
+    class Meta:
+        model = ProjectStage
+        fields = [
+            'id', 'project', 'template', 'template_name', 'order', 'status', 
+            'rejection_notes', 'stage_progress', 'elements'
+        ]
+        read_only_fields = ['id', 'stage_progress']
+
+# =====================================================
+# PROJECT SERIALIZER
+# =====================================================
+
+class ProjectSerializer(serializers.ModelSerializer):
+    client_name = serializers.CharField(source='client.client_name', read_only=True)
+    assigned_users = serializers.SerializerMethodField()
+    created_by_details = UserSerializer(source='created_by', read_only=True)
+    stages = ProjectStageSerializer(many=True, read_only=True) # Add nested stages
+    overall_progress = serializers.DecimalField(max_digits=5, decimal_places=2, read_only=True)
+    
+    # New fields for service and package names
+    service_name = serializers.CharField(source='service.name', read_only=True)
+    package_name = serializers.CharField(source='package.name', read_only=True)
+    folder_structure_template_name = serializers.CharField(source='folder_structure_template.name', read_only=True)
+
+
+    class Meta:
+        model = Project
+        fields = [
+            'id', 'name', 'description', 'client', 'client_name', 'project_type', 
+            'service', 'service_name', 'package', 'package_name', 'priority', 'status', 'start_date', 'due_date', 
+            'end_date', 'budget', 'estimated_hours', 'initial_requirements', 
+            'reference_links', 'created_by', 'created_by_details', 'updated_by', 'created_at', 
+            'updated_at', 'assigned_users', 'overall_progress', 'stages', 'folder_structure_template', 'folder_structure_template_name' # Include stages in fields
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at', 'created_by', 'updated_by']
+
+    def get_assigned_users(self, obj):
+        # Get all users assigned to tasks in this project
+        tasks = ProjectStageElement.objects.filter(stage__project=obj)
+        user_ids = ProjectTaskAssignment.objects.filter(task__in=tasks).values_list('user_id', flat=True).distinct()
+        users = User.objects.filter(id__in=user_ids)
+        return UserSerializer(users, many=True).data
+
+
+# =====================================================
+# TIME LOG SERIALIZER
+# =====================================================
+class ProjectTimeLogSerializer(serializers.ModelSerializer):
+    # Expose user name for UI
+    user_name = serializers.CharField(
+        source="user.name",
+        read_only=True
+    )
+
+    class Meta:
+        model = ProjectTimeLog
+        fields = "__all__"
 
 # =====================================================
 # PACKAGE SERIALIZERS
@@ -353,7 +462,7 @@ class PackageSerializer(serializers.ModelSerializer):
 
         # Update or create package items
         if items_data is not None:
-            # Clear existing items and create new ones (simplistic approach)
+            # Simplistic: delete existing and recreate. More robust would be to diff.
             instance.items.all().delete()
             for item_data in items_data:
                 PackageItem.objects.create(package=instance, **item_data)
@@ -422,4 +531,3 @@ class TaskCommentSerializer(serializers.ModelSerializer):
         model = TaskComment
         fields = ["id", "task", "user", "user_name", "comment", "created_at"]
         read_only_fields = ["id", "task", "user", "user_name", "created_at"]
-

@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  X, ListTodo, FolderKanban, Layers, FileText, 
-  Calendar, StickyNote, CheckCircle2
+  X, ListTodo, FolderKanban, Layers, 
+  Calendar, StickyNote, CheckCircle2, Percent, Clock
 } from 'lucide-react';
 import { getProjects, getProject, getProjectStageElementTemplatesForStage, createProjectStageElement } from '../../../shared/services/apiClient';
 
 const CreateNewTaskForm = ({ onClose }) => {
-  const [taskName, setTaskName] = useState('');
-  const [description, setDescription] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [status, setStatus] = useState('pending');
   const [initialNotes, setInitialNotes] = useState('');
+  const [contributionPercentage, setContributionPercentage] = useState(100); 
+  const [estimatedHours, setEstimatedHours] = useState(8); 
 
   const [projects, setProjects] = useState([]);
   const [selectedProjectId, setSelectedProjectId] = useState('');
@@ -26,6 +26,8 @@ const CreateNewTaskForm = ({ onClose }) => {
   const [selectedElementTemplateId, setSelectedElementTemplateId] = useState('');
   const [loadingElementTemplates, setLoadingElementTemplates] = useState(false);
   const [errorElementTemplates, setErrorElementTemplates] = useState(null);
+  
+  const [formErrors, setFormErrors] = useState({}); // New state for form errors
 
   const [loading, setLoading] = useState(false);
 
@@ -52,6 +54,8 @@ const CreateNewTaskForm = ({ onClose }) => {
     setElementTemplates([]);
     setSelectedStageId('');
     setSelectedElementTemplateId('');
+    setEstimatedHours(8); // Reset estimated hours when project changes
+    setFormErrors({}); // Clear errors
 
     if (projectId) {
       try {
@@ -72,6 +76,8 @@ const CreateNewTaskForm = ({ onClose }) => {
     setSelectedStageId(stageId);
     setElementTemplates([]);
     setSelectedElementTemplateId('');
+    setEstimatedHours(8); // Reset estimated hours when stage changes
+    setFormErrors({}); // Clear errors
 
     if (stageId) {
       try {
@@ -92,11 +98,32 @@ const CreateNewTaskForm = ({ onClose }) => {
     }
   };
 
+  const handleElementTemplateChange = (e) => {
+    const templateId = e.target.value;
+    setSelectedElementTemplateId(templateId);
+    const selectedTemplate = elementTemplates.find(et => String(et.id) === templateId);
+    if (selectedTemplate && selectedTemplate.default_estimated_hours) {
+      setEstimatedHours(selectedTemplate.default_estimated_hours);
+    } else {
+      setEstimatedHours(8); // Default if template not found or no default hours
+    }
+    setFormErrors({}); // Clear errors
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setFormErrors({}); // Clear previous errors
 
     if (!selectedProjectId || !selectedStageId || !selectedElementTemplateId) {
-      alert("Please select a project, a stage, and an element template.");
+      setFormErrors({ _general: "Please select a project, a stage, and an element template." });
+      return;
+    }
+    if (contributionPercentage <= 0 || contributionPercentage > 100) {
+      setFormErrors({ contribution_percentage: ["Contribution percentage must be between 1 and 100."] });
+      return;
+    }
+    if (estimatedHours <= 0) {
+      setFormErrors({ estimated_hours: ["Estimated hours must be greater than 0."] });
       return;
     }
 
@@ -106,11 +133,11 @@ const CreateNewTaskForm = ({ onClose }) => {
       stage: selectedStageId,
       template: selectedElementTemplateId,
       order: 0,
-      contribution_percentage: 100,
-      estimated_hours: 8,
+      contribution_percentage: contributionPercentage,
+      estimated_hours: estimatedHours,
       status: status,
-      initial_notes: initialNotes,
-      rejection_notes: "",
+      initial_notes: initialNotes, // Now this will directly be the user's initial notes
+      rejection_notes: "", 
     };
 
     try {
@@ -118,7 +145,16 @@ const CreateNewTaskForm = ({ onClose }) => {
       onClose();
     } catch (apiError) {
       console.error("Error creating task:", apiError);
-      alert('Failed to create task. Check console for details.');
+      if (apiError.response && apiError.response.data) {
+        setFormErrors(apiError.response.data);
+        if (apiError.response.data.detail) {
+            alert(`Error: ${apiError.response.data.detail}`);
+        } else if (apiError.response.data.non_field_errors) {
+            alert(`Error: ${apiError.response.data.non_field_errors.join(', ')}`);
+        }
+      } else {
+        alert('Failed to create task. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -130,8 +166,6 @@ const CreateNewTaskForm = ({ onClose }) => {
   const statusOptions = [
     { value: 'pending', label: 'Pending', color: 'bg-slate-500/10 text-slate-400' },
     { value: 'in_progress', label: 'In Progress', color: 'bg-blue-500/10 text-blue-400' },
-    { value: 'completed', label: 'Completed', color: 'bg-emerald-500/10 text-emerald-400' },
-    { value: 'rejected', label: 'Rejected', color: 'bg-rose-500/10 text-rose-400' },
   ];
 
   if (errorProjects) {
@@ -168,43 +202,13 @@ const CreateNewTaskForm = ({ onClose }) => {
 
       {/* Form */}
       <form onSubmit={handleSubmit} className="p-6 space-y-5 max-h-[60vh] overflow-y-auto custom-scrollbar">
-        {/* Task Name */}
-        <div>
-          <label htmlFor="taskName" className={labelClasses}>
-            <FileText size={14} />
-            Task Name (for reference)
-          </label>
-          <input
-            type="text"
-            id="taskName"
-            value={taskName}
-            onChange={(e) => setTaskName(e.target.value)}
-            className={inputClasses}
-            placeholder="e.g., Design Homepage Banner"
-          />
-        </div>
-
-        {/* Description */}
-        <div>
-          <label htmlFor="description" className={labelClasses}>
-            <StickyNote size={14} />
-            Description
-          </label>
-          <textarea
-            id="description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            className={inputClasses + " resize-none"}
-            rows="3"
-            placeholder="Task description..."
-          />
-        </div>
-
+        {formErrors._general && <p className="text-red-500 text-sm mt-1">{formErrors._general}</p>}
+        {formErrors.non_field_errors && <p className="text-red-500 text-sm mt-1">{formErrors.non_field_errors[0]}</p>}
         {/* Initial Notes */}
         <div>
           <label htmlFor="initialNotes" className={labelClasses}>
             <StickyNote size={14} />
-            Initial Notes
+            Notes (Optional)
           </label>
           <textarea
             id="initialNotes"
@@ -212,8 +216,9 @@ const CreateNewTaskForm = ({ onClose }) => {
             onChange={(e) => setInitialNotes(e.target.value)}
             className={inputClasses + " resize-none"}
             rows="3"
-            placeholder="Any initial notes for this task..."
+            placeholder="Any initial notes for this task, or a description..."
           />
+          {formErrors.initial_notes && <p className="text-red-500 text-sm mt-1">{formErrors.initial_notes[0]}</p>}
         </div>
 
         {/* Due Date */}
@@ -230,6 +235,7 @@ const CreateNewTaskForm = ({ onClose }) => {
             className={inputClasses}
             required
           />
+          {formErrors.due_date && <p className="text-red-500 text-sm mt-1">{formErrors.due_date[0]}</p>}
         </div>
 
         {/* Project Selection */}
@@ -254,6 +260,7 @@ const CreateNewTaskForm = ({ onClose }) => {
               ))}
             </select>
           )}
+          {formErrors.project && <p className="text-red-500 text-sm mt-1">{formErrors.project[0]}</p>}
         </div>
 
         {/* Stage Selection */}
@@ -281,6 +288,7 @@ const CreateNewTaskForm = ({ onClose }) => {
                 ))}
               </select>
             )}
+            {formErrors.stage && <p className="text-red-500 text-sm mt-1">{formErrors.stage[0]}</p>}
           </div>
         )}
 
@@ -299,7 +307,7 @@ const CreateNewTaskForm = ({ onClose }) => {
               <select
                 id="elementTemplate"
                 value={selectedElementTemplateId}
-                onChange={(e) => setSelectedElementTemplateId(e.target.value)}
+                onChange={handleElementTemplateChange} // Use new handler
                 className={inputClasses + " cursor-pointer"}
                 required
               >
@@ -309,8 +317,46 @@ const CreateNewTaskForm = ({ onClose }) => {
                 ))}
               </select>
             )}
+            {formErrors.template && <p className="text-red-500 text-sm mt-1">{formErrors.template[0]}</p>}
           </div>
         )}
+
+        {/* Contribution Percentage */}
+        <div>
+          <label htmlFor="contributionPercentage" className={labelClasses}>
+            <Percent size={14} />
+            Contribution Percentage (%) *
+          </label>
+          <input
+            type="number"
+            id="contributionPercentage"
+            value={contributionPercentage}
+            onChange={(e) => setContributionPercentage(Math.max(1, Math.min(100, Number(e.target.value))))} // Client-side range clamp
+            className={inputClasses}
+            min="1"
+            max="100"
+            required
+          />
+          {formErrors.contribution_percentage && <p className="text-red-500 text-sm mt-1">{formErrors.contribution_percentage[0]}</p>}
+        </div>
+
+        {/* Estimated Hours */}
+        <div>
+          <label htmlFor="estimatedHours" className={labelClasses}>
+            <Clock size={14} />
+            Estimated Hours *
+          </label>
+          <input
+            type="number"
+            id="estimatedHours"
+            value={estimatedHours}
+            onChange={(e) => setEstimatedHours(Math.max(1, Number(e.target.value)))} // Client-side min clamp
+            className={inputClasses}
+            min="1"
+            required
+          />
+          {formErrors.estimated_hours && <p className="text-red-500 text-sm mt-1">{formErrors.estimated_hours[0]}</p>}
+        </div>
 
         {/* Status */}
         <div>
@@ -334,6 +380,7 @@ const CreateNewTaskForm = ({ onClose }) => {
               </button>
             ))}
           </div>
+          {formErrors.status && <p className="text-red-500 text-sm mt-1">{formErrors.status[0]}</p>}
         </div>
       </form>
 

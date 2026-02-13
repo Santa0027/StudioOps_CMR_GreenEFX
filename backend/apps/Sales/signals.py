@@ -12,7 +12,7 @@ def create_project_from_lead(sender, instance, created, **kwargs):
         project = Project.objects.create(
             client=instance.client,
             project_type="single_service",  # or based on lead type
-            service_type=instance.services_requested,
+            # service_type field should be set based on LeadServiceItem or other logic
             budget=instance.estimated_budget,
             due_date=instance.expected_delivery_date,
             status="not_started",
@@ -55,14 +55,10 @@ def create_lead_by_enquiry(sender, instance, created, **kwargs):
         lead = Lead.objects.create(
             enquiry=instance,
             client=client,
-            services_requested=instance.service_interested,
-            # For estimated_budget, we'll need a way to parse budget_range (CharField) to Decimal.
-            # For now, we'll leave it as None or try a simple parsing if possible.
-            # Assuming budget_range might be "1000-2000" or "5000".
-            # This is a simplification; a more robust solution would be needed.
+            # services_requested removed; handled via LeadServiceItem or notes
             estimated_budget=None, # Set to None for now, or implement parsing logic
             assigned_to=instance.assigned_to,
-            notes=f"Auto-created from enquiry #{instance.id}. Original budget range: {instance.budget_range}. Original notes: {instance.notes}"
+            notes=f"Auto-created from enquiry #{instance.id}. Service interested: {instance.service_interested}. Original budget range: {instance.budget_range}. Original notes: {instance.notes}"
         )
         
 
