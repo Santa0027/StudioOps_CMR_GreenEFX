@@ -3,11 +3,8 @@ import {
   X, FolderKanban, Building2, Layers, Briefcase, Flag, 
   Calendar, DollarSign, Clock, FileText, Link, CheckSquare
 } from 'lucide-react';
-import { getClients, getProjectStageTemplates, createProject, getServices, getPackages, getFolderStructureTemplates } from '../../../shared/services/apiClient';
+import { getClients, getProjectStageTemplates, createProject, getServices, getPackages } from '../../../shared/services/apiClient';
 import { useNavigate } from "react-router-dom";
-
-// Placeholder for base projects directory - ideally this comes from a global config or user settings
-const BASE_PROJECTS_DIR = '/mnt/projects'; // Example path, adjust as needed
 
 const CreateNewProject = ({ onClose, onProjectAdded }) => {
   const [formData, setFormData] = useState({
@@ -15,8 +12,8 @@ const CreateNewProject = ({ onClose, onProjectAdded }) => {
     description: '',
     client: '',
     project_type: 'single_service',
-    service: '', // Now stores service ID
-    package: '', // Now stores package ID
+    service: '', 
+    package: '', 
     priority: 'medium',
     status: 'not_started',
     start_date: '',
@@ -26,14 +23,11 @@ const CreateNewProject = ({ onClose, onProjectAdded }) => {
     initial_requirements: '',
     reference_links: '',
     workflow_templates: [],
-    folder_structure_template: '', // New field for folder structure template ID
   });
   const [clients, setClients] = useState([]);
   const [workflowTemplates, setWorkflowTemplates] = useState([]);
-  const [services, setServices] = useState([]); // New state for services
-  const [packages, setPackages] = useState([]); // New state for packages
-  const [folderStructureTemplates, setFolderStructureTemplates] = useState([]); // New state
-  const [basePath, setBasePath] = useState(BASE_PROJECTS_DIR); // New state for base path
+  const [services, setServices] = useState([]); 
+  const [packages, setPackages] = useState([]); 
   const [error, setError] = useState(null);
   const [validationErrors, setValidationErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -42,18 +36,16 @@ const CreateNewProject = ({ onClose, onProjectAdded }) => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [clientsRes, templatesRes, servicesRes, packagesRes, folderTemplatesRes] = await Promise.all([
+        const [clientsRes, templatesRes, servicesRes, packagesRes] = await Promise.all([
           getClients(),
           getProjectStageTemplates(),
-          getServices(), // Fetch services
-          getPackages(), // Fetch packages
-          getFolderStructureTemplates(), // Fetch folder structure templates
+          getServices(), 
+          getPackages(),
         ]);
         setClients(clientsRes.data);
         setWorkflowTemplates(templatesRes.data);
-        setServices(servicesRes.data); // Set services state
-        setPackages(packagesRes.data); // Set packages state
-        setFolderStructureTemplates(folderTemplatesRes.data); // Set folder templates state
+        setServices(servicesRes.data); 
+        setPackages(packagesRes.data); 
       } catch (err) {
         setError('Failed to fetch necessary data. Please try again later.');
         console.error(err);
@@ -63,12 +55,11 @@ const CreateNewProject = ({ onClose, onProjectAdded }) => {
   }, []);
 
   useEffect(() => {
-    // Reset service or package when project_type changes
     setFormData(prev => {
       if (prev.project_type === 'single_service') {
-        return { ...prev, package: '' }; // Clear package if single service
+        return { ...prev, package: '' }; 
       } else if (prev.project_type === 'package') {
-        return { ...prev, service: '' }; // Clear service if package
+        return { ...prev, service: '' }; 
       }
       return prev;
     });
@@ -77,7 +68,7 @@ const CreateNewProject = ({ onClose, onProjectAdded }) => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-    setValidationErrors(prev => ({ ...prev, [name]: undefined })); // Clear validation error for this field
+    setValidationErrors(prev => ({ ...prev, [name]: undefined }));
   };
 
   const handleTemplateChange = (e) => {
@@ -96,7 +87,7 @@ const CreateNewProject = ({ onClose, onProjectAdded }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
-    setValidationErrors({}); // Clear previous validation errors
+    setValidationErrors({});
 
     const errors = validateForm(formData);
     if (Object.keys(errors).length > 0) {
@@ -109,8 +100,6 @@ const CreateNewProject = ({ onClose, onProjectAdded }) => {
     const projectData = {
       ...formData,
       workflow_template_ids: formData.workflow_templates,
-      folder_structure_template_id: formData.folder_structure_template,
-      base_path: basePath,
     };
     delete projectData.workflow_templates;
 
@@ -130,23 +119,18 @@ const CreateNewProject = ({ onClose, onProjectAdded }) => {
   const validateForm = (data) => {
     const errors = {};
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // Normalize today's date to compare only dates
+    today.setHours(0, 0, 0, 0);
 
-    // Project Name validation
     if (!data.name.trim()) {
       errors.name = 'Project name is required.';
     } else if (data.name.trim().length < 3) {
       errors.name = 'Project name must be at least 3 characters long.';
-    } else if (data.name.trim().length > 100) {
-      errors.name = 'Project name cannot exceed 100 characters.';
     }
 
-    // Client validation
     if (!data.client) {
       errors.client = 'Client selection is required.';
     }
 
-    // Service/Package validation
     if (data.project_type === 'single_service' && !data.service) {
       errors.service = 'Service selection is required for single service projects.';
     }
@@ -154,17 +138,10 @@ const CreateNewProject = ({ onClose, onProjectAdded }) => {
       errors.package = 'Package selection is required for package projects.';
     }
 
-    // Due Date validation
     if (data.due_date) {
       const dueDate = new Date(data.due_date);
       if (dueDate < today) {
         errors.due_date = 'Due date cannot be in the past.';
-      }
-      if (data.start_date) {
-        const startDate = new Date(data.start_date);
-        if (dueDate < startDate) {
-          errors.due_date = 'Due date cannot be before the start date.';
-        }
       }
     }
 
@@ -179,15 +156,6 @@ const CreateNewProject = ({ onClose, onProjectAdded }) => {
     { value: 'medium', label: 'Medium', color: 'bg-amber-500/20 text-amber-400' },
     { value: 'high', label: 'High', color: 'bg-rose-500/20 text-rose-400' },
     { value: 'critical', label: 'Critical', color: 'bg-red-500/20 text-red-400' },
-  ];
-
-  const serviceTypes = [
-    { value: '3d_animation', label: '3D Animation' },
-    { value: 'graphic_design', label: 'Graphic Design' },
-    { value: 'video_editing', label: 'Video Editing' },
-    { value: 'motion_graphics', label: 'Motion Graphics' },
-    { value: 'vfx', label: 'VFX' },
-    { value: 'package', label: 'Package' },
   ];
 
   return (
@@ -211,14 +179,12 @@ const CreateNewProject = ({ onClose, onProjectAdded }) => {
         </button>
       </div>
 
-      {/* Error Message */}
       {error && (
         <div className="mx-6 mt-6 p-4 bg-rose-500/10 border border-rose-500/20 rounded-lg text-rose-400">
           {error}
         </div>
       )}
 
-      {/* Form */}
       <form onSubmit={handleSubmit} className="p-6 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
         {/* Basic Info */}
         <div className="space-y-4">
@@ -508,39 +474,6 @@ const CreateNewProject = ({ onClose, onProjectAdded }) => {
                 rows="2"
                 className={inputClasses + " resize-none"}
                 placeholder="Add relevant reference links..."
-              />
-            </div>
-            <div>
-              <label htmlFor="folder_structure_template" className={labelClasses}>
-                <FolderKanban size={14} />
-                Folder Structure Template
-              </label>
-              <select
-                name="folder_structure_template"
-                id="folder_structure_template"
-                value={formData.folder_structure_template}
-                onChange={handleChange}
-                className={inputClasses + " cursor-pointer"}
-              >
-                <option value="">No Template Selected</option>
-                {folderStructureTemplates.map(template => (
-                  <option key={template.id} value={template.id}>{template.name}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label htmlFor="base_path" className={labelClasses}>
-                <FolderKanban size={14} />
-                Base Path for Folders
-              </label>
-              <input
-                type="text"
-                name="base_path"
-                id="base_path"
-                value={basePath}
-                onChange={(e) => setBasePath(e.target.value)}
-                className={inputClasses}
-                placeholder="/path/to/your/projects"
               />
             </div>
           </div>

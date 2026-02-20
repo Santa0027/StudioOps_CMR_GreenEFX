@@ -382,7 +382,7 @@ class ProjectStageSerializer(serializers.ModelSerializer):
 
 class ProjectSerializer(serializers.ModelSerializer):
     client_name = serializers.CharField(source='client.client_name', read_only=True)
-    assigned_users = serializers.SerializerMethodField()
+    assigned_user_details = serializers.SerializerMethodField(read_only=True)
     created_by_details = UserSerializer(source='created_by', read_only=True)
     stages = ProjectStageSerializer(many=True, read_only=True) # Add nested stages
     overall_progress = serializers.DecimalField(max_digits=5, decimal_places=2, read_only=True)
@@ -400,16 +400,14 @@ class ProjectSerializer(serializers.ModelSerializer):
             'service', 'service_name', 'package', 'package_name', 'priority', 'status', 'start_date', 'due_date', 
             'end_date', 'budget', 'estimated_hours', 'initial_requirements', 
             'reference_links', 'created_by', 'created_by_details', 'updated_by', 'created_at', 
-            'updated_at', 'assigned_users', 'overall_progress', 'stages', 'folder_structure_template', 'folder_structure_template_name' # Include stages in fields
+            'updated_at', 'assigned_users', 'assigned_user_details', 'overall_progress', 'stages', 
+            'folder_structure_template', 'folder_structure_template_name' 
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'created_by', 'updated_by']
 
-    def get_assigned_users(self, obj):
-        # Get all users assigned to tasks in this project
-        tasks = ProjectStageElement.objects.filter(stage__project=obj)
-        user_ids = ProjectTaskAssignment.objects.filter(task__in=tasks).values_list('user_id', flat=True).distinct()
-        users = User.objects.filter(id__in=user_ids)
-        return UserSerializer(users, many=True).data
+    def get_assigned_user_details(self, obj):
+        # Get users directly assigned to the project
+        return UserSerializer(obj.assigned_users.all(), many=True).data
 
 
 # =====================================================

@@ -47,8 +47,7 @@ import ReportAndAnalysis from '../features/reports/pages/ReportAndAnalysis';
 import LeadManagement from '../features/sales/pages/LeadManagement';
 import EnquiryManagement from '../features/sales/pages/EnquiryManagement';
 
-import ServiceList from '../features/services/pages/ServiceList';
-import ServiceForm from '../features/services/components/ServiceForm';
+import ServiceManagement from '../features/services/pages/ServiceManagement';
 
 import Layout from '../shared/components/Layout';
 import PrivateRoute from '../shared/components/PrivateRoute';
@@ -103,13 +102,10 @@ export const protectedRoutes = [
                     { path: '/master/packages/:packageId/items', element: <PackageItemPage /> },
                     { path: '/master/workflow-templates', element: <WorkflowTemplateManagement /> },
                     { path: '/master/folder-structures', element: <FolderStructureTemplateList /> },
-                    { path: '/services', element: <ServiceList /> },
-                    { path: '/services/new', element: <ServiceForm /> },
-                    { path: '/services/edit/:id', element: <ServiceForm /> },
+                    { path: '/services', element: <ServiceManagement /> },
                     { path: '/project-stage-element-templates', element: <ProjectStageElementTemplateManagementPage /> },
                 ],
             },
         ],
     },
 ];
-

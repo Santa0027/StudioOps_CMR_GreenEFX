@@ -165,5 +165,5 @@ router.register(
 urlpatterns = router.urls + packages_router.urls + stage_templates_router.urls + assignments_router.urls + comments_router.urls + versions_router.urls
 urlpatterns += [
     path("client/assets/<int:asset_id>/stream/", AssetStreamView.as_view(), name="asset-stream"),
-    path("storage-settings/", StorageSettingViewSet.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update'}), name='storage-settings'),
+    path("storage-settings/", StorageSettingAPIView.as_view(), name='storage-settings'),
 ]

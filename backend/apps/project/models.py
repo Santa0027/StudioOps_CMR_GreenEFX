@@ -93,6 +93,13 @@ class Project(models.Model):
     initial_requirements = models.TextField(blank=True)
     reference_links = models.TextField(blank=True)
 
+    assigned_users = models.ManyToManyField(
+        User,
+        related_name="assigned_projects",
+        blank=True,
+        help_text="Users assigned to this project."
+    )
+
     created_by = models.ForeignKey(
         User,
         on_delete=models.PROTECT,
@@ -630,18 +637,6 @@ class StorageSetting(models.Model):
         choices=DEFAULT_STORAGE_CHOICES,
         default="nas",
         help_text="Default storage location for source files."
-    )
-    default_preview_file_storage = models.CharField(
-        max_length=10,
-        choices=DEFAULT_STORAGE_CHOICES,
-        default="local", # Default for previews
-        help_text="Default storage location for preview files."
-    )
-    default_final_file_storage = models.CharField(
-        max_length=10,
-        choices=DEFAULT_STORAGE_CHOICES,
-        default="cloud", # Default for final deliverables
-        help_text="Default storage location for final deliverable files."
     )
     default_preview_file_storage = models.CharField(
         max_length=10,

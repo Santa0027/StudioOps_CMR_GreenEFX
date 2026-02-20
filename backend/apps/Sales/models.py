@@ -77,13 +77,6 @@ class Service(models.Model):
     base_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     
     # New mapping fields
-    workflow_template = models.ForeignKey(
-        'project.ProjectStageTemplate', 
-        on_delete=models.SET_NULL, 
-        null=True, 
-        blank=True,
-        related_name="services"
-    )
     folder_structure_template = models.ForeignKey(
         'project.FolderStructureTemplate', 
         on_delete=models.SET_NULL, 
@@ -198,6 +191,7 @@ class Quotation(models.Model):
 class QuotationItem(models.Model):
     quotation = models.ForeignKey(Quotation, on_delete=models.CASCADE, related_name="items")
     service = models.ForeignKey(Service, on_delete=models.PROTECT, null=True, blank=True)
+    package = models.ForeignKey('project.Package', on_delete=models.PROTECT, null=True, blank=True)
     description = models.TextField()
     quantity = models.PositiveIntegerField()
     unit_price = models.DecimalField(max_digits=10, decimal_places=2)

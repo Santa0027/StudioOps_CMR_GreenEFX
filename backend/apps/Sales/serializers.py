@@ -27,6 +27,8 @@ class EnquirySerializer(serializers.ModelSerializer):
 # --- New/Updated Serializers ---
 
 class ServiceSerializer(serializers.ModelSerializer):
+    folder_structure_template_name = serializers.CharField(source='folder_structure_template.name', read_only=True)
+
     class Meta:
         model = Service
         fields = '__all__'

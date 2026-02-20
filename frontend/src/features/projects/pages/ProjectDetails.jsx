@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   FolderKanban, History, Upload, Users, Calendar, Clock, Link, 
-  FileText, Image, ArrowLeft, CheckCircle2, XCircle, Pause, Layers, X, Circle
+  FileText, Image, ArrowLeft, CheckCircle2, XCircle, Pause, Layers, X, Circle, Settings, RefreshCw
 } from 'lucide-react';
 import VersionHistory from '../components/VersionHistory';
-import { getProject, uploadProjectVersion } from '../../../shared/services/apiClient';
+import { getProject, uploadProjectVersion, updateProject, getProjectStageTemplates } from '../../../shared/services/apiClient';
 
 const STATUS_CONFIG = {
   not_started: { color: 'bg-slate-600', ringColor: 'ring-slate-500', textColor: 'text-slate-400', bgLight: 'bg-slate-500/20' },
@@ -30,38 +30,72 @@ function ProjectDetails() {
   const [selectedStage, setSelectedStage] = useState(null);
   const [uploadError, setUploadError] = useState(null);
   const [assetUploadError, setAssetUploadError] = useState(null);
+  
+  // Workflow Template state
+  const [workflowTemplates, setWorkflowTemplates] = useState([]);
+  const [selectedTemplateIds, setSelectedTemplateIds] = useState([]);
+  const [isUpdatingWorkflow, setIsUpdatingWorkflow] = useState(false);
+
+  const fetchProject = async () => {
+    try {
+      setLoading(true);
+      const res = await getProject(id);
+      setProjectData(res.data);
+    } catch (err) {
+      console.error('Failed to fetch project details:', err);
+      setError('Failed to fetch project details.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchTemplates = async () => {
+    try {
+      const res = await getProjectStageTemplates();
+      setWorkflowTemplates(res.data);
+    } catch (err) {
+      console.error('Failed to fetch templates:', err);
+    }
+  };
 
   useEffect(() => {
-    const fetchProject = async () => {
-      try {
-        setLoading(true);
-        const res = await getProject(id);
-        setProjectData(res.data);
-      } catch (err) {
-        console.error('Failed to fetch project details:', err);
-        setError('Failed to fetch project details.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     if (id) {
       fetchProject();
+      fetchTemplates();
     }
   }, [id]);
 
+  const handleApplyWorkflow = async () => {
+    if (selectedTemplateIds.length === 0) return;
+    if (!window.confirm(`Are you sure you want to add ${selectedTemplateIds.length} workflow stage(s) to the project?`)) return;
+
+    try {
+      setIsUpdatingWorkflow(true);
+      await updateProject(id, {
+        workflow_template_ids: selectedTemplateIds.map(id => parseInt(id))
+      });
+      alert("Workflow stages added successfully!");
+      setSelectedTemplateIds([]);
+      fetchProject(); 
+    } catch (err) {
+      console.error("Workflow update error:", err);
+      alert("Failed to update workflow.");
+    } finally {
+      setIsUpdatingWorkflow(false);
+    }
+  };
+
   const handleAssetUpload = (event) => {
-    setAssetUploadError(null); // Clear previous errors
+    setAssetUploadError(null); 
     const files = Array.from(event.target.files);
     
-    const MAX_ASSET_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
+    const MAX_ASSET_FILE_SIZE = 50 * 1024 * 1024; 
     const ALLOWED_ASSET_MIME_TYPES = [
-      'model/fbx', // Common for FBX, though often octet-stream
-      'application/octet-stream', // OBJ files often fall under this, will need to check extension
+      'model/fbx', 
+      'application/octet-stream', 
       'video/mp4',
       'image/jpeg',
       'image/png',
-      // 'image/webp' - not explicitly mentioned but good practice
     ];
 
     let newValidAssets = [];
@@ -69,7 +103,6 @@ function ProjectDetails() {
     let errorMessages = [];
 
     files.forEach(file => {
-      // Basic check for .obj and .fbx extensions if MIME type is too generic
       const fileNameLower = file.name.toLowerCase();
       const isObj = fileNameLower.endsWith('.obj');
       const isFbx = fileNameLower.endsWith('.fbx');
@@ -101,7 +134,7 @@ function ProjectDetails() {
   };
 
   const handleVersionFileChange = (event) => {
-    setUploadError(null); // Clear previous errors
+    setUploadError(null); 
     const file = event.target.files[0];
 
     if (!file) {
@@ -109,13 +142,11 @@ function ProjectDetails() {
       return;
     }
 
-    const MAX_FILE_SIZE = 200 * 1024 * 1024; // 200 MB
+    const MAX_FILE_SIZE = 200 * 1024 * 1024; 
     const ALLOWED_MIME_TYPES = [
-      'video/mp4', 'video/quicktime', 'video/x-msvideo', // MP4, MOV, AVI
-      'image/jpeg', 'image/png', 'image/gif', 'image/webp', // JPG, PNG, GIF, WebP
-      'application/zip', 'application/x-rar-compressed', // ZIP, RAR
-      // Potentially more specific types for 3D models like FBX, OBJ if they are final deliverables
-      // 'application/octet-stream', // This is too generic, use with caution or more specific checks
+      'video/mp4', 'video/quicktime', 'video/x-msvideo', 
+      'image/jpeg', 'image/png', 'image/gif', 'image/webp', 
+      'application/zip', 'application/x-rar-compressed', 
     ];
 
     if (file.size > MAX_FILE_SIZE) {
@@ -134,7 +165,7 @@ function ProjectDetails() {
   };
 
   const handleUploadForApproval = async () => {
-    if (uploadError) { // Prevent upload if there's a validation error
+    if (uploadError) { 
       alert(uploadError);
       return;
     }
@@ -156,7 +187,7 @@ function ProjectDetails() {
       alert('Project version uploaded successfully for approval!');
       setProjectVersionFile(null);
       setShowUploadModal(false);
-      setUploadError(null); // Clear error on successful upload
+      setUploadError(null); 
     } catch (err) {
       console.error('Upload error:', err.response ? err.response.data : err);
       const errorMessage = err.response?.data?.detail || 'Failed to upload project version.';
@@ -245,20 +276,15 @@ function ProjectDetails() {
         {/* Inline Timeline */}
         {stages.length > 0 && (
           <div className="relative mb-6">
-            {/* Timeline Line */}
             <div className="absolute top-5 left-0 right-0 h-1 bg-white/20 rounded-full" />
-            
-            {/* Progress Line */}
             <div 
               className="absolute top-5 left-0 h-1 bg-white rounded-full transition-all duration-500"
               style={{ width: `${Math.round(projectData.overall_progress || 0)}%` }}
             />
-
-            {/* Timeline Nodes */}
             <div className="relative flex justify-between">
               {stages.map((stage, index) => {
                 const isCompleted = stage.status === 'completed';
-                const isInProgress = stage.status === 'in_progress';
+                const isInProgress = stage.status === 'active' || stage.status === 'in_progress';
                 const stageProgress = stage.stage_progress || 0;
 
                 return (
@@ -268,7 +294,6 @@ function ProjectDetails() {
                     className="flex flex-col items-center group cursor-pointer"
                     style={{ width: `${100 / stages.length}%` }}
                   >
-                    {/* Node Circle */}
                     <div className={`
                       w-10 h-10 rounded-full flex items-center justify-center 
                       transition-all duration-300 group-hover:scale-110 z-10
@@ -287,13 +312,9 @@ function ProjectDetails() {
                         <Circle size={16} className="text-white/60" />
                       )}
                     </div>
-
-                    {/* Stage Name */}
                     <p className="mt-3 text-sm font-medium text-white text-center px-1 truncate max-w-full group-hover:text-white/80">
                       {stage.template_name}
                     </p>
-
-                    {/* Status Label */}
                     <p className={`text-xs mt-1 ${isCompleted ? 'text-emerald-300' : isInProgress ? 'text-blue-300' : 'text-white/50'}`}>
                       {isCompleted ? 'Done' : isInProgress ? `${Math.round(stageProgress)}%` : 'Pending'}
                     </p>
@@ -325,8 +346,51 @@ function ProjectDetails() {
         </div>
       </div>
 
-      {/* Two Column Layout */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Workflow Template Assignment */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+              <Settings size={20} className="text-blue-500" />
+              Project Workflow
+            </h2>
+            <button
+              onClick={handleApplyWorkflow}
+              disabled={selectedTemplateIds.length === 0 || isUpdatingWorkflow}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl font-semibold bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-50 transition-all text-sm shadow-lg shadow-blue-500/20"
+            >
+              {isUpdatingWorkflow ? <RefreshCw className="animate-spin" size={16} /> : <RefreshCw size={16} />}
+              Initialize Stages
+            </button>
+          </div>
+          
+          <p className="text-slate-400 text-sm mb-4">Select workflow templates to initialize new production stages and tasks for this project.</p>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-48 overflow-y-auto p-4 bg-slate-950 border border-slate-800 rounded-xl custom-scrollbar">
+            {workflowTemplates.map(template => (
+              <label key={template.id} className="flex items-center gap-3 cursor-pointer group p-2 hover:bg-white/5 rounded-lg transition-colors">
+                <input
+                  type="checkbox"
+                  checked={selectedTemplateIds.includes(template.id)}
+                  onChange={(e) => {
+                    const id = template.id;
+                    setSelectedTemplateIds(prev => 
+                      e.target.checked ? [...prev, id] : prev.filter(item => item !== id)
+                    );
+                  }}
+                  className="h-4 w-4 bg-slate-800 border-slate-700 rounded text-blue-600 focus:ring-blue-500 focus:ring-offset-slate-950"
+                />
+                <span className="text-sm text-slate-300 group-hover:text-white transition-colors">
+                  {template.name}
+                </span>
+              </label>
+            ))}
+            {workflowTemplates.length === 0 && (
+              <p className="text-slate-600 text-sm italic col-span-2 text-center py-4">No templates available.</p>
+            )}
+          </div>
+        </div>
+
         {/* Team Members */}
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
           <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
@@ -352,7 +416,9 @@ function ProjectDetails() {
             )}
           </div>
         </div>
+      </div>
 
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Upload for Approval */}
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
           <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
@@ -382,6 +448,15 @@ function ProjectDetails() {
             Upload Project Version
           </button>
         </div>
+
+        {/* Reference Links */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+          <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+            <Link size={20} className="text-blue-400" />
+            Reference Links
+          </h2>
+          <p className="text-blue-400 break-all">{projectData.reference_links || 'No reference links provided.'}</p>
+        </div>
       </div>
 
       {/* Initial Requirements */}
@@ -391,15 +466,6 @@ function ProjectDetails() {
           Initial Requirements
         </h2>
         <p className="text-slate-300 whitespace-pre-wrap">{projectData.description || 'No requirements specified.'}</p>
-      </div>
-
-      {/* Reference Links */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-        <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-          <Link size={20} className="text-blue-400" />
-          Reference Links
-        </h2>
-        <p className="text-blue-400 break-all">{projectData.reference_links || 'No reference links provided.'}</p>
       </div>
 
       {/* Asset Library */}
@@ -472,7 +538,6 @@ function ProjectDetails() {
 
             {/* Modal Content */}
             <div className="p-6 overflow-y-auto max-h-[60vh]">
-              {/* Stage Progress */}
               <div className="mb-6">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-slate-400">Stage Progress</span>
@@ -489,7 +554,6 @@ function ProjectDetails() {
                 <p className="text-right text-sm text-slate-400 mt-1">{Math.round(selectedStage.stage_progress || 0)}% Complete</p>
               </div>
 
-              {/* Elements/Tasks */}
               <h3 className="text-lg font-bold text-white mb-4">Tasks in this Stage</h3>
               {selectedStage.elements && selectedStage.elements.length > 0 ? (
                 <div className="space-y-3">
@@ -519,7 +583,6 @@ function ProjectDetails() {
               )}
             </div>
 
-            {/* Modal Footer */}
             <div className="flex items-center justify-end gap-3 p-6 border-t border-slate-800 bg-slate-900/50">
               <button
                 onClick={() => setSelectedStage(null)}

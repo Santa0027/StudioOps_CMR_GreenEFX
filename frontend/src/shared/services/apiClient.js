@@ -85,7 +85,7 @@ export const deleteClient = (id) => api.delete(`/clients/${id}/`);
 export const getProjects = () => api.get("/projects/");
 export const getProject = (id) => api.get(`/projects/${id}/`);
 export const createProject = (data) => api.post("/projects/", data);
-export const updateProject = (id, data) => api.put(`/projects/${id}/`, data);
+export const updateProject = (id, data) => api.patch(`/projects/${id}/`, data);
 export const deleteProject = (id) => api.delete(`/projects/${id}/`);
 export const getProjectVersions = (projectId) => api.get(`/projects/${projectId}/versions/`);
 export const uploadProjectVersion = (projectId, data) => api.post(`/projects/${projectId}/upload-version/`, data);
@@ -215,8 +215,8 @@ export const deleteLeadServiceItem = (id) => api.delete(`/lead-service-items/${i
 export const getQuotations = (leadId) => api.get(`/quotations/`, { params: { lead: leadId } });
 export const getQuotation = (id) => api.get(`/quotations/${id}/`);
 export const createQuotation = (data) => api.post("/quotations/", data);
-export const updateQuotation = (id, data) => api.put(`/quotations/${id}/`, data);
-export const deleteQuotation = (id) => api.delete(`/quotations/${id}/`);
+export const updateQuotation = (id, data) => api.patch(`/quotations/${id}/`, data);
+export const deleteQuotation = (id) => api.delete(`/quotations/${id}//`);
 
 export const generateQuotationPdf = (id) => api.post(`/quotations/${id}/generate_pdf/`);
 export const sendQuotation = (id) => api.post(`/quotations/${id}/send_quotation/`); // May need data for email details
@@ -234,6 +234,11 @@ export const updateQuotationItem = (id, data) => api.put(`/quotation-items/${id}
 export const deleteQuotationItem = (id) => api.delete(`/quotation-items/${id}/`);
 
 // --------------------------------------------- end QuotationItem APIs ----------------------------
+
+// ---------------------------------------------- StorageSettings APIs ------------------------------
+export const getStorageSettings = () => api.get("/storage-settings/");
+export const updateStorageSettings = (data) => api.patch("/storage-settings/", data); 
+// --------------------------------------------- end StorageSettings APIs ---------------------------
 
 // ---------------------------------------------- Folder Structure Template APIs ---------------------
 export const getFolderStructureTemplates = () => api.get("/folder-structure-templates/");

@@ -118,6 +118,7 @@ function Sidebar({ isExpanded, toggleSidebar }) {
         </svg>
       ),
       subItems: [
+        { name: 'Service Catalog', path: '/services' },
         { name: 'Package Management', path: '/master/packages' },
         { name: 'Workflow Template Management', path: '/master/workflow-templates' },
       ],

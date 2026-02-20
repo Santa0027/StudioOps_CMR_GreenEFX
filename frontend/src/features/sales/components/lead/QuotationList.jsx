@@ -10,7 +10,7 @@ import {
 } from '../../../../shared/services/apiClient';
 import QuotationForm from './QuotationForm';
 import QuotationItemForm from './QuotationItemForm';
-import { FileText, Plus, Edit2, Trash2, Download, Send, Eye, MoreHorizontal, CheckCircle, AlertCircle, XCircle, Clock } from 'lucide-react';
+import { FileText, Plus, Edit2, Trash2, Download, Send, Eye, CheckCircle, XCircle, ChevronDown } from 'lucide-react';
 
 const QuotationList = ({ leadId }) => {
   const [quotations, setQuotations] = useState([]);
@@ -36,7 +36,6 @@ const QuotationList = ({ leadId }) => {
       setLoading(true);
       const res = await getQuotations(leadId);
       setQuotations(res.data);
-      console.log(res.data)
     } catch (err) {
       setError(err);
       console.error("Failed to fetch quotations:", err);
@@ -50,7 +49,6 @@ const QuotationList = ({ leadId }) => {
       const res = await getServices();
       setServices(res.data);
     } catch (err) {
-      setError(err);
       console.error("Failed to fetch services:", err);
     }
   };
@@ -128,8 +126,21 @@ const QuotationList = ({ leadId }) => {
 
   const handleUpdateStatus = async (id, newStatus) => {
     try {
+      const isAccepted = newStatus === 'accepted';
+      const confirmMsg = isAccepted 
+        ? "Accepting this quotation will automatically mark the Lead as 'WON' and create the project(s). Continue?" 
+        : `Change status to ${newStatus}?`;
+
+      if (!window.confirm(confirmMsg)) return;
+
       await updateQuotation(id, { status: newStatus });
       fetchQuotations();
+      
+      if (isAccepted) {
+        alert("Deal Closed! The project has been created successfully.");
+        // Optional: reload the page or trigger a parent refresh if LeadManagement needs to know
+        window.location.reload(); 
+      }
     } catch (err) {
       setError(err);
       alert("Failed to update status.");
@@ -214,7 +225,7 @@ const QuotationList = ({ leadId }) => {
             onClose={() => {
               setShowQuotationItemForm(false);
               setCurrentQuotationForItems(null);
-              fetchQuotations(); // Refresh quotations after item changes
+              fetchQuotations(); 
             }}
           />
         </div>
@@ -260,37 +271,43 @@ const QuotationList = ({ leadId }) => {
                              ${parseFloat(quotation.total_amount || 0).toFixed(2)}
                           </td>
                           <td className="px-6 py-4">
-                             <select
-                                value={quotation.status}
-                                onChange={(e) => handleUpdateStatus(quotation.id, e.target.value)}
-                                className={`appearance-none bg-transparent ${statusConfig.color} border px-2 py-1 rounded text-xs font-bold uppercase tracking-wider outline-none cursor-pointer focus:ring-1 focus:ring-blue-500/50 transition-colors border-transparent hover:border-slate-600`}
-                             >
-                                {QUOTATION_STATUS_OPTIONS.map(opt => (
-                                  <option key={opt.value} value={opt.value} className="bg-slate-900 text-slate-300">
-                                    {opt.label}
-                                  </option>
-                                ))}
-                             </select>
+                             <div className="relative inline-block w-full min-w-[120px]">
+                                <select
+                                    value={quotation.status}
+                                    onChange={(e) => handleUpdateStatus(quotation.id, e.target.value)}
+                                    className={`appearance-none w-full bg-slate-900/50 border border-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider outline-none cursor-pointer focus:ring-1 focus:ring-blue-500 transition-all ${statusConfig.color}`}
+                                >
+                                    {QUOTATION_STATUS_OPTIONS.map(opt => (
+                                    <option key={opt.value} value={opt.value} className="bg-slate-900 text-slate-300">
+                                        {opt.label}
+                                    </option>
+                                    ))}
+                                </select>
+                                <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+                             </div>
                           </td>
                           <td className="px-6 py-4 text-right">
-                             <div className="flex items-center justify-end gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all">
+                             <div className="flex items-center justify-end gap-1.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all">
+                                {quotation.status !== 'accepted' && (
+                                    <button
+                                        onClick={() => handleUpdateStatus(quotation.id, 'accepted')}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600/10 hover:bg-emerald-600 text-emerald-500 hover:text-white border border-emerald-500/20 rounded-lg text-xs font-bold transition-all"
+                                        title="Accept & Won"
+                                    >
+                                        <CheckCircle size={14} /> Accept
+                                    </button>
+                                )}
+                                
                                 <button
                                   onClick={() => startManageItems(quotation)}
                                   className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-amber-400 transition-colors"
                                   title="Manage Items"
                                 >
-                                  <div className="flex items-center gap-1.5 text-xs font-medium">
-                                     <Edit2 size={14} /> Items
-                                  </div>
-                                </button>
-                                <button
-                                  onClick={() => startEditQuotation(quotation)}
-                                  className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-blue-400 transition-colors"
-                                  title="Edit Details"
-                                >
                                   <Edit2 size={16} />
                                 </button>
+                                
                                 <div className="h-4 w-px bg-slate-800 mx-1"></div>
+                                
                                 <button
                                   onClick={() => handleGeneratePdf(quotation.id)}
                                   className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-purple-400 transition-colors"
@@ -298,17 +315,7 @@ const QuotationList = ({ leadId }) => {
                                 >
                                   <Download size={16} />
                                 </button>
-                                {quotation.pdf_file && (
-                                  <a
-                                    href={quotation.pdf_file}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-cyan-400 transition-colors"
-                                    title="View PDF"
-                                  >
-                                    <Eye size={16} />
-                                  </a>
-                                )}
+                                
                                 {(quotation.status === 'draft' || quotation.status === 'revised') && (
                                   <button
                                     onClick={() => handleSendQuotation(quotation.id)}

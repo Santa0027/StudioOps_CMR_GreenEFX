@@ -130,12 +130,47 @@ class ProjectViewSet(ModelViewSet):
         instance = self.get_object()
         data = request.data.copy()
 
+        workflow_template_ids = data.pop('workflow_template_ids', [])
         folder_structure_template_id = data.pop('folder_structure_template_id', None)
         base_path = data.pop('base_path', None)
 
         serializer = self.get_serializer(instance, data=data, partial=partial)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
+
+        # Handle Workflow Templates if provided during update
+        if workflow_template_ids:
+            try:
+                for template_id in workflow_template_ids:
+                    workflow_template = ProjectStageTemplate.objects.prefetch_related(
+                        'task_templates'
+                    ).get(id=template_id)
+
+                    # Check if this stage already exists for the project to avoid duplicates
+                    if not ProjectStage.objects.filter(project=instance, template=workflow_template).exists():
+                        current_stages_count = ProjectStage.objects.filter(project=instance).count()
+                        
+                        project_stage = ProjectStage.objects.create(
+                            project=instance,
+                            template=workflow_template,
+                            order=current_stages_count,
+                            status="active" if current_stages_count == 0 else "pending"
+                        )
+
+                        for element_order, element_template in enumerate(workflow_template.task_templates.all()):
+                            ProjectStageElement.objects.create(
+                                stage=project_stage,
+                                template=element_template,
+                                order=element_order,
+                                contribution_percentage=0,
+                                estimated_hours=element_template.default_estimated_hours,
+                                status="pending"
+                            )
+            except Exception as e:
+                return Response(
+                    {"detail": f"Error updating project stages: {str(e)}"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
 
         # Trigger Celery task for folder creation if template and base_path are provided
         if folder_structure_template_id and base_path:
@@ -866,73 +901,31 @@ class FolderStructureTemplateViewSet(ModelViewSet):
 
 
 @extend_schema(
-
     tags=["Internal - Settings"],
-
     summary="Manage global storage settings",
-
 )
-
-class StorageSettingViewSet(ModelViewSet):
-
+class StorageSettingAPIView(APIView):
     """
-
     API for managing the single global StorageSetting instance.
-
-    Supports retrieving and updating the settings.
-
+    Supports GET (retrieve) and PATCH (partial update).
     """
+    permission_classes = [IsAuthenticated, IsInternalUser]
 
-    queryset = StorageSetting.objects.all()
-
-    serializer_class = StorageSettingSerializer
-
-    permission_classes = [IsAuthenticated, IsInternalUser] # Assuming only internal users can modify global settings
-
-
-
-    def get_object(self):
-
-        # Ensure only the single instance is ever retrieved
-
-        return StorageSetting.objects.get_singleton()
-
-
-
-    def list(self, request, *args, **kwargs):
-
-        # Return only the single instance in a list-like format
-
-        instance = self.get_object()
-
-        serializer = self.get_serializer(instance)
-
-        return Response([serializer.data]) # Return as a list containing one object
-
-
-
-    def retrieve(self, request, *args, **kwargs):
-
-        # Override retrieve to always get the single instance
-
-        instance = self.get_object()
-
-        serializer = self.get_serializer(instance)
-
+    def get(self, request):
+        instance = StorageSetting.objects.get_singleton()
+        serializer = StorageSettingSerializer(instance)
         return Response(serializer.data)
 
+    def patch(self, request):
+        instance = StorageSetting.objects.get_singleton()
+        serializer = StorageSettingSerializer(instance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
 
-
-    def create(self, request, *args, **kwargs):
-
-        # Disallow creation, as it's a singleton (get_singleton handles creation if none exists)
-
-        return Response({"detail": "Cannot create multiple StorageSetting instances."}, status=status.HTTP_400_BAD_REQUEST)
-
-
-
-    def destroy(self, request, *args, **kwargs):
-
-        # Disallow deletion of the single instance
-
-        return Response({"detail": "Cannot delete the StorageSetting instance."}, status=status.HTTP_400_BAD_REQUEST)
+    def put(self, request):
+        instance = StorageSetting.objects.get_singleton()
+        serializer = StorageSettingSerializer(instance, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
