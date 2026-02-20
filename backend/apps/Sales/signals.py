@@ -45,6 +45,10 @@ def create_project_from_lead(sender, instance, created, **kwargs):
                         initial_requirements=f"From Quotation #{accepted_quotation.quotation_number}\n{instance.notes}",
                         folder_structure_template=folder_template
                     )
+                    # Add assignee to the project team
+                    if instance.assigned_to:
+                        project.assigned_users.add(instance.assigned_to)
+                    
                     projects_to_process.append(project)
             else:
                 # 2. Fallback: Use service items if no quotation was accepted
@@ -62,6 +66,10 @@ def create_project_from_lead(sender, instance, created, **kwargs):
                         initial_requirements=f"{instance.notes}\n\nService Notes: {item.notes}",
                         folder_structure_template=item.service.folder_structure_template
                     )
+                    # Add assignee to the project team
+                    if instance.assigned_to:
+                        project.assigned_users.add(instance.assigned_to)
+
                     projects_to_process.append(project)
 
             # 3. Post-creation automation for all projects

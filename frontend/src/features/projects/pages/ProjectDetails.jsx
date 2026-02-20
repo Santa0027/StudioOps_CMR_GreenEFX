@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   FolderKanban, History, Upload, Users, Calendar, Clock, Link, 
-  FileText, Image, ArrowLeft, CheckCircle2, XCircle, Pause, Layers, X, Circle, Settings, RefreshCw
+  FileText, Image, ArrowLeft, CheckCircle2, XCircle, Pause, Layers, X, Circle, Settings, RefreshCw, UserPlus, UserMinus
 } from 'lucide-react';
 import VersionHistory from '../components/VersionHistory';
-import { getProject, uploadProjectVersion, updateProject, getProjectStageTemplates } from '../../../shared/services/apiClient';
+import { getProject, uploadProjectVersion, updateProject, getProjectStageTemplates, getUsers } from '../../../shared/services/apiClient';
 
 const STATUS_CONFIG = {
   not_started: { color: 'bg-slate-600', ringColor: 'ring-slate-500', textColor: 'text-slate-400', bgLight: 'bg-slate-500/20' },
@@ -36,6 +36,11 @@ function ProjectDetails() {
   const [selectedTemplateIds, setSelectedTemplateIds] = useState([]);
   const [isUpdatingWorkflow, setIsUpdatingWorkflow] = useState(false);
 
+  // Team Management state
+  const [allUsers, setAllUsers] = useState([]);
+  const [selectedUserId, setSelectedUserId] = useState('');
+  const [isUpdatingTeam, setIsUpdatingTeam] = useState(false);
+
   const fetchProject = async () => {
     try {
       setLoading(true);
@@ -49,19 +54,23 @@ function ProjectDetails() {
     }
   };
 
-  const fetchTemplates = async () => {
+  const fetchData = async () => {
     try {
-      const res = await getProjectStageTemplates();
-      setWorkflowTemplates(res.data);
+      const [templatesRes, usersRes] = await Promise.all([
+        getProjectStageTemplates(),
+        getUsers()
+      ]);
+      setWorkflowTemplates(templatesRes.data);
+      setAllUsers(usersRes.data);
     } catch (err) {
-      console.error('Failed to fetch templates:', err);
+      console.error('Failed to fetch auxiliary data:', err);
     }
   };
 
   useEffect(() => {
     if (id) {
       fetchProject();
-      fetchTemplates();
+      fetchData();
     }
   }, [id]);
 
@@ -82,6 +91,44 @@ function ProjectDetails() {
       alert("Failed to update workflow.");
     } finally {
       setIsUpdatingWorkflow(false);
+    }
+  };
+
+  const handleAddMember = async () => {
+    if (!selectedUserId) return;
+    const currentUsers = projectData.assigned_users || [];
+    if (currentUsers.includes(parseInt(selectedUserId))) {
+      alert("User is already a member of this project.");
+      return;
+    }
+
+    try {
+      setIsUpdatingTeam(true);
+      const updatedUserIds = [...currentUsers, parseInt(selectedUserId)];
+      await updateProject(id, { assigned_users: updatedUserIds });
+      setSelectedUserId('');
+      fetchProject();
+    } catch (err) {
+      console.error("Failed to add member:", err);
+      alert("Failed to add team member.");
+    } finally {
+      setIsUpdatingTeam(false);
+    }
+  };
+
+  const handleRemoveMember = async (userId) => {
+    if (!window.confirm("Remove this member from the project?")) return;
+
+    try {
+      setIsUpdatingTeam(true);
+      const updatedUserIds = projectData.assigned_users.filter(uid => uid !== userId);
+      await updateProject(id, { assigned_users: updatedUserIds });
+      fetchProject();
+    } catch (err) {
+      console.error("Failed to remove member:", err);
+      alert("Failed to remove team member.");
+    } finally {
+      setIsUpdatingTeam(false);
     }
   };
 
@@ -393,26 +440,59 @@ function ProjectDetails() {
 
         {/* Team Members */}
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-          <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-            <Users size={20} className="text-blue-500" />
-            Team Members
-          </h2>
-          <div className="space-y-3">
-            {projectData.assigned_users?.map((member, index) => (
-              <div key={index} className="flex items-center gap-3 p-3 bg-slate-800 rounded-lg">
-                <img
-                  className="h-10 w-10 rounded-full object-cover"
-                  src={member.profile_picture || `https://i.pravatar.cc/150?img=${member.id}`}
-                  alt={member.name}
-                />
-                <div>
-                  <p className="font-semibold text-white">{member.name}</p>
-                  <p className="text-sm text-slate-400">{member.email || 'Team Member'}</p>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+              <Users size={20} className="text-emerald-500" />
+              Team Members
+            </h2>
+            <div className="flex gap-2">
+              <select
+                value={selectedUserId}
+                onChange={(e) => setSelectedUserId(e.target.value)}
+                className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white focus:ring-1 focus:ring-blue-500 outline-none max-w-[150px]"
+              >
+                <option value="">Select User</option>
+                {allUsers.map(u => (
+                  <option key={u.id} value={u.id}>{u.name}</option>
+                ))}
+              </select>
+              <button
+                onClick={handleAddMember}
+                disabled={!selectedUserId || isUpdatingTeam}
+                className="p-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-all disabled:opacity-50"
+                title="Add Member"
+              >
+                {isUpdatingTeam ? <RefreshCw size={14} className="animate-spin" /> : <UserPlus size={14} />}
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+            {projectData.assigned_user_details?.map((member) => (
+              <div key={member.id} className="flex items-center justify-between p-2.5 bg-slate-800/50 rounded-xl border border-slate-700/50 group">
+                <div className="flex items-center gap-3">
+                  <div className="h-8 w-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-blue-400 border border-slate-600">
+                    {member.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-white">{member.name}</p>
+                    <p className="text-[10px] text-slate-500">{member.email}</p>
+                  </div>
                 </div>
+                <button
+                  onClick={() => handleRemoveMember(member.id)}
+                  className="p-1.5 hover:bg-rose-500/10 text-slate-500 hover:text-rose-500 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                  title="Remove Member"
+                >
+                  <UserMinus size={14} />
+                </button>
               </div>
             ))}
-            {(!projectData.assigned_users || projectData.assigned_users.length === 0) && (
-              <p className="text-slate-500 text-sm">No team members assigned.</p>
+            {(!projectData.assigned_user_details || projectData.assigned_user_details.length === 0) && (
+              <div className="text-center py-6">
+                <Users size={24} className="mx-auto text-slate-700 mb-2 opacity-20" />
+                <p className="text-slate-600 text-xs italic">No team members assigned.</p>
+              </div>
             )}
           </div>
         </div>
