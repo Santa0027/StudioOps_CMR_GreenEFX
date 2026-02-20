@@ -531,3 +531,13 @@ class TaskCommentSerializer(serializers.ModelSerializer):
         model = TaskComment
         fields = ["id", "task", "user", "user_name", "comment", "created_at"]
         read_only_fields = ["id", "task", "user", "user_name", "created_at"]
+
+
+
+
+class StorageSettingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = StorageSetting
+        fields = '__all__'
+        
+

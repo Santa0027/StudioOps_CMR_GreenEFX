@@ -227,7 +227,7 @@ export const updateQuotationStatus = (id, status) => api.post(`/quotations/${id}
 
 // ---------------------------------------------- QuotationItem APIs --------------------------------
 
-export const getQuotationItems = (quotationId) => api.get(`/quotations/`, { params: { quotation: quotationId } });
+export const getQuotationItems = (quotationId) => api.get(`/quotation-items/`, { params: { quotation: quotationId } });
 export const getQuotationItem = (id) => api.get(`/quotation-items/${id}/`);
 export const createQuotationItem = (data) => api.post("/quotation-items/", data);
 export const updateQuotationItem = (id, data) => api.put(`/quotation-items/${id}/`, data);

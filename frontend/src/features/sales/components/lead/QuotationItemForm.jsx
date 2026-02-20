@@ -12,7 +12,7 @@ const QuotationItemForm = ({ quotation, services, onClose }) => {
     quantity: 1,
     unit_price: 0.00,
   });
-  const [editingItem, setEditingItem] = useState(null);
+  const [editingItem, setEditingItem] = useState(null); 
 
   const fetchQuotationItems = async () => {
     try {

@@ -71,6 +71,7 @@ class QuotationSerializer(serializers.ModelSerializer):
 
 
 class LeadSerializer(serializers.ModelSerializer):
+    enquiry = EnquirySerializer(read_only=True) # Nested enquiry details
     source_details = LeadSourceSerializer(source='source', read_only=True)
     assigned_to_details = UserSerializer(source='assigned_to', read_only=True)
     service_items = LeadServiceItemSerializer(many=True, read_only=True) # Nested service items

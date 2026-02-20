@@ -1,0 +1,10 @@
+I have successfully updated the `frontend/src/app/components/settings/StorageSettings.jsx` file to include:
+*   `useEffect` and `axios` for fetching and saving settings.
+*   State variables (`nasPath`, `s3BucketName`, `s3Region`, `defaultSourceFileStorage`, `defaultPreviewFileStorage`, `defaultFinalFileStorage`).
+*   The `STORAGE_OPTIONS` array.
+*   Dropdowns for `defaultSourceFileStorage`, `defaultPreviewFileStorage`, and `defaultFinalFileStorage` in the UI.
+*   The `handleSave` function is also updated to send these new fields to the backend.
+
+With these changes, the frontend now provides the interactive web page to configure the dynamic storage settings as requested by the user. The backend is also updated to support these configurations.
+
+I believe I have addressed the user's request comprehensively.

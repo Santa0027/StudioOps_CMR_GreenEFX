@@ -272,8 +272,8 @@ class Command(BaseCommand):
         for user in users_without_employee_profile:
             if departments:
                 make(Employee, user=user, employee_code=fake.unique.bothify(text="EMP-####"),
-                     department=random.choice(departments), role=staff_group,
-                     date_of_joining=fake.date_between(start_date="-5y", end_date="today"))
+                    department=random.choice(departments), role=staff_group,
+                    date_of_joining=fake.date_between(start_date="-5y", end_date="today"))
             else:
                 self.stdout.write(self.style.WARNING("No departments available to assign employees."))
         self.stdout.write(self.style.SUCCESS(f"Created employees for available users."))
@@ -305,27 +305,41 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(f"Created attendance records for employees."))
         
         # SalaryStructure, Payroll
-        for employee in Employee.objects.all():
-            make(SalaryStructure, employee=employee, basic=fake.pydecimal(left_digits=5, right_digits=2, positive=True),
-                 hra=fake.pydecimal(left_digits=4, right_digits=2, positive=True),
-                 allowance=fake.pydecimal(left_digits=4, right_digits=2, positive=True),
-                 deductions=fake.pydecimal(left_digits=3, right_digits=2, positive=True),
-                 effective_from=fake.date_between(start_date="-2y", end_date="today"))
-            
-            # Create some payroll entries
-            num_months = random.randint(1, 12)
-            for i in range(num_months):
-                month = (timezone.now().month - i -1) % 12 + 1 # Last 12 months
-                year = timezone.now().year if timezone.now().month - i > 0 else timezone.now().year -1
-                
-                if not Payroll.objects.filter(employee=employee, month=month, year=year).exists():
-                    gross = fake.pydecimal(left_digits=5, right_digits=2, positive=True)
-                    deductions = fake.pydecimal(left_digits=3, right_digits=2, positive=True)
-                    net = gross - deductions
-                    make(Payroll, employee=employee, month=month, year=year,
-                         gross_salary=gross, deductions=deductions, net_salary=net,
-                         is_paid=fake.boolean())
-        self.stdout.write(self.style.SUCCESS("Created salary structures and payroll entries."))
+        # SalaryStructure, Payroll
+for employee in Employee.objects.all():
+
+    salary_structure, created = SalaryStructure.objects.get_or_create(
+        employee=employee,
+        defaults={
+            "basic": fake.pydecimal(left_digits=5, right_digits=2, positive=True),
+            "hra": fake.pydecimal(left_digits=4, right_digits=2, positive=True),
+            "allowance": fake.pydecimal(left_digits=4, right_digits=2, positive=True),
+            "deductions": fake.pydecimal(left_digits=3, right_digits=2, positive=True),
+            "effective_from": fake.date_between(start_date="-2y", end_date="today"),
+        }
+    )
+
+    if created:
+        self.stdout.write(f"Created salary structure for {employee.user.email}")
+
+    # Payroll creation
+    num_months = random.randint(1, 12)
+    for i in range(num_months):
+        month = (timezone.now().month - i - 1) % 12 + 1
+        year = timezone.now().year if timezone.now().month - i > 0 else timezone.now().year - 1
+
+        Payroll.objects.get_or_create(
+            employee=employee,
+            month=month,
+            year=year,
+            defaults={
+                "gross_salary": fake.pydecimal(left_digits=5, right_digits=2, positive=True),
+                "deductions": fake.pydecimal(left_digits=3, right_digits=2, positive=True),
+                "net_salary": fake.pydecimal(left_digits=5, right_digits=2, positive=True),
+                "is_paid": fake.boolean(),
+            }
+        )
+
 
 
     def seed_sales_data(self, num_clients, num_enquiries, num_leads, num_services):

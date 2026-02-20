@@ -12,6 +12,7 @@ from .models import (
     ClientReviewLog,
     VersionAuditLog,
     FolderStructureTemplate,
+    StorageSetting, # Import StorageSetting
 )
 
 
@@ -136,3 +137,30 @@ class FolderStructureTemplateAdmin(admin.ModelAdmin):
     list_display = ("name", "description", "created_at", "updated_at")
     search_fields = ("name", "description")
     list_filter = ("created_at", "updated_at")
+
+@admin.register(StorageSetting)
+class StorageSettingAdmin(admin.ModelAdmin):
+    list_display = ('__str__', 'default_source_file_storage', 'nas_root_path', 's3_bucket_name', 's3_region')
+    fieldsets = (
+        (None, {
+            'fields': ('default_source_file_storage',),
+        }),
+        ('NAS Settings', {
+            'fields': ('nas_root_path',),
+            'description': 'Configuration for Network Attached Storage.',
+        }),
+        ('S3 Settings', {
+            'fields': ('s3_bucket_name', 's3_region',),
+            'description': 'Configuration for AWS S3 Cloud Storage. AWS Access Key ID and Secret Access Key are managed in environment variables or Django settings.',
+        }),
+    )
+
+    def has_add_permission(self, request):
+        # Allow adding if no instance exists, otherwise disallow
+        if self.model.objects.exists():
+            return False
+        return super().has_add_permission(request)
+
+    def has_delete_permission(self, request, obj=None):
+        # Disallow deletion of the single instance
+        return False

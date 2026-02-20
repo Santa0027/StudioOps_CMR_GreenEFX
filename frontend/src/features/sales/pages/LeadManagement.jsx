@@ -38,6 +38,7 @@ const LeadManagement = () => {
     try {
       setLoading(true);
       const res = await getleads();
+      console.log("Fetched leads:", res.data);
       setLeads(res.data);
     } catch (err) { setError(err); } 
     finally { setLoading(false); }
@@ -47,6 +48,7 @@ const LeadManagement = () => {
     try {
       const res = await getEmployees();
       if (Array.isArray(res.data)) setStaffUsers(res.data);
+      console.log("Fetched staff users:", res.data);
     } catch (err) { console.error("Staff fetch error:", err); }
   };
 
@@ -292,7 +294,7 @@ const LeadManagement = () => {
                               className="bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-300 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none w-full max-w-[160px] cursor-pointer hover:border-slate-600 transition-colors"
                             >
                               <option value="" disabled>Select Staff</option>
-                              {staffUsers.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+                              {staffUsers.map((u) => <option key={u.id} value={u.id}>{u.user.name}</option>)}
                             </select>
                           </div>
                         </td>
@@ -371,8 +373,8 @@ const LeadManagement = () => {
         <FollowUpModal
           isOpen={showFollowUpModal}
           onClose={() => setShowFollowUpModal(false)}
-          entityId={selectedEntityId}
-          entityType={selectedEntityType}
+          entityId={currentLeadForFollowUp.id}
+          entityType="lead"
           currentUserId={currentUserId}
           onFollowUpAdded={fetchLeads}
         />

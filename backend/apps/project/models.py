@@ -609,6 +609,91 @@ class ProjectTimeLog(models.Model):
 
 
 # =====================================================
+# STORAGE SETTINGS (GLOBAL SINGLETON)
+# =====================================================
+
+class StorageSettingManager(models.Manager):
+    def get_singleton(self):
+        obj, created = self.get_or_create(pk=1) # Ensure only one instance with primary key 1
+        return obj
+
+class StorageSetting(models.Model):
+    objects = StorageSettingManager() # Assign the custom manager
+    DEFAULT_STORAGE_CHOICES = [
+        ("local", "Local Server"),
+        ("cloud", "Cloud Server (S3)"),
+        ("nas", "NAS Server"),
+    ]
+
+    default_source_file_storage = models.CharField(
+        max_length=10,
+        choices=DEFAULT_STORAGE_CHOICES,
+        default="nas",
+        help_text="Default storage location for source files."
+    )
+    default_preview_file_storage = models.CharField(
+        max_length=10,
+        choices=DEFAULT_STORAGE_CHOICES,
+        default="local", # Default for previews
+        help_text="Default storage location for preview files."
+    )
+    default_final_file_storage = models.CharField(
+        max_length=10,
+        choices=DEFAULT_STORAGE_CHOICES,
+        default="cloud", # Default for final deliverables
+        help_text="Default storage location for final deliverable files."
+    )
+    default_preview_file_storage = models.CharField(
+        max_length=10,
+        choices=DEFAULT_STORAGE_CHOICES,
+        default="local", # Default for previews
+        help_text="Default storage location for preview files."
+    )
+    default_final_file_storage = models.CharField(
+        max_length=10,
+        choices=DEFAULT_STORAGE_CHOICES,
+        default="cloud", # Default for final deliverables
+        help_text="Default storage location for final deliverable files."
+    )
+    nas_root_path = models.CharField(
+        max_length=255,
+        default="/mnt/StudioOps",
+        help_text="Root path for NAS storage (e.g., /mnt/StudioOps)."
+    )
+    s3_bucket_name = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="AWS S3 bucket name for cloud storage."
+    )
+    s3_region = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        help_text="AWS S3 region (e.g., us-east-1)."
+    )
+
+    class Meta:
+        verbose_name = "Storage Setting"
+        verbose_name_plural = "Storage Settings"
+
+    def __str__(self):
+        return "Global Storage Settings"
+
+    def save(self, *args, **kwargs):
+        if not self.pk and StorageSetting.objects.exists():
+            # If an instance already exists, prevent creation of a new one
+            # Optionally, update the existing one instead
+            existing_setting = StorageSetting.objects.first()
+            self.pk = existing_setting.pk
+            self.id = existing_setting.id
+            super().save(*args, **kwargs) # Update the existing one
+            print("Warning: Only one StorageSetting instance is allowed. Updating existing instance.")
+            return
+
+        super().save(*args, **kwargs)
+
+# =====================================================
 # PROJECT ASSETS (HYBRID STORAGE)
 # =====================================================
 
@@ -680,42 +765,69 @@ class ProjectAsset(models.Model):
         ordering = ["-version_number"]
 
     def save(self, *args, **kwargs):
-        # Determine the storage_location if not already set
+        # Retrieve global storage settings
+        try:
+            global_storage_settings = StorageSetting.objects.get_singleton()
+        except StorageSetting.DoesNotExist:
+            global_storage_settings = None
+
+        # Determine the storage_location if not already set or override default based on global settings
         if not self.storage_location:
-            if self.asset_role in ['preview', 'final'] or self.asset_type in ['image', 'video']:
-                self.storage_location = 'local'
-            elif self.asset_role == 'source' or self.asset_type in ['psd', 'ai', 'ae', 'pr']:
-                self.storage_location = 'nas'
+            if self.asset_role == 'source' or self.asset_type in ['psd', 'ai', 'ae', 'pr']:
+                if global_storage_settings and global_storage_settings.default_source_file_storage:
+                    self.storage_location = global_storage_settings.default_source_file_storage
+                else:
+                    self.storage_location = 'nas' # Fallback to NAS if no global setting
+            elif self.asset_role == 'preview':
+                if global_storage_settings and global_storage_settings.default_preview_file_storage:
+                    self.storage_location = global_storage_settings.default_preview_file_storage
+                else:
+                    self.storage_location = 'local' # Fallback to local
+            elif self.asset_role == 'final':
+                if global_storage_settings and global_storage_settings.default_final_file_storage:
+                    self.storage_location = global_storage_settings.default_final_file_storage
+                else:
+                    self.storage_location = 'cloud' # Fallback to cloud
             else:
-                self.storage_location = 'nas'
+                self.storage_location = 'nas' # Default for other types if role not explicitly matched
 
         # Handle file saving only if a new file is being uploaded
         if self.file and hasattr(self.file, 'file') and not self.file._committed:
             # Get the raw file content and filename
-            # Ensure we seek to the beginning of the file to read its content
             self.file.seek(0)
             uploaded_file_content = self.file.file.read()
             uploaded_filename = self.file.name
 
-            # Determine the target storage instance
+            target_storage = None
             if self.storage_location == 'cloud':
-                target_storage = S3MediaStorage()
+                if global_storage_settings:
+                    target_storage = S3MediaStorage(
+                        bucket_name=global_storage_settings.s3_bucket_name,
+                        region_name=global_storage_settings.s3_region
+                    )
+                else:
+                    target_storage = S3MediaStorage() # Fallback to settings from django.conf.settings
             elif self.storage_location == 'local':
                 target_storage = CustomLocalMediaStorage()
-            else: # 'nas' or default
-                target_storage = NASStorage()
+            elif self.storage_location == 'nas':
+                if global_storage_settings:
+                    target_storage = NASStorage(
+                        location=global_storage_settings.nas_root_path
+                    )
+                else:
+                    target_storage = NASStorage() # Fallback to default NAS path
+            else:
+                target_storage = NASStorage() # Fallback
 
-            # Save the file to the target storage
-            # The name might be dynamically generated by project_asset_upload_path
-            # We need to manually call project_asset_upload_path to get the destination path
-            destination_filename = ProjectAsset.project_asset_upload_path(self, uploaded_filename) # pass self as instance
-            saved_file_name = target_storage._save(destination_filename, ContentFile(uploaded_file_content))
-
-            # Update the file field to point to the saved file's name in the new storage
-            self.file.name = saved_file_name
-            # Set _file to None so FileField doesn't try to save it again with default storage
-            self.file._file = None
-            self.file._committed = True # Mark as committed to prevent re-saving by FileField
+            if target_storage:
+                destination_filename = ProjectAsset.project_asset_upload_path(self, uploaded_filename)
+                saved_file_name = target_storage._save(destination_filename, ContentFile(uploaded_file_content))
+                self.file.name = saved_file_name
+                self.file._file = None
+                self.file._committed = True
+            else:
+                # Handle error if no suitable storage could be determined
+                raise ValueError("Could not determine suitable storage for asset.")
 
         if not self.pk:
             last_version = ProjectAsset.objects.filter(

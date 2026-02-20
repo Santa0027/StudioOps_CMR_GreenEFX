@@ -133,6 +133,7 @@ function Sidebar({ isExpanded, toggleSidebar }) {
         { name: 'Organization Settings', path: '/settings/organization' },
         { name: 'Email & Branding', path: '/settings/email-branding' },
         { name: 'Integrations', path: '/settings/integrations' },
+        { name: 'Storage Settings', path: '/settings/storage' },
       ],
     },
   ];

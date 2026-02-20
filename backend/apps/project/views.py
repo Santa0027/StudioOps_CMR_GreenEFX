@@ -28,7 +28,7 @@ from django.utils import timezone
 import os # Import os for path manipulation
 
 from .models import *
-from .serializers import *
+from .serializers import ProjectSerializer, ProjectAssetUploadSerializer,ProjectStageElementDetailSerializer, ProjectAssetSerializer, StageElementVersionSerializer, ProjectTimeLogSerializer, ClientProjectAssetSerializer, ClientProjectStageElementSerializer, ClientReviewLogSerializer, PackageSerializer, PackageItemSerializer, ProjectStageTemplateSerializer, ProjectStageElementTemplateSerializer, ProjectTaskAssignmentSerializer, TaskCommentSerializer, FolderStructureTemplateSerializer, StorageSettingSerializer
 from common.utils.folder_structure_generator import parse_structure_to_tree, create_folders
 from .permissions import IsInternalUser, IsClientUser
 from .throttles import AssetStreamRateThrottle
@@ -750,59 +750,189 @@ class TaskCommentViewSet(ModelViewSet):
 # ==========================================================
 
 @extend_schema(
+
     tags=["Internal - Folder Structure Templates"],
+
     summary="Create & manage folder structure templates and generate project folders",
+
 )
+
 class FolderStructureTemplateViewSet(ModelViewSet):
+
     """
+
     CRUD for FolderStructureTemplate.
+
     - Allows creation, retrieval, update, and deletion of folder templates.
+
     - Provides an action to generate physical folder structures for projects.
+
     """
+
     queryset = FolderStructureTemplate.objects.all()
+
     serializer_class = FolderStructureTemplateSerializer
+
     permission_classes = [IsAuthenticated] # Or IsInternalUser as appropriate for your project
 
+
+
     @action(detail=True, methods=['post'], url_path='generate-structure')
+
     def generate_structure(self, request, pk=None):
+
         template = self.get_object()
+
         project_id = request.data.get('project_id')
+
         base_path = request.data.get('base_path') # e.g., '/mnt/projects' or comes from settings
 
+
+
         if not project_id or not base_path:
+
             return Response(
+
                 {"detail": "project_id and base_path are required."},
+
                 status=status.HTTP_400_BAD_REQUEST
+
             )
+
+
 
         try:
+
             project = Project.objects.get(pk=project_id)
+
         except Project.DoesNotExist:
+
             return Response(
+
                 {"detail": f"Project with id {project_id} not found."},
+
                 status=status.HTTP_404_NOT_FOUND
+
             )
+
+
 
         # Construct the full path for the new project
+
         # Example: base_path/ClientName/ProjectName
+
         # You'll need to adjust this based on your desired project path structure
+
         client_name = project.client.client_name.replace(" ", "_") # Assuming client has a name field
+
         project_name = project.name.replace(" ", "_")
+
         full_project_path = os.path.join(base_path, client_name, project_name)
 
+
+
         # Retrieve the structured data from the template
+
         folder_tree = template.structure
 
+
+
         # Use the utility function to create folders
+
         success = create_folders(full_project_path, folder_tree)
 
+
+
         if success:
+
             return Response(
+
                 {"detail": f"Folder structure generated successfully at {full_project_path}"},
+
                 status=status.HTTP_200_OK
+
             )
+
         else:
+
             return Response(
+
                 {"detail": "Failed to generate folder structure."},
+
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
+
             )
+
+
+
+@extend_schema(
+
+    tags=["Internal - Settings"],
+
+    summary="Manage global storage settings",
+
+)
+
+class StorageSettingViewSet(ModelViewSet):
+
+    """
+
+    API for managing the single global StorageSetting instance.
+
+    Supports retrieving and updating the settings.
+
+    """
+
+    queryset = StorageSetting.objects.all()
+
+    serializer_class = StorageSettingSerializer
+
+    permission_classes = [IsAuthenticated, IsInternalUser] # Assuming only internal users can modify global settings
+
+
+
+    def get_object(self):
+
+        # Ensure only the single instance is ever retrieved
+
+        return StorageSetting.objects.get_singleton()
+
+
+
+    def list(self, request, *args, **kwargs):
+
+        # Return only the single instance in a list-like format
+
+        instance = self.get_object()
+
+        serializer = self.get_serializer(instance)
+
+        return Response([serializer.data]) # Return as a list containing one object
+
+
+
+    def retrieve(self, request, *args, **kwargs):
+
+        # Override retrieve to always get the single instance
+
+        instance = self.get_object()
+
+        serializer = self.get_serializer(instance)
+
+        return Response(serializer.data)
+
+
+
+    def create(self, request, *args, **kwargs):
+
+        # Disallow creation, as it's a singleton (get_singleton handles creation if none exists)
+
+        return Response({"detail": "Cannot create multiple StorageSetting instances."}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+    def destroy(self, request, *args, **kwargs):
+
+        # Disallow deletion of the single instance
+
+        return Response({"detail": "Cannot delete the StorageSetting instance."}, status=status.HTTP_400_BAD_REQUEST)

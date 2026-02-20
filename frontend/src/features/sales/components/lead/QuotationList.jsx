@@ -252,12 +252,12 @@ const QuotationList = ({ leadId }) => {
                           </td>
                           <td className="px-6 py-4">
                              <div className="flex flex-col gap-1">
-                                <span className="text-xs text-slate-400">Issued: {new Date(quotation.issue_date).toLocaleDateString()}</span>
-                                <span className="text-xs text-rose-400/80">Expires: {new Date(quotation.expiry_date).toLocaleDateString()}</span>
+                                <span className="text-xs text-slate-400">Issued: {quotation.issue_date ? new Date(quotation.issue_date).toLocaleDateString() : 'N/A'}</span>
+                                <span className="text-xs text-rose-400/80">Expires: {quotation.expiry_date ? new Date(quotation.expiry_date).toLocaleDateString() : 'N/A'}</span>
                              </div>
                           </td>
                           <td className="px-6 py-4 text-sm font-bold text-white font-mono">
-                             ${parseFloat(quotation.total_amount).toFixed(2)}
+                             ${parseFloat(quotation.total_amount || 0).toFixed(2)}
                           </td>
                           <td className="px-6 py-4">
                              <select

@@ -75,6 +75,22 @@ class Service(models.Model):
     name = models.CharField(max_length=100, unique=True)
     description = models.TextField(blank=True)
     base_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    
+    # New mapping fields
+    workflow_template = models.ForeignKey(
+        'project.ProjectStageTemplate', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        related_name="services"
+    )
+    folder_structure_template = models.ForeignKey(
+        'project.FolderStructureTemplate', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        related_name="services"
+    )
 
     def __str__(self):
         return self.name

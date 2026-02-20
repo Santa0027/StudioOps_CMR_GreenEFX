@@ -10,7 +10,7 @@ const QuotationForm = ({ quotation, onSave, onCancel, leadId }) => {
   useEffect(() => {
     if (quotation) {
       setFormData({
-        expiry_date: quotation.expiry_date || '',
+        expiry_date: quotation.expiry_date ? quotation.expiry_date.split('T')[0] : '',
         notes: quotation.notes || '',
       });
     }
@@ -23,11 +23,10 @@ const QuotationForm = ({ quotation, onSave, onCancel, leadId }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const formattedExpiryDate = formData.expiry_date || ''; 
 
     const dataToSave = {
-      ...formData,
-      expiry_date: formattedExpiryDate,
+      expiry_date: formData.expiry_date || null,
+      notes: formData.notes,
       lead: quotation ? quotation.lead : leadId,
     };
    
