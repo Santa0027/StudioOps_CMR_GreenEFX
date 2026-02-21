@@ -70,7 +70,8 @@ class ProjectAssetUploadSerializer(serializers.ModelSerializer):
             "file",
             "asset_type",
             "asset_role",
-            "description", # Allow description on upload
+            "description",
+            "client_review", # Added field
         )
         extra_kwargs = {
             'file': {'required': True},
@@ -169,7 +170,7 @@ class ProjectStageElementSerializer(serializers.ModelSerializer):
             'estimated_hours', 'actual_hours', 'status', 'initial_notes', 'rejection_notes',
             'manager_approval_status', 'manager_rework_notes', 'manager_approved_by', 'manager_approved_by_name', 'manager_approved_at',
             'client_approval_status', 'client_rework_notes', 'client_approved_by', 'client_approved_by_name', 'client_approved_at',
-            'staged_for_client_review',
+            'staged_for_client_review', 'status_notes'
         ]
         read_only_fields = ['manager_approved_by', 'manager_approved_at', 'client_approved_by', 'client_approved_at']
 
@@ -322,6 +323,7 @@ class ProjectStageElementDetailSerializer(serializers.ModelSerializer):
         many=True,
         read_only=True
     )
+    input_assets = serializers.SerializerMethodField() # New field
     assignments = ProjectTaskAssignmentSerializer(
         many=True,
         read_only=True
@@ -337,9 +339,35 @@ class ProjectStageElementDetailSerializer(serializers.ModelSerializer):
             'estimated_hours', 'actual_hours', 'status', 'rejection_notes',
             'manager_approval_status', 'manager_rework_notes', 'manager_approved_by', 'manager_approved_by_name', 'manager_approved_at',
             'client_approval_status', 'client_rework_notes', 'client_approved_by', 'client_approved_by_name', 'client_approved_at',
-            'staged_for_client_review',
-            'project_name', 'template_name', 'versions', 'assets', 'assignments'
+            'staged_for_client_review', 'status_notes',
+            'project_name', 'template_name', 'versions', 'assets', 'input_assets', 'assignments'
         ]
+
+    def get_input_assets(self, obj):
+        """
+        Finds the task immediately preceding this one in the entire project
+        and returns its assets.
+        """
+        # Try to find task in the same stage with lower order
+        prev_task = ProjectStageElement.objects.filter(
+            stage=obj.stage,
+            order__lt=obj.order
+        ).order_by('-order').first()
+
+        # If not found, try to find the last task of the previous stage
+        if not prev_task:
+            prev_stage = ProjectStage.objects.filter(
+                project=obj.stage.project,
+                order__lt=obj.stage.order
+            ).order_by('-order').first()
+            
+            if prev_stage:
+                prev_task = prev_stage.elements.order_by('-order').first()
+
+        if prev_task:
+            # Reuse ProjectAssetSerializer
+            return ProjectAssetSerializer(prev_task.assets.all(), many=True, context=self.context).data
+        return []
 
 
 # =====================================================

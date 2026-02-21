@@ -26,6 +26,7 @@ from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
 )
+from apps.project.views import serve_nas_media # Import custom NAS serving view
 
 
 # Include UserManagement urls by name below (avoid invalid import syntax)
@@ -44,6 +45,8 @@ urlpatterns = [
         SpectacularSwaggerView.as_view(url_name="schema"),
         name="swagger-ui",
     ),
+    # Serve NAS media through custom view to support dynamic paths
+    path('nas-media/<path:path>', serve_nas_media, name='nas_media'),
 ]
 
 if settings.DEBUG: # New conditional block

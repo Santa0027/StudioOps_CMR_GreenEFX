@@ -369,6 +369,7 @@ class ProjectStageElement(models.Model):
     client_approved_at = models.DateTimeField(null=True, blank=True)
 
     staged_for_client_review = models.BooleanField(default=False)
+    status_notes = models.TextField(blank=True, help_text="Reason for hold, block, or other status changes.")
 
 
     class Meta:
@@ -393,7 +394,15 @@ class ProjectStageElement(models.Model):
             raise ValidationError(
                 "Total contribution of all stage elements cannot exceed 100%"
             )
-        super().clean() # Call the parent clean method AFTER custom validation.
+        
+        # Lifecycle Lock: Prevent changes to completed tasks
+        if self.pk:
+            # We fetch from DB directly because self.status might already be modified in memory
+            db_instance = ProjectStageElement.objects.get(pk=self.pk)
+            if db_instance.status == 'completed' and self.status == 'completed':
+                raise ValidationError("This task is completed and locked. It can only be modified if a rework is raised.")
+
+        super().clean() 
 
         # Status transition validation
         if self.pk and self.status != self._loaded_values.get('status'): # Status has changed
@@ -488,7 +497,8 @@ class ProjectStageElement(models.Model):
                     task=self,
                     user=user,
                     old_status=self._loaded_values['status'],
-                    new_status=self.status
+                    new_status=self.status,
+                    notes=self.status_notes # Pass the notes
                 )
             else:
                 # Handle case where user is not provided (e.g., system-initiated change)
@@ -503,6 +513,29 @@ class ProjectStageElement(models.Model):
         super().save(*args, **kwargs)
         # Update _loaded_values after saving to reflect the new state
         self._loaded_values['status'] = self.status
+
+        # Auto-Advancement Logic: If this task was completed, check the stage
+        if self.status == 'completed':
+            current_stage = self.stage
+            if not current_stage.elements.exclude(status='completed').exists():
+                # All tasks in this stage are done!
+                current_stage.status = 'completed'
+                current_stage.save()
+
+                # Find and activate the next stage
+                next_stage = ProjectStage.objects.filter(
+                    project=current_stage.project,
+                    order__gt=current_stage.order
+                ).order_by('order').first()
+
+                if next_stage:
+                    next_stage.status = 'active'
+                    next_stage.save()
+                else:
+                    # No more stages, mark project as completed
+                    project = current_stage.project
+                    project.status = 'completed'
+                    project.save()
 
 
 # =====================================================
@@ -953,6 +986,7 @@ class TaskStatusLog(models.Model):
     )
     old_status = models.CharField(max_length=20)
     new_status = models.CharField(max_length=20)
+    notes = models.TextField(blank=True) # New field
     timestamp = models.DateTimeField(auto_now_add=True)
 
     class Meta:

@@ -618,6 +618,13 @@ function ProjectDetails() {
 
             {/* Modal Content */}
             <div className="p-6 overflow-y-auto max-h-[60vh]">
+              {/* Only allow interaction if the stage is active */}
+              {selectedStage.status !== 'active' && selectedStage.status !== 'completed' && (
+                <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-400 text-xs flex items-center gap-2">
+                  <AlertTriangle size={14} />
+                  This stage is pending. Tasks will unlock once the previous stage is completed.
+                </div>
+              )}
               <div className="mb-6">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-slate-400">Stage Progress</span>

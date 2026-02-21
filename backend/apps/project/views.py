@@ -26,6 +26,20 @@ from drf_spectacular.utils import extend_schema, OpenApiResponse
 from .tasks import process_project_asset, create_project_folder_structure
 from django.utils import timezone
 import os # Import os for path manipulation
+from django.views.static import serve # Added for serving NAS files
+from django.conf import settings # Added for settings access
+
+def serve_nas_media(request, path):
+    """
+    Custom view to serve files from NAS path defined in StorageSetting.
+    """
+    try:
+        storage_settings = StorageSetting.objects.get_singleton()
+        nas_root = storage_settings.nas_root_path
+    except Exception:
+        nas_root = settings.NAS_MEDIA_ROOT
+    
+    return serve(request, path, document_root=nas_root)
 
 from .models import *
 from .serializers import ProjectSerializer, ProjectAssetUploadSerializer,ProjectStageElementDetailSerializer, ProjectAssetSerializer, StageElementVersionSerializer, ProjectTimeLogSerializer, ClientProjectAssetSerializer, ClientProjectStageElementSerializer, ClientReviewLogSerializer, PackageSerializer, PackageItemSerializer, ProjectStageTemplateSerializer, ProjectStageElementTemplateSerializer, ProjectTaskAssignmentSerializer, TaskCommentSerializer, FolderStructureTemplateSerializer, StorageSettingSerializer
@@ -254,6 +268,13 @@ class ProjectStageElementViewSet(ModelViewSet):
         """
         task = self.get_object()
         
+        # Validation: Check if at least one asset exists
+        if not task.assets.exists():
+            return Response(
+                {"detail": "Cannot request manager approval without uploading any work assets."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         # Check current status, only allow if not already waiting for review or completed
         if task.status in ['waiting_review', 'completed', 'waiting_client_review']:
             return Response(
@@ -752,7 +773,13 @@ class ProjectTaskAssignmentViewSet(ModelViewSet):
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
     def perform_create(self, serializer):
-        serializer.save()
+        assignment = serializer.save()
+        # Automatically sync the assignment's initial notes to the task's main notes 
+        # if the task currently has no notes.
+        task = assignment.task
+        if assignment.initial_notes and (not task.initial_notes or task.initial_notes == "None"):
+            task.initial_notes = assignment.initial_notes
+            task.save(update_fields=['initial_notes'])
 
 
 # ==========================================================
