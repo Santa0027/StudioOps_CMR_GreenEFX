@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { HardDrive, Server, Cloud, Info } from 'lucide-react';
-import { getStorageSettings, updateStorageSettings } from '../../../shared/services/apiClient';
+import { HardDrive, Server, Cloud, Info, CheckCircle2, XCircle, RefreshCw } from 'lucide-react';
+import { getStorageSettings, updateStorageSettings, testNasConnection, testS3Connection } from '../../../shared/services/apiClient';
 
 function StorageSettings() {
   const [nasPath, setNasPath] = useState('');
@@ -11,6 +11,12 @@ function StorageSettings() {
   const [defaultFinalFileStorage, setDefaultFinalFileStorage] = useState('cloud');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Test states
+  const [testingNas, setTestingNas] = useState(false);
+  const [testingS3, setTestingS3] = useState(false);
+  const [nasTestResult, setNasTestResult] = useState(null);
+  const [s3TestResult, setS3TestResult] = useState(null);
 
   const STORAGE_OPTIONS = [
     { value: 'local', label: 'Local Server' },
@@ -23,7 +29,6 @@ function StorageSettings() {
       try {
         setLoading(true);
         const response = await getStorageSettings();
-        // Handle both list and object responses for robustness
         const settings = Array.isArray(response.data) ? response.data[0] : response.data;
         
         if (settings) {
@@ -48,7 +53,7 @@ function StorageSettings() {
     setLoading(true);
     setError(null);
     try {
-      const response = await updateStorageSettings({
+      await updateStorageSettings({
         nas_root_path: nasPath,
         s3_bucket_name: s3BucketName,
         s3_region: s3Region,
@@ -56,13 +61,44 @@ function StorageSettings() {
         default_preview_file_storage: defaultPreviewFileStorage,
         default_final_file_storage: defaultFinalFileStorage,
       });
-      console.log('Settings saved successfully:', response.data);
       alert('Settings saved successfully!');
     } catch (err) {
       console.error('Error saving storage settings:', err);
       setError('Failed to save settings.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleTestNas = async () => {
+    setTestingNas(true);
+    setNasTestResult(null);
+    try {
+      const res = await testNasConnection({ nas_root_path: nasPath });
+      setNasTestResult({ success: true, message: res.data.detail });
+    } catch (err) {
+      setNasTestResult({ 
+        success: false, 
+        message: err.response?.data?.detail || "NAS connection failed. Ensure the path is correct and accessible." 
+      });
+    } finally {
+      setTestingNas(false);
+    }
+  };
+
+  const handleTestS3 = async () => {
+    setTestingS3(true);
+    setS3TestResult(null);
+    try {
+      const res = await testS3Connection({ s3_bucket_name: s3BucketName, s3_region: s3Region });
+      setS3TestResult({ success: true, message: res.data.detail });
+    } catch (err) {
+      setS3TestResult({ 
+        success: false, 
+        message: err.response?.data?.detail || "S3 connection failed. Verify your bucket name, region, and server credentials." 
+      });
+    } finally {
+      setTestingS3(false);
     }
   };
 
@@ -77,154 +113,142 @@ function StorageSettings() {
     );
   }
 
-  if (error) {
-    return (
-      <div className="p-6 bg-rose-500/10 border border-rose-500/20 rounded-2xl">
-        <p className="text-rose-400">Error: {error}</p>
-        <button 
-          onClick={() => window.location.reload()}
-          className="mt-4 px-4 py-2 bg-rose-500 text-white rounded-lg text-sm"
-        >
-          Retry
-        </button>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold text-white mb-4">Storage Settings</h1>
       <p className="text-slate-400">
         This section provides an overview of how project assets are stored. The system automatically
         determines the storage location (Local, NAS, or Cloud) based on the asset's type and role.
-        For security, sensitive storage credentials are managed on the backend and not exposed here.
       </p>
 
       {/* Dynamic Storage Rules Overview */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
         <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
           <Info size={20} className="text-blue-500" />
-          Dynamic Storage Rules
+          Configuration & Connectivity
         </h2>
-        <div className="space-y-4">
-          <div className="flex items-start gap-3">
-            <Server size={20} className="text-emerald-500 mt-1" />
-            <div>
-              <p className="text-lg font-semibold text-white">Local Server (Django Media)</p>
-              <p className="text-slate-400">
-                Default for review assets and internal documents. Stored on the application server's local filesystem.
-              </p>
-            </div>
-          </div>
-          
-          <div className="space-y-6 mt-6 border-t border-slate-800 pt-6">
-            <div>
-              <h3 className="text-white font-semibold flex items-center gap-2 mb-4">
+        
+        <div className="space-y-8">
+          {/* NAS Section */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-white font-semibold flex items-center gap-2">
                 <HardDrive size={18} className="text-purple-500" />
                 NAS Configuration
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="default-source-storage" className="block text-sm font-medium text-slate-400 mb-1">
-                    Default Source File Storage:
-                  </label>
-                  <select
-                    id="default-source-storage"
-                    value={defaultSourceFileStorage}
-                    onChange={(e) => setDefaultSourceFileStorage(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-md text-white shadow-sm focus:outline-none focus:ring-blue-500 sm:text-sm"
-                  >
-                    {STORAGE_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label htmlFor="nas-path" className="block text-sm font-medium text-slate-400 mb-1">
-                    NAS Root Path:
-                  </label>
-                  <input
-                    type="text"
-                    id="nas-path"
-                    value={nasPath}
-                    onChange={(e) => setNasPath(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-md text-white shadow-sm focus:outline-none focus:ring-blue-500 sm:text-sm"
-                    placeholder="/mnt/StudioOps"
-                  />
-                </div>
+              <button
+                onClick={handleTestNas}
+                disabled={testingNas || !nasPath}
+                className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-medium transition-all border border-slate-700 disabled:opacity-50"
+              >
+                {testingNas ? <RefreshCw size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                Test NAS Path
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-1">Default Source Storage:</label>
+                <select
+                  value={defaultSourceFileStorage}
+                  onChange={(e) => setDefaultSourceFileStorage(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-md text-white sm:text-sm"
+                >
+                  {STORAGE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-1">NAS Root Path:</label>
+                <input
+                  type="text"
+                  value={nasPath}
+                  onChange={(e) => setNasPath(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-md text-white sm:text-sm"
+                  placeholder="/mnt/StudioOps"
+                />
               </div>
             </div>
 
-            <div>
-              <h3 className="text-white font-semibold flex items-center gap-2 mb-4">
+            {nasTestResult && (
+              <div className={`flex items-start gap-2 p-3 rounded-lg text-sm border ${nasTestResult.success ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'}`}>
+                {nasTestResult.success ? <CheckCircle2 size={16} className="mt-0.5" /> : <XCircle size={16} className="mt-0.5" />}
+                <span>{nasTestResult.message}</span>
+              </div>
+            )}
+          </div>
+
+          {/* S3 Section */}
+          <div className="space-y-4 border-t border-slate-800 pt-8">
+            <div className="flex items-center justify-between">
+              <h3 className="text-white font-semibold flex items-center gap-2">
                 <Cloud size={18} className="text-cyan-500" />
                 Cloud (S3) Configuration
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="default-preview-storage" className="block text-sm font-medium text-slate-400 mb-1">
-                    Default Preview File Storage:
-                  </label>
-                  <select
-                    id="default-preview-storage"
-                    value={defaultPreviewFileStorage}
-                    onChange={(e) => setDefaultPreviewFileStorage(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-md text-white shadow-sm focus:outline-none focus:ring-blue-500 sm:text-sm"
-                  >
-                    {STORAGE_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label htmlFor="default-final-storage" className="block text-sm font-medium text-slate-400 mb-1">
-                    Default Final File Storage:
-                  </label>
-                  <select
-                    id="default-final-storage"
-                    value={defaultFinalFileStorage}
-                    onChange={(e) => setDefaultFinalFileStorage(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-md text-white shadow-sm focus:outline-none focus:ring-blue-500 sm:text-sm"
-                  >
-                    {STORAGE_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label htmlFor="s3-bucket-name" className="block text-sm font-medium text-slate-400 mb-1">
-                    S3 Bucket Name:
-                  </label>
-                  <input
-                    type="text"
-                    id="s3-bucket-name"
-                    value={s3BucketName}
-                    onChange={(e) => setS3BucketName(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-md text-white shadow-sm focus:outline-none focus:ring-blue-500 sm:text-sm"
-                    placeholder="your-s3-bucket-name"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="s3-region" className="block text-sm font-medium text-slate-400 mb-1">
-                    S3 Region:
-                  </label>
-                  <input
-                    type="text"
-                    id="s3-region"
-                    value={s3Region}
-                    onChange={(e) => setS3Region(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-md text-white shadow-sm focus:outline-none focus:ring-blue-500 sm:text-sm"
-                    placeholder="us-east-1"
-                  />
-                </div>
+              <button
+                onClick={handleTestS3}
+                disabled={testingS3 || !s3BucketName}
+                className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-medium transition-all border border-slate-700 disabled:opacity-50"
+              >
+                {testingS3 ? <RefreshCw size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                Test S3 Bucket
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-1">Default Preview Storage:</label>
+                <select
+                  value={defaultPreviewFileStorage}
+                  onChange={(e) => setDefaultPreviewFileStorage(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-md text-white sm:text-sm"
+                >
+                  {STORAGE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-1">Default Final Storage:</label>
+                <select
+                  value={defaultFinalFileStorage}
+                  onChange={(e) => setDefaultFinalFileStorage(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-md text-white sm:text-sm"
+                >
+                  {STORAGE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-1">S3 Bucket Name:</label>
+                <input
+                  type="text"
+                  value={s3BucketName}
+                  onChange={(e) => setS3BucketName(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-md text-white sm:text-sm"
+                  placeholder="bucket-name"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-1">S3 Region:</label>
+                <input
+                  type="text"
+                  value={s3Region}
+                  onChange={(e) => setS3Region(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-md text-white sm:text-sm"
+                  placeholder="us-east-1"
+                />
               </div>
             </div>
+
+            {s3TestResult && (
+              <div className={`flex items-start gap-2 p-3 rounded-lg text-sm border ${s3TestResult.success ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'}`}>
+                {s3TestResult.success ? <CheckCircle2 size={16} className="mt-0.5" /> : <XCircle size={16} className="mt-0.5" />}
+                <span>{s3TestResult.message}</span>
+              </div>
+            )}
           </div>
         </div>
       </div>

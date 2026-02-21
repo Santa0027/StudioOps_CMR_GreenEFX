@@ -238,6 +238,8 @@ export const deleteQuotationItem = (id) => api.delete(`/quotation-items/${id}/`)
 // ---------------------------------------------- StorageSettings APIs ------------------------------
 export const getStorageSettings = () => api.get("/storage-settings/");
 export const updateStorageSettings = (data) => api.patch("/storage-settings/", data); 
+export const testNasConnection = (data) => api.post("/storage-settings/?action=test-nas", data);
+export const testS3Connection = (data) => api.post("/storage-settings/?action=test-s3", data);
 // --------------------------------------------- end StorageSettings APIs ---------------------------
 
 // ---------------------------------------------- Folder Structure Template APIs ---------------------

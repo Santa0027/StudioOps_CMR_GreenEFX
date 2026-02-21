@@ -908,6 +908,7 @@ class StorageSettingAPIView(APIView):
     """
     API for managing the single global StorageSetting instance.
     Supports GET (retrieve) and PATCH (partial update).
+    Includes connection testing for NAS and S3.
     """
     permission_classes = [IsAuthenticated, IsInternalUser]
 
@@ -929,3 +930,81 @@ class StorageSettingAPIView(APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
+
+    @action(detail=False, methods=['post'], url_path='test-nas')
+    def test_nas_connection(self, request):
+        """
+        Tests write permissions on the configured NAS path.
+        """
+        nas_path = request.data.get('nas_root_path')
+        if not nas_path:
+            return Response({"detail": "NAS path not provided."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            if not os.path.exists(nas_path):
+                return Response({
+                    "status": "error",
+                    "detail": f"Path does not exist: {nas_path}"
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # Try creating a temporary test file
+            test_file = os.path.join(nas_path, '.connection_test')
+            with open(test_file, 'w') as f:
+                f.write('test')
+            os.remove(test_file)
+
+            return Response({
+                "status": "success",
+                "detail": "NAS connection and write test successful."
+            })
+        except Exception as e:
+            return Response({
+                "status": "error",
+                "detail": f"NAS test failed: {str(e)}"
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=['post'], url_path='test-s3')
+    def test_s3_connection(self, request):
+        """
+        Tests connectivity to the configured S3 bucket.
+        """
+        bucket_name = request.data.get('s3_bucket_name')
+        region = request.data.get('s3_region')
+
+        if not bucket_name:
+            return Response({"detail": "S3 bucket name not provided."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            import boto3
+            from botocore.exceptions import ClientError
+
+            s3 = boto3.client('s3', region_name=region)
+            s3.head_bucket(Bucket=bucket_name)
+
+            return Response({
+                "status": "success",
+                "detail": f"Successfully connected to S3 bucket: {bucket_name}"
+            })
+        except ClientError as e:
+            return Response({
+                "status": "error",
+                "detail": f"S3 test failed: {e.response['Error']['Message']}"
+            }, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({
+                "status": "error",
+                "detail": f"S3 test failed: {str(e)}"
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+    # Note: Since this is an APIView, we need to manually dispatch the action-like methods 
+    # or handle them in a custom dispatch. For simplicity, we'll route these via URL dispatch later
+    # OR change this to a ViewSet with special list-mapping.
+    # For now, let's keep it as APIView and add simple post handlers.
+
+    def post(self, request, *args, **kwargs):
+        action = request.query_params.get('action')
+        if action == 'test-nas':
+            return self.test_nas_connection(request)
+        elif action == 'test-s3':
+            return self.test_s3_connection(request)
+        return Response({"detail": "Action not found."}, status=status.HTTP_404_NOT_FOUND)

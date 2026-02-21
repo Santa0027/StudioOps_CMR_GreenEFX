@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Plus, ListTodo, CheckCircle2, RotateCcw, User2, 
-  FolderKanban, Calendar, Clock, MessageSquare, Image, AlertTriangle
+  FolderKanban, Calendar, Clock, MessageSquare, Image, AlertTriangle, UserPlus
 } from 'lucide-react';
-import { getProjectStageElements, getProjects, getEmployees, createTaskAssignment } from '../../../shared/services/apiClient';
+import { getProjectStageElements, getProjects, getEmployees } from '../../../shared/services/apiClient';
 import CreateNewTaskForm from '../components/CreateNewTaskForm';
+import AssignTaskForm from '../components/AssignTaskForm';
 import Modal from '../../../shared/components/Modal';
 
 const STATUS_OPTIONS = [
@@ -17,7 +18,8 @@ const STATUS_OPTIONS = [
 
 function TaskPage() {
   const navigate = useNavigate();
-  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [currentFilter, setCurrentFilter] = useState('all');
   const [tasks, setTasks] = useState([]);
   const [projects, setProjects] = useState([]);
@@ -25,7 +27,27 @@ function TaskPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [assignableTask, setAssignableTask] = useState(null);
-  const [selectedUser, setSelectedUser] = useState('');
+  const [taskToAssign, setTaskToAssign] = useState(null);
+
+  const fetchAllData = async () => {
+    try {
+      setLoading(true);
+      const [tasksResponse, projectsResponse, employeesResponse] = await Promise.all([
+        getProjectStageElements(),
+        getProjects(),
+        getEmployees(),
+      ]);
+      setTasks(tasksResponse.data);
+      setProjects(projectsResponse.data);
+      setEmployees(employeesResponse.data);
+      processTasks(tasksResponse.data);
+    } catch (err) {
+      setError("Failed to fetch data.");
+      console.error("Error fetching data:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const processTasks = (tasksData) => {
     const tasksByStage = tasksData.reduce((acc, task) => {
@@ -48,45 +70,22 @@ function TaskPage() {
   };
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const [tasksResponse, projectsResponse, employeesResponse] = await Promise.all([
-          getProjectStageElements(),
-          getProjects(),
-          getEmployees(),
-        ]);
-        setTasks(tasksResponse.data);
-        setProjects(projectsResponse.data);
-        setEmployees(employeesResponse.data);
-        processTasks(tasksResponse.data);
-      } catch (err) {
-        setError("Failed to fetch data.");
-        console.error("Error fetching data:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
+    fetchAllData();
   }, []);
 
-  const handleCloseCreateTaskForm = () => setIsFormOpen(false);
+  const handleOpenAssignModal = (task) => {
+    setTaskToAssign(task);
+    setIsAssignModalOpen(true);
+  };
 
-  const handleAssignTask = async (taskId, userId) => {
-    try {
-      await createTaskAssignment(taskId, { user: userId, role: 'Assignee' });
-      const tasksResponse = await getProjectStageElements();
-      setTasks(tasksResponse.data);
-      processTasks(tasksResponse.data);
-    } catch (error) {
-      console.error("Failed to assign task", error);
-    }
+  const handleTaskAssigned = () => {
+    fetchAllData();
   };
 
   const getTaskType = (task) => {
     if (task.rejection_notes && task.rejection_notes.length > 0) return 'rework';
     if (task.id === assignableTask?.id) return 'assignable';
-    if (task.status === 'in_progress') return 'assigned';
+    if (task.status === 'in_progress' || (task.assignments && task.assignments.length > 0)) return 'assigned';
     return 'normal';
   };
 
@@ -132,7 +131,7 @@ function TaskPage() {
           <p className="text-slate-400 mt-2 text-lg">Track and manage all your project tasks.</p>
         </div>
         <button
-          onClick={() => setIsFormOpen(true)}
+          onClick={() => setIsCreateModalOpen(true)}
           className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl font-semibold transition-all duration-200 shadow-lg bg-blue-600 hover:bg-blue-500 text-white shadow-blue-500/20"
         >
           <Plus size={20} />
@@ -216,7 +215,7 @@ function TaskPage() {
               <div className="flex justify-between text-sm text-slate-400">
                 <span className="flex items-center gap-1">
                   <User2 size={14} />
-                  {project.assigned_users?.length || 0} members
+                  {project.assigned_user_details?.length || 0} members
                 </span>
                 <span className="flex items-center gap-1">
                   <Calendar size={14} />
@@ -282,7 +281,7 @@ function TaskPage() {
             <div className="text-center py-16 text-slate-500 italic">No tasks found.</div>
           ) : (
             filteredTasks.map((task) => {
-              const isAssignable = task.id === assignableTask?.id;
+              const isAssignable = task.id === assignableTask?.id || (!task.assignments || task.assignments.length === 0);
               const isCompleted = task.status === 'completed';
               const isAssigned = task.assignments && task.assignments.length > 0;
               const isRework = task.rejection_notes && task.rejection_notes.length > 0;
@@ -291,7 +290,7 @@ function TaskPage() {
                 <div
                   key={task.id}
                   className={`p-5 transition-colors ${
-                    isAssignable ? 'bg-blue-500/5' : 
+                    isAssignable && !isAssigned ? 'bg-blue-500/5' : 
                     isRework ? 'bg-rose-500/5' : 
                     isCompleted ? 'bg-emerald-500/5' : ''
                   } hover:bg-slate-800/50`}
@@ -299,52 +298,38 @@ function TaskPage() {
                   <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                     <div className="flex-grow cursor-pointer" onClick={() => navigate(`/tasks/${task.id}`)}>
                       <div className="flex items-start gap-3">
-                        {/* Task Preview Image */}
-                        {task.assets && task.assets.length > 0 && (
-                          <div className="w-16 h-16 rounded-lg overflow-hidden bg-slate-800 border border-slate-700 shrink-0">
-                            <img
-                              src={task.assets[0].file}
-                              alt="Preview"
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                        )}
-                        
                         <div className="flex-grow">
-                          <h3 className="font-bold text-white hover:text-blue-400 transition-colors">{task.element_name}</h3>
+                          <h3 className="font-bold text-white hover:text-blue-400 transition-colors">{task.element_name || task.template_name}</h3>
                           <p className="text-sm text-slate-400 flex items-center gap-2 mt-1">
                             <FolderKanban size={14} />
                             {task.project_name}
                             <span className="text-slate-600">•</span>
-                            Stage: {task.stage_name}
+                            Stage: {task.stage_name || task.template_name}
                           </p>
                           
                           {/* Notes Preview */}
                           {task.initial_notes && (
-                            <p className="text-sm text-slate-400 mt-2 line-clamp-1">
-                              {task.initial_notes}
+                            <p className="text-sm text-slate-400 mt-2 line-clamp-1 italic text-blue-300/70">
+                              "{task.initial_notes}"
                             </p>
                           )}
                           
                           {/* Rework Warning */}
                           {isRework && (
-                            <div className="flex items-center gap-2 mt-2 text-rose-400 text-sm">
-                              <AlertTriangle size={14} />
+                            <div className="flex items-center gap-2 mt-2 text-rose-400 text-sm font-medium">
+                              <RotateCcw size={14} />
                               <span className="line-clamp-1">{task.rejection_notes}</span>
                             </div>
                           )}
                           
                           {/* Meta Info */}
                           <div className="flex items-center gap-4 mt-3">
-                            {task.versions && task.versions.length > 0 && (
-                              <span className="flex items-center gap-1 text-xs text-slate-500">
-                                <MessageSquare size={12} />
-                                {task.versions.length} Comments
-                              </span>
-                            )}
+                            <span className="flex items-center gap-1 text-xs text-slate-500 font-mono bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+                              ID: #{task.id}
+                            </span>
                             <span className="flex items-center gap-1 text-xs text-slate-500">
                               <Clock size={12} />
-                              {new Date(task.updated_at).toLocaleDateString()}
+                              Updated: {new Date(task.updated_at || Date.now()).toLocaleDateString()}
                             </span>
                           </div>
                         </div>
@@ -354,30 +339,25 @@ function TaskPage() {
                     {/* Right Side Actions */}
                     <div className="flex flex-col items-end gap-3 shrink-0">
                       {isAssigned ? (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/20">
-                          <CheckCircle2 size={12} />
-                          Assigned
-                        </span>
-                      ) : isAssignable ? (
-                        <div className="flex items-center gap-2">
-                          <select
-                            value={selectedUser}
-                            onChange={(e) => setSelectedUser(e.target.value)}
-                            className="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-300 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                          >
-                            <option value="">Select User</option>
-                            {employees.map(user => (
-                              <option key={user.id} value={user.id}>{user.name}</option>
-                            ))}
-                          </select>
-                          <button
-                            onClick={() => handleAssignTask(task.id, selectedUser)}
-                            disabled={!selectedUser}
-                            className="px-4 py-2 rounded-lg text-sm font-semibold bg-blue-600 hover:bg-blue-500 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            Assign
-                          </button>
+                        <div className="flex flex-col items-end gap-1">
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/20">
+                            <CheckCircle2 size={12} />
+                            Assigned
+                          </span>
+                          {task.assignments && task.assignments.map(a => (
+                            <span key={a.id} className="text-[10px] text-slate-500 font-medium">
+                              {a.user_name} ({a.role})
+                            </span>
+                          ))}
                         </div>
+                      ) : isAssignable ? (
+                        <button
+                          onClick={() => handleOpenAssignModal(task)}
+                          className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold bg-blue-600 hover:bg-blue-500 text-white transition-all shadow-lg shadow-blue-500/20"
+                        >
+                          <UserPlus size={16} />
+                          Assign Now
+                        </button>
                       ) : (
                         getStatusBadge(task.status)
                       )}
@@ -391,10 +371,22 @@ function TaskPage() {
       </div>
 
       {/* Create Task Modal */}
-      {isFormOpen && (
-        <Modal isOpen={isFormOpen} onClose={handleCloseCreateTaskForm} title="Create New Task">
-          <CreateNewTaskForm onClose={handleCloseCreateTaskForm} />
+      {isCreateModalOpen && (
+        <Modal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} title="Create New Task">
+          <CreateNewTaskForm onClose={() => setIsCreateModalOpen(false)} />
         </Modal>
+      )}
+
+      {/* Assign Task Modal */}
+      {isAssignModalOpen && taskToAssign && (
+        <AssignTaskForm 
+          task={taskToAssign} 
+          onClose={() => {
+            setIsAssignModalOpen(false);
+            setTaskToAssign(null);
+          }} 
+          onAssigned={handleTaskAssigned}
+        />
       )}
     </div>
   );

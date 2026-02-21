@@ -30,7 +30,7 @@ class ProjectTaskAssignmentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ProjectTaskAssignment
-        fields = "__all__"
+        fields = ['id', 'task', 'user', 'user_name', 'role', 'initial_notes', 'assigned_at']
 
 
 # =====================================================
