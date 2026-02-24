@@ -4,7 +4,7 @@ from django.apps import apps
 
 
 
-class Commands(BaseCommand):
+class Command(BaseCommand):
 
     
     def handle(self, *args, **options):

@@ -1,4 +1,5 @@
-// src/config/routes.js
+// src/config/routes.jsx
+import React from 'react';
 import LoginPage from '../features/auth/pages/LoginPage';
 import SignupPage from '../features/auth/pages/SignupPage';
 import ForgotPasswordPage from '../features/auth/pages/ForgotPasswordPage';
@@ -51,6 +52,7 @@ import ServiceManagement from '../features/services/pages/ServiceManagement';
 
 import Layout from '../shared/components/Layout';
 import PrivateRoute from '../shared/components/PrivateRoute';
+import RoleBasedRoute from '../shared/components/RoleBasedRoute';
 
 
 export const publicRoutes = [
@@ -66,44 +68,59 @@ export const protectedRoutes = [
             {
                 element: <Layout />,
                 children: [
+                    // --- Level: Any Authenticated User ---
                     { path: '/dashboard', element: <Dashboard /> },
                     { path: '/tasks', element: <TaskPage /> },
                     { path: '/tasks/:taskId', element: <TaskDetails /> },
                     { path: '/projects', element: <Projects /> },
                     { path: '/projects/:id', element: <ProjectDetails /> },
                     { path: '/projects/:id/version-history', element: <VersionHistory /> },
-                    { path: '/projects/reassign-user', element: <ReassignProject /> },
-                    { path: '/projects/status', element: <ProjectStatus /> },
                     { path: '/calendar', element: <Calendar /> },
-                    { path: '/users', element: <UserManagement /> },
+                    { path: '/users', element: <UserManagement /> }, // Attendance entry is inside here
                     { path: '/users/:id', element: <UserProfile /> },
+                    { path: '/profile', element: <UserProfile /> },
+                    
+                    // --- Level: Manager & Above ---
                     {
-                        path: '/settings', element: <Settings />,
+                        element: <RoleBasedRoute level="manager" />,
                         children: [
-                            { index: true, element: <StorageSettings /> }, // Default sub-route
-                            { path: 'storage', element: <StorageSettings /> },
-                            { path: 'folder-templates', element: <FolderStructureTemplateManagement /> },
+                            { path: '/enquiries', element: <EnquiryManagement /> },
+                            { path: '/leads', element: <LeadManagement /> },
+                            { path: '/clients', element: <ClientManagement /> },
+                            { path: '/rework-requests', element: <ReworkRequests /> },
+                            { path: '/rework-requests/:id', element: <ReworkRequestDetails /> },
+                            { path: '/projects/create', element: <CreateNewProject /> },
+                            { path: '/projects/reassign-user', element: <ReassignProject /> },
+                            { path: '/projects/status', element: <ProjectStatus /> },
+                            { path: '/invoice', element: <InvoicePage /> },
+                            { path: '/invoice/create', element: <CreateInvoiceForm /> },
+                            { path: '/invoice/:invoiceId', element: <InvoiceDetails /> },
+                            { path: '/reports', element: <ReportAndAnalysis /> },
                         ]
                     },
-                    { path: '/clients', element: <ClientManagement /> },
-                    { path: '/rework-requests', element: <ReworkRequests /> },
-                    { path: '/rework-requests/:id', element: <ReworkRequestDetails /> },
-                    { path: '/permissions', element: <Permissions /> },
-                    { path: '/roles/create', element: <CreateRole /> },
-                    { path: '/projects/create', element: <CreateNewProject /> },
-                    { path: '/invoice', element: <InvoicePage /> },
-                    { path: '/invoice/create', element: <CreateInvoiceForm /> },
-                    { path: '/invoice/:invoiceId', element: <InvoiceDetails /> },
-                    { path: '/packages', element: <PackageManagement /> },
-                    { path: '/reports', element: <ReportAndAnalysis /> },
-                    { path: '/leads', element: <LeadManagement /> },
-                    { path: '/enquiries', element: <EnquiryManagement /> },
-                    { path: '/master/packages', element: <PackageManagement /> },
-                    { path: '/master/packages/:packageId/items', element: <PackageItemPage /> },
-                    { path: '/master/workflow-templates', element: <WorkflowTemplateManagement /> },
-                    { path: '/master/folder-structures', element: <FolderStructureTemplateList /> },
-                    { path: '/services', element: <ServiceManagement /> },
-                    { path: '/project-stage-element-templates', element: <ProjectStageElementTemplateManagementPage /> },
+
+                    // --- Level: Admin Only ---
+                    {
+                        element: <RoleBasedRoute level="admin" />,
+                        children: [
+                            { path: '/permissions', element: <Permissions /> },
+                            { path: '/roles/create', element: <CreateRole /> },
+                            { path: '/services', element: <ServiceManagement /> },
+                            { path: '/master/packages', element: <PackageManagement /> },
+                            { path: '/master/packages/:packageId/items', element: <PackageItemPage /> },
+                            { path: '/master/workflow-templates', element: <WorkflowTemplateManagement /> },
+                            { path: '/master/folder-structures', element: <FolderStructureTemplateList /> },
+                            { path: '/project-stage-element-templates', element: <ProjectStageElementTemplateManagementPage /> },
+                            {
+                                path: '/settings', element: <Settings />,
+                                children: [
+                                    { index: true, element: <StorageSettings /> },
+                                    { path: 'storage', element: <StorageSettings /> },
+                                    { path: 'folder-templates', element: <FolderStructureTemplateManagement /> },
+                                ]
+                            },
+                        ]
+                    },
                 ],
             },
         ],

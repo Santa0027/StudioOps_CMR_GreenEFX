@@ -14,6 +14,18 @@ from .models import (
 )
 
 
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+        # Add custom claims
+        token['is_staff'] = user.is_staff
+        token['groups'] = list(user.groups.values_list('name', flat=True))
+        token['name'] = user.name
+        return token
+
 # ---------- Permissions & Roles ----------
 
 class PermissionSerializer(serializers.ModelSerializer):
@@ -54,6 +66,14 @@ class GroupSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     groups = GroupSerializer(many=True, read_only=True)
     user_permissions = PermissionSerializer(many=True, read_only=True)
+    password = serializers.CharField(write_only=True, required=False)
+    group_ids = serializers.PrimaryKeyRelatedField(
+        many=True, 
+        queryset=Group.objects.all(), 
+        write_only=True, 
+        required=False,
+        source='groups'
+    )
 
     class Meta:
         model = User
@@ -65,11 +85,35 @@ class UserSerializer(serializers.ModelSerializer):
             "is_active",
             "is_staff",
             "groups",
+            "group_ids",
             "user_permissions",
             "created_by",
             "created_at",
+            "password",
         )
         read_only_fields = ("created_by", "created_at")
+
+    def create(self, validated_data):
+        password = validated_data.pop("password", None)
+        groups = validated_data.pop("groups", [])
+        user = super().create(validated_data)
+        if password:
+            user.set_password(password)
+            user.save()
+        if groups:
+            user.groups.set(groups)
+        return user
+
+    def update(self, instance, validated_data):
+        password = validated_data.pop("password", None)
+        groups = validated_data.pop("groups", None)
+        user = super().update(instance, validated_data)
+        if password:
+            user.set_password(password)
+            user.save()
+        if groups is not None:
+            user.groups.set(groups)
+        return user
 
 
 class DepartmentSerializer(serializers.ModelSerializer):
@@ -104,9 +148,21 @@ class AuditLogSerializer(serializers.ModelSerializer):
 
 
 class AttendanceSerializer(serializers.ModelSerializer):
+    employee_name = serializers.CharField(source='employee.user.name', read_only=True)
+    employee_code = serializers.CharField(source='employee.employee_code', read_only=True)
+
     class Meta:
         model = EmpAttendance
-        fields = "__all__"
+        fields = (
+            "id",
+            "employee",
+            "employee_name",
+            "employee_code",
+            "date",
+            "status",
+            "check_in",
+            "check_out",
+        )
 
 
 class SalaryStructureSerializer(serializers.ModelSerializer):

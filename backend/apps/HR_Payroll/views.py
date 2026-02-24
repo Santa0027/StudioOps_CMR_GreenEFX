@@ -3,6 +3,7 @@ from django.contrib.auth.models import Group , Permission
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework import status
+from django.utils import timezone
 
 from .models import User, Employee, DepartmentOfStaff, Module, AuditLog,EmpAttendance,Payroll,Payslip,SalaryStructure
 from .serializers import (
@@ -19,6 +20,7 @@ from .services.payroll import calculate_payroll
 class PermissionViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Permission.objects.all().order_by("id")
     serializer_class = PermissionSerializer
+    permission_classes = [permissions.IsAdminUser]
     
     
     
@@ -56,7 +58,13 @@ class UserViewSet(viewsets.ModelViewSet):
 class EmployeeViewSet(viewsets.ModelViewSet):
     queryset = Employee.objects.select_related("user", "department", "role")
     serializer_class = EmployeeSerializer
-    permission_classes = [permissions.IsAdminUser]
+    
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            # Allow all authenticated users to view employees
+            return [permissions.IsAuthenticated()]
+        # Restrict creation/updates/deletion to admins/staff
+        return [permissions.IsAdminUser()]
 
 
 class DepartmentViewSet(viewsets.ModelViewSet):
@@ -80,7 +88,7 @@ class ModuleViewSet(viewsets.ModelViewSet):
 class RoleViewSet(viewsets.ModelViewSet):
     queryset = Group.objects.prefetch_related("permissions")
     serializer_class = GroupSerializer
-    # permission_classes = [permissions.IsAdminUser]
+    permission_classes = [permissions.IsAdminUser]
 
 
 class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
@@ -92,7 +100,76 @@ class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
 class AttendanceViewSet(viewsets.ModelViewSet):
     queryset = EmpAttendance.objects.select_related("employee", "employee__user")
     serializer_class = AttendanceSerializer
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = EmpAttendance.objects.select_related("employee", "employee__user")
+        user = self.request.user
+        
+        # If not staff, only see own attendance
+        if not user.is_staff:
+            queryset = queryset.filter(employee__user=user)
+            
+        date = self.request.query_params.get('date')
+        start_date = self.request.query_params.get('start_date')
+        end_date = self.request.query_params.get('end_date')
+        status = self.request.query_params.get('status')
+
+        if date:
+            queryset = queryset.filter(date=date)
+        if start_date and end_date:
+            queryset = queryset.filter(date__range=[start_date, end_date])
+        if status:
+            queryset = queryset.filter(status=status)
+            
+        return queryset
+
+    @action(detail=False, methods=['post'], url_path='check-in')
+    def check_in(self, request):
+        user = request.user
+        try:
+            employee = user.employee_profile
+        except Employee.DoesNotExist:
+            return Response({"detail": "Employee profile not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        today = timezone.now().date()
+        now_time = timezone.now().time()
+
+        attendance, created = EmpAttendance.objects.get_or_create(
+            employee=employee,
+            date=today,
+            defaults={'status': 'PRESENT', 'check_in': now_time}
+        )
+
+        if not created:
+            if attendance.check_in:
+                return Response({"detail": "Already checked in today."}, status=status.HTTP_400_BAD_REQUEST)
+            attendance.check_in = now_time
+            attendance.status = 'PRESENT'
+            attendance.save()
+
+        return Response(AttendanceSerializer(attendance).data, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['post'], url_path='check-out')
+    def check_out(self, request):
+        user = request.user
+        try:
+            employee = user.employee_profile
+        except Employee.DoesNotExist:
+            return Response({"detail": "Employee profile not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        today = timezone.now().date()
+        now_time = timezone.now().time()
+
+        try:
+            attendance = EmpAttendance.objects.get(employee=employee, date=today)
+        except EmpAttendance.DoesNotExist:
+            return Response({"detail": "No check-in record found for today."}, status=status.HTTP_400_BAD_REQUEST)
+
+        attendance.check_out = now_time
+        attendance.save()
+
+        return Response(AttendanceSerializer(attendance).data, status=status.HTTP_200_OK)
 
 
 class SalaryStructureViewSet(viewsets.ModelViewSet):

@@ -1,15 +1,16 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny
 
 from .models import User
-from .serializers import UserSerializer
+from .serializers import UserSerializer, CustomTokenObtainPairSerializer
 
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
 
 class LoginView(APIView):
+    permission_classes = [AllowAny]
     def post(self, request):
         email=request.data.get('email')
         password = request.data.get('password')
@@ -18,7 +19,8 @@ class LoginView(APIView):
         
 
         if user is not None:
-            refresh = RefreshToken.for_user(user)
+            # Use custom serializer to generate token with extra claims
+            refresh = CustomTokenObtainPairSerializer.get_token(user)
             return Response({
                 'refresh': str(refresh),
                 'access': str(refresh.access_token),
@@ -27,6 +29,7 @@ class LoginView(APIView):
             return Response({'error': 'Invalid Credentials'}, status=status.HTTP_401_UNAUTHORIZED)
 
 class RegisterView(APIView):
+    permission_classes = [AllowAny]
     def post(self, request):
         serializer = UserSerializer(data=request.data)
         if serializer.is_valid():

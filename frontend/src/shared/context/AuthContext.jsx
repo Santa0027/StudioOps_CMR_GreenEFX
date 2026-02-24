@@ -35,7 +35,7 @@ export const AuthProvider = ({ children }) => {
   const login = useCallback(async (email, password) => {
     setLoading(true);
     try {
-      const response = await fetch(`${backendUrl}/token/`, {
+      const response = await fetch(`${backendUrl}/users/login/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -52,7 +52,7 @@ export const AuthProvider = ({ children }) => {
         return { success: true };
       } else {
         setLoading(false);
-        return { success: false, error: data.detail || 'Login failed' };
+        return { success: false, error: data.error || data.detail || 'Login failed' };
       }
     } catch (err) { // Renamed 'error' to 'err' to avoid conflict if 'error' state exists
       setLoading(false);

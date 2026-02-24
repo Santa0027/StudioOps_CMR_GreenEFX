@@ -20,6 +20,14 @@ export const deleteRole = (id) => api.delete(`/users/roles/${id}/`);
 // Permission APIs
 export const getPermissions = () => api.get("/users/permissions/");
 
+// Attendance APIs
+export const getAttendances = (params) => api.get("/users/attendance/", { params });
+export const createAttendance = (data) => api.post("/users/attendance/", data);
+export const updateAttendance = (id, data) => api.put(`/users/attendance/${id}/`, data);
+export const deleteAttendance = (id) => api.delete(`/users/attendance/${id}/`);
+export const checkIn = () => api.post("/users/attendance/check-in/");
+export const checkOut = () => api.post("/users/attendance/check-out/");
+
 
 //---------------------------------------------  Enquiry apis --------------------------------
 

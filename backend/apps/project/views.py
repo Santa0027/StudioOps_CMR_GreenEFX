@@ -63,9 +63,17 @@ class ProjectViewSet(ModelViewSet):
     - Update: Project details, priority, status
     - List / Retrieve: Studio team only
     """
-    queryset = Project.objects.all()
     serializer_class = ProjectSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        # Admins and Managers see everything
+        if user.is_superuser or user.groups.filter(name__in=['Admin', 'Manager']).exists():
+            return Project.objects.all()
+        
+        # Others see only assigned projects
+        return Project.objects.filter(assigned_users=user).distinct()
 
     def create(self, request, *args, **kwargs):
         # Make a mutable copy of the request data
@@ -229,7 +237,17 @@ class ProjectStageElementViewSet(ModelViewSet):
     permission_classes = [IsAuthenticated, IsInternalUser]
 
     def get_queryset(self):
+        user = self.request.user
         queryset = ProjectStageElement.objects.select_related("stage", "template").filter(stage__status='active')
+        
+        # Admins and Managers see all tasks
+        if not (user.is_superuser or user.groups.filter(name__in=['Admin', 'Manager']).exists()):
+            # Others see tasks in projects they are assigned to OR tasks they are specifically assigned to
+            queryset = queryset.filter(
+                models.Q(stage__project__assigned_users=user) | 
+                models.Q(assignments__user=user)
+            )
+
         project_id = self.request.query_params.get("project_id")
         if project_id:
             queryset = queryset.filter(stage__project_id=project_id)
@@ -471,9 +489,22 @@ class ProjectAssetViewSet(ModelViewSet):
     - Upload preview / final renders
     - Hybrid storage: Local or Cloud
     """
-    queryset = ProjectAsset.objects.all()
     serializer_class = ProjectAssetSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        queryset = ProjectAsset.objects.all()
+        
+        # Admins and Managers see all assets
+        if not (user.is_superuser or user.groups.filter(name__in=['Admin', 'Manager']).exists()):
+            # Others see assets linked to tasks they are assigned to OR projects they are assigned to
+            queryset = queryset.filter(
+                models.Q(element__stage__project__assigned_users=user) | 
+                models.Q(element__assignments__user=user)
+            )
+        
+        return queryset.distinct()
 
     def perform_create(self, serializer):
         # Hook for async upload / background processing

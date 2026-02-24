@@ -9,7 +9,11 @@ from .views import (
     DepartmentViewSet,
     ModuleViewSet,
     RoleViewSet,
-    AuditLogViewSet,PermissionViewSet
+    AuditLogViewSet,
+    PermissionViewSet,
+    AttendanceViewSet,
+    PayrollViewSet,
+    SalaryStructureViewSet
 )
 
 router = DefaultRouter()
@@ -17,9 +21,12 @@ router.register(r"users", UserViewSet, basename="user")
 router.register(r"employees", EmployeeViewSet, basename="employee")
 router.register(r"departments", DepartmentViewSet, basename="department")
 router.register(r"modules", ModuleViewSet, basename="module")
-router.register("permissions", PermissionViewSet)
+router.register(r"permissions", PermissionViewSet, basename="permission")
 router.register(r"roles", RoleViewSet, basename="role")
 router.register(r"audit-logs", AuditLogViewSet, basename="audit-log")
+router.register(r"attendance", AttendanceViewSet, basename="attendance")
+router.register(r"payroll", PayrollViewSet, basename="payroll")
+router.register(r"salary-structures", SalaryStructureViewSet, basename="salary-structure")
 
 urlpatterns = [
     # Auth
