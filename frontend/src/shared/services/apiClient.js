@@ -160,11 +160,13 @@ export const createStageElementVersion = (elementId, versionData) => api.post(`/
 // --------------------------------------------- end Stage Element Version APIs --------------------
 
 // ---------------------------------------------- Asset Upload APIs -------------------------
+export const getAssets = (params) => api.get("/assets/", { params });
 export const uploadAssetForStageElement = (elementId, formData) => api.post(`/stage-elements/${elementId}/upload_asset/`, formData, {
     headers: {
         'Content-Type': 'multipart/form-data',
     },
 });
+export const deleteAsset = (id) => api.delete(`/assets/${id}/`);
 // --------------------------------------------- end Asset Upload APIs --------------------
 
 // ---------------------------------------------- Task Comment APIs -------------------------
@@ -256,3 +258,15 @@ export const createFolderStructureTemplate = (data) => api.post("/folder-structu
 export const updateFolderStructureTemplate = (id, data) => api.put(`/folder-structure-templates/${id}/`, data);
 export const deleteFolderStructureTemplate = (id) => api.delete(`/folder-structure-templates/${id}/`);
 // --------------------------------------------- end Folder Structure Template APIs ------------------
+
+// ---------------------------------------------- Finance APIs -------------------------------------
+export const getInvoices = () => api.get("/finance/invoices/");
+export const getInvoice = (id) => api.get(`/finance/invoices/${id}/`);
+export const createInvoice = (data) => api.post("/finance/invoices/", data);
+export const updateInvoice = (id, data) => api.patch(`/finance/invoices/${id}/`, data);
+export const deleteInvoice = (id) => api.delete(`/finance/invoices/${id}/`);
+export const getFinanceSummary = () => api.get("/finance/invoices/summary/");
+
+export const getPayments = () => api.get("/finance/payments/");
+export const createPayment = (data) => api.post("/finance/payments/", data);
+// --------------------------------------------- end Finance APIs -----------------------------------

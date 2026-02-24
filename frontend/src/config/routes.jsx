@@ -28,6 +28,8 @@ import UserProfile from '../features/users/pages/UserProfile';
 
 import ClientManagement from '../features/clients/pages/ClientManagement';
 
+import AssetLibrary from '../features/assets/pages/AssetLibrary';
+
 import ReworkRequests from '../features/rework/pages/ReworkRequests';
 import ReworkRequestDetails from '../features/rework/pages/ReworkRequestDetails';
 
@@ -79,6 +81,7 @@ export const protectedRoutes = [
                     { path: '/users', element: <UserManagement /> }, // Attendance entry is inside here
                     { path: '/users/:id', element: <UserProfile /> },
                     { path: '/profile', element: <UserProfile /> },
+                    { path: '/asset-library', element: <AssetLibrary /> },
                     
                     // --- Level: Manager & Above ---
                     {
@@ -96,6 +99,14 @@ export const protectedRoutes = [
                             { path: '/invoice/create', element: <CreateInvoiceForm /> },
                             { path: '/invoice/:invoiceId', element: <InvoiceDetails /> },
                             { path: '/reports', element: <ReportAndAnalysis /> },
+                            {
+                                path: '/settings', element: <Settings />,
+                                children: [
+                                    { index: true, element: <StorageSettings /> },
+                                    { path: 'storage', element: <StorageSettings /> },
+                                    { path: 'folder-templates', element: <FolderStructureTemplateManagement /> },
+                                ]
+                            },
                         ]
                     },
 
@@ -111,14 +122,6 @@ export const protectedRoutes = [
                             { path: '/master/workflow-templates', element: <WorkflowTemplateManagement /> },
                             { path: '/master/folder-structures', element: <FolderStructureTemplateList /> },
                             { path: '/project-stage-element-templates', element: <ProjectStageElementTemplateManagementPage /> },
-                            {
-                                path: '/settings', element: <Settings />,
-                                children: [
-                                    { index: true, element: <StorageSettings /> },
-                                    { path: 'storage', element: <StorageSettings /> },
-                                    { path: 'folder-templates', element: <FolderStructureTemplateManagement /> },
-                                ]
-                            },
                         ]
                     },
                 ],
