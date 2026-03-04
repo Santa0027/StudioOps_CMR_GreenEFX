@@ -73,37 +73,98 @@ export const protectedRoutes = [
             {
                 element: <Layout />,
                 children: [
-                    // --- Level: Any Authenticated User ---
+                    // --- Base Access: Dashboard & Calendar ---
                     { path: '/dashboard', element: <Dashboard /> },
-                    { path: '/tasks', element: <TaskPage /> },
-                    { path: '/tasks/:taskId', element: <TaskDetails /> },
-                    { path: '/projects', element: <Projects /> },
-                    { path: '/projects/:id', element: <ProjectDetails /> },
-                    { path: '/projects/:id/version-history', element: <VersionHistory /> },
                     { path: '/calendar', element: <Calendar /> },
-                    { path: '/users', element: <UserManagement /> }, // Attendance entry is inside here
-                    { path: '/users/:id', element: <UserProfile /> },
                     { path: '/profile', element: <UserProfile /> },
-                    { path: '/asset-library', element: <AssetLibrary /> },
-                    
-                    // --- Level: Manager & Above ---
+
+                    // --- Sales & Pipeline ---
                     {
-                        element: <RoleBasedRoute level="manager" />,
+                        element: <RoleBasedRoute requiredPermission="Sales.view_enquiry" />,
+                        children: [{ path: '/enquiries', element: <EnquiryManagement /> }]
+                    },
+                    {
+                        element: <RoleBasedRoute requiredPermission="Sales.view_lead" />,
+                        children: [{ path: '/leads', element: <LeadManagement /> }]
+                    },
+                    {
+                        element: <RoleBasedRoute requiredPermission="Sales.view_clients" />,
+                        children: [{ path: '/clients', element: <ClientManagement /> }]
+                    },
+
+                    // --- Production Workflow ---
+                    {
+                        element: <RoleBasedRoute requiredPermission="project.view_project" />,
                         children: [
-                            { path: '/enquiries', element: <EnquiryManagement /> },
-                            { path: '/leads', element: <LeadManagement /> },
-                            { path: '/clients', element: <ClientManagement /> },
-                            { path: '/rework-requests', element: <ReworkRequests /> },
-                            { path: '/rework-requests/:id', element: <ReworkRequestDetails /> },
+                            { path: '/projects', element: <Projects /> },
+                            { path: '/projects/:id', element: <ProjectDetails /> },
+                            { path: '/projects/:id/version-history', element: <VersionHistory /> },
                             { path: '/projects/create', element: <CreateNewProject /> },
                             { path: '/projects/reassign-user', element: <ReassignProject /> },
                             { path: '/projects/status', element: <ProjectStatus /> },
+                        ]
+                    },
+                    {
+                        element: <RoleBasedRoute requiredPermission="project.view_projectstageelement" />,
+                        children: [
+                            { path: '/tasks', element: <TaskPage /> },
+                            { path: '/tasks/:taskId', element: <TaskDetails /> },
+                        ]
+                    },
+                    {
+                        element: <RoleBasedRoute requiredPermission="project.view_projectasset" />,
+                        children: [{ path: '/asset-library', element: <AssetLibrary /> }]
+                    },
+                    {
+                        element: <RoleBasedRoute requiredPermission="project.view_clientreviewlog" />,
+                        children: [
+                            { path: '/rework-requests', element: <ReworkRequests /> },
+                            { path: '/rework-requests/:id', element: <ReworkRequestDetails /> },
+                        ]
+                    },
+
+                    // --- Finance & Billing ---
+                    {
+                        element: <RoleBasedRoute requiredPermission="finance.view_invoice" />,
+                        children: [
                             { path: '/invoice', element: <InvoicePage /> },
                             { path: '/invoice/create', element: <CreateInvoiceForm /> },
                             { path: '/invoice/:invoiceId', element: <InvoiceDetails /> },
                             { path: '/invoice/:invoiceId/edit', element: <EditInvoiceForm /> },
-                            { path: '/finance-billing/payments', element: <PaymentsPage /> },
-                            { path: '/reports', element: <ReportAndAnalysis /> },
+                        ]
+                    },
+                    {
+                        element: <RoleBasedRoute requiredPermission="finance.view_payment" />,
+                        children: [{ path: '/finance-billing/payments', element: <PaymentsPage /> }]
+                    },
+
+                    // --- Team & HR ---
+                    {
+                        element: <RoleBasedRoute requiredPermission="hr_payroll.view_user" />,
+                        children: [
+                            { path: '/users', element: <UserManagement /> },
+                            { path: '/users/:id', element: <UserProfile /> },
+                        ]
+                    },
+                    {
+                        element: <RoleBasedRoute level="manager" />, // Analytics usually higher level
+                        children: [{ path: '/reports', element: <ReportAndAnalysis /> }]
+                    },
+
+                    // --- Master Data & Admin ---
+                    {
+                        element: <RoleBasedRoute level="admin" />,
+                        children: [
+                            { path: '/permissions', element: <Permissions /> },
+                            { path: '/permissions/matrix', element: <FullPermissionMatrix /> },
+                            { path: '/roles/create', element: <CreateRole /> },
+                            { path: '/roles/:roleId/edit', element: <CreateRole /> },
+                            { path: '/services', element: <ServiceManagement /> },
+                            { path: '/master/packages', element: <PackageManagement /> },
+                            { path: '/master/packages/:packageId/items', element: <PackageItemPage /> },
+                            { path: '/master/workflow-templates', element: <WorkflowTemplateManagement /> },
+                            { path: '/master/folder-structures', element: <FolderStructureTemplateList /> },
+                            { path: '/project-stage-element-templates', element: <ProjectStageElementTemplateManagementPage /> },
                             {
                                 path: '/settings', element: <Settings />,
                                 children: [
@@ -112,22 +173,6 @@ export const protectedRoutes = [
                                     { path: 'folder-templates', element: <FolderStructureTemplateManagement /> },
                                 ]
                             },
-                        ]
-                    },
-
-                    // --- Level: Admin Only ---
-                    {
-                        element: <RoleBasedRoute level="admin" />,
-                        children: [
-                            { path: '/permissions', element: <Permissions /> },
-                            { path: '/permissions/matrix', element: <FullPermissionMatrix /> },
-                            { path: '/roles/create', element: <CreateRole /> },
-                            { path: '/services', element: <ServiceManagement /> },
-                            { path: '/master/packages', element: <PackageManagement /> },
-                            { path: '/master/packages/:packageId/items', element: <PackageItemPage /> },
-                            { path: '/master/workflow-templates', element: <WorkflowTemplateManagement /> },
-                            { path: '/master/folder-structures', element: <FolderStructureTemplateList /> },
-                            { path: '/project-stage-element-templates', element: <ProjectStageElementTemplateManagementPage /> },
                         ]
                     },
                 ],

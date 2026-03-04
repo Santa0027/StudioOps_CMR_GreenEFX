@@ -114,12 +114,12 @@ const Permissions = () => {
                   <Shield size={24} />
                 </div>
                 <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button 
-                    onClick={() => navigate('/permissions/matrix')}
+                  <Link 
+                    to={`/roles/${role.id}/edit`}
                     className="p-2 rounded-lg bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 transition-all"
                   >
                     <Edit3 size={16} />
-                  </button>
+                  </Link>
                   <button 
                     onClick={() => handleDeleteRole(role.id, role.name)}
                     className="p-2 rounded-lg bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-all"

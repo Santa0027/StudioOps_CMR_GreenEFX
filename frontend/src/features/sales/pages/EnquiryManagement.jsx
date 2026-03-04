@@ -3,6 +3,7 @@ import AddEnquiryForm from "../components/enquiry/AddEnquiryForm.jsx";
 import EditEnquiryForm from "../components/enquiry/EditEnquiryForm.jsx";
 import FollowUpModal from "../components/enquiry/FollowUpModal.jsx";
 import { useAuth } from '../../../shared/context/AuthContext';
+import { usePermissions } from "../../../shared/hooks/usePermissions";
 
 import {
   getEnquiries,
@@ -22,7 +23,13 @@ const STATUS_OPTIONS = [
 
 const EnquiryManagement = () => {
   const { user } = useAuth();
+  const { can } = usePermissions();
   const currentUserId = user ? user.user_id : null;
+
+  // Permissions
+  const canCreate = can('Sales.add_enquiry');
+  const canEdit = can('Sales.change_enquiry');
+  const canDelete = can('Sales.delete_enquiry');
 
   const [enquiries, setEnquiries] = useState([]);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -89,6 +96,7 @@ const EnquiryManagement = () => {
   };
 
   const handleStatusChange = async (id, newStatus) => {
+    if (!canEdit) return;
     const statusLabel = STATUS_OPTIONS.find(s => s.value === newStatus)?.label || newStatus;
     if (!window.confirm(`Change status to "${statusLabel}"?`)) {
       setEnquiries([...enquiries]);
@@ -105,6 +113,7 @@ const EnquiryManagement = () => {
   };
 
   const handleAssignUser = async (id, userId) => {
+    if (!canEdit) return;
     const parsedUserId = parseInt(userId);
     const selectedUser = staffUsers.find(u => u.id === parsedUserId);
     const userName = selectedUser?.user?.name || "Unassigned";
@@ -125,6 +134,7 @@ const EnquiryManagement = () => {
   };
 
   const handleDeleteEnquiry = async (id) => {
+    if (!canDelete) return;
     if (!window.confirm("Delete this enquiry?")) return;
     try {
       await deleteEnquiry(id);
@@ -135,6 +145,7 @@ const EnquiryManagement = () => {
   };
 
   const startEdit = (enquiry) => {
+    if (!canEdit) return;
     setEditingEnquiry(enquiry);
     setShowEditForm(true);
     setShowAddForm(false);
@@ -167,18 +178,20 @@ const EnquiryManagement = () => {
             <h1 className="text-3xl font-extrabold text-white tracking-tight">Enquiry Management</h1>
             <p className="text-slate-400 mt-1">Track and manage your customer pipeline efficiently.</p>
           </div>
-          <button
-            onClick={() => { setShowAddForm(!showAddForm); setShowEditForm(false); }}
-            className={`flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl font-semibold transition-all duration-200 shadow-lg ${
-              showAddForm 
-              ? "bg-slate-700 hover:bg-slate-600 text-white" 
-              : "bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-500/20"
-            }`}
-          >
-            {showAddForm ? "Close Form" : (
-              <><span className="text-xl">+</span> Add Enquiry</>
-            )}
-          </button>
+          {canCreate && (
+            <button
+              onClick={() => { setShowAddForm(!showAddForm); setShowEditForm(false); }}
+              className={`flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl font-semibold transition-all duration-200 shadow-lg ${
+                showAddForm 
+                ? "bg-slate-700 hover:bg-slate-600 text-white" 
+                : "bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-500/20"
+              }`}
+            >
+              {showAddForm ? "Close Form" : (
+                <><span className="text-xl">+</span> Add Enquiry</>
+              )}
+            </button>
+          )}
         </div>
 
         {/* FORMS SECTION */}
@@ -226,9 +239,10 @@ const EnquiryManagement = () => {
                       
                       <td className="px-6 py-4">
                         <select
+                          disabled={!canEdit}
                           value={e.assigned_to || ""}
                           onChange={(event) => handleAssignUser(e.id, event.target.value)}
-                          className="bg-slate-900 border border-slate-600 rounded-lg px-3 py-1.5 text-sm text-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none w-full max-w-[180px]"
+                          className="bg-slate-900 border border-slate-600 rounded-lg px-3 py-1.5 text-sm text-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none w-full max-w-[180px] disabled:opacity-50"
                         >
                           <option value="" disabled>Unassigned</option>
                           {staffUsers.map((user) => (
@@ -239,9 +253,10 @@ const EnquiryManagement = () => {
 
                       <td className="px-6 py-4">
                         <select
+                          disabled={!canEdit}
                           value={e.status || "new"}
                           onChange={(event) => handleStatusChange(e.id, event.target.value)}
-                          className={`border rounded-full px-4 py-1 text-xs font-bold uppercase tracking-widest focus:outline-none transition-all ${getStatusStyle(e.status)}`}
+                          className={`border rounded-full px-4 py-1 text-xs font-bold uppercase tracking-widest focus:outline-none transition-all ${getStatusStyle(e.status)} disabled:opacity-50`}
                         >
                           {STATUS_OPTIONS.map((status) => (
                             <option key={status.value} value={status.value} className="bg-slate-800 text-white">
@@ -253,13 +268,15 @@ const EnquiryManagement = () => {
 
                       <td className="px-6 py-4">
                         <div className="flex justify-end gap-2 opacity-80 group-hover:opacity-100 transition-opacity">
-                          <button
-                            onClick={() => startEdit(e)}
-                            className="p-2 hover:bg-emerald-500/20 text-emerald-500 rounded-lg transition-colors"
-                            title="Edit"
-                          >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-                          </button>
+                          {canEdit && (
+                            <button
+                              onClick={() => startEdit(e)}
+                              className="p-2 hover:bg-emerald-500/20 text-emerald-500 rounded-lg transition-colors"
+                              title="Edit"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                            </button>
+                          )}
                           
                           <button
                             onClick={() => { setSelectedEntityId(e.id); setSelectedEntityType('enquiry'); setShowFollowUpModal(true); }}
@@ -269,13 +286,15 @@ const EnquiryManagement = () => {
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
                           </button>
 
-                          <button
-                            onClick={() => handleDeleteEnquiry(e.id)}
-                            className="p-2 hover:bg-rose-500/20 text-rose-500 rounded-lg transition-colors"
-                            title="Delete"
-                          >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                          </button>
+                          {canDelete && (
+                            <button
+                              onClick={() => handleDeleteEnquiry(e.id)}
+                              className="p-2 hover:bg-rose-500/20 text-rose-500 rounded-lg transition-colors"
+                              title="Delete"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

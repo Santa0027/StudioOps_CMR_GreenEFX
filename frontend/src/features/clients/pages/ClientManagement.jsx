@@ -6,6 +6,7 @@ import {
 import AddClientForm from '../components/AddClientForm';
 import EditClientForm from '../components/EditClientForm';
 import { getClients, deleteClient } from '../../../shared/services/apiClient';
+import { usePermissions } from '../../../shared/hooks/usePermissions';
 
 const STATUS_OPTIONS = [
   { value: "Active", label: "Active", color: "bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/20", icon: CheckCircle },
@@ -14,6 +15,13 @@ const STATUS_OPTIONS = [
 ];
 
 function ClientManagement() {
+  const { can } = usePermissions();
+  
+  // Permissions
+  const canCreate = can('Sales.add_clients');
+  const canEdit = can('Sales.change_clients');
+  const canDelete = can('Sales.delete_clients');
+
   const [showAddClientForm, setShowAddClientForm] = useState(false);
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -42,6 +50,7 @@ function ClientManagement() {
   }, []);
 
   const handleDeleteClient = async (id) => {
+    if (!canDelete) return;
     if (!window.confirm("Are you sure you want to delete this client?")) {
       return;
     }
@@ -98,13 +107,15 @@ function ClientManagement() {
           <h1 className="text-3xl font-bold text-white tracking-tight">Client Management</h1>
           <p className="text-slate-400 mt-2 text-lg">Manage your client relationships and partnerships.</p>
         </div>
-        <button
-          onClick={() => setShowAddClientForm(true)}
-          className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl font-semibold transition-all duration-200 shadow-lg bg-blue-600 hover:bg-blue-500 text-white shadow-blue-500/20"
-        >
-          <Plus size={20} />
-          Add New Client
-        </button>
+        {canCreate && (
+          <button
+            onClick={() => setShowAddClientForm(true)}
+            className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl font-semibold transition-all duration-200 shadow-lg bg-blue-600 hover:bg-blue-500 text-white shadow-blue-500/20"
+          >
+            <Plus size={20} />
+            Add New Client
+          </button>
+        )}
       </div>
 
       {/* Quick Stats Summary */}
@@ -216,7 +227,7 @@ function ClientManagement() {
                 {/* Header */}
                 <div className="flex items-start justify-between mb-5">
                   <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 flex items-center justify-center overflow-hidden shadow-lg">
+                    <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-slate-800 to-slate-950 border border-slate-700 flex items-center justify-center overflow-hidden shadow-lg">
                       {client.logo_url ? (
                         <img src={client.logo_url} alt={`${client.client_name} logo`} className="object-cover w-full h-full" />
                       ) : (
@@ -253,23 +264,27 @@ function ClientManagement() {
                 <div className="flex items-center justify-between pt-5 border-t border-slate-800">
                   {getStatusBadge(client.status)}
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={() => {
-                        setEditingClient(client);
-                        setShowEditClientForm(true);
-                      }}
-                      className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-blue-400 transition-colors"
-                      title="Edit Client"
-                    >
-                      <Edit2 size={16} />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteClient(client.id)}
-                      className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-rose-400 transition-colors"
-                      title="Delete Client"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+                    {canEdit && (
+                      <button
+                        onClick={() => {
+                          setEditingClient(client);
+                          setShowEditClientForm(true);
+                        }}
+                        className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-blue-400 transition-colors"
+                        title="Edit Client"
+                      >
+                        <Edit2 size={16} />
+                      </button>
+                    )}
+                    {canDelete && (
+                      <button
+                        onClick={() => handleDeleteClient(client.id)}
+                        className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-rose-400 transition-colors"
+                        title="Delete Client"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -277,16 +292,18 @@ function ClientManagement() {
           ))}
 
           {/* Add New Client Card */}
-          <div
-            onClick={() => setShowAddClientForm(true)}
-            className="bg-slate-900/50 border-2 border-dashed border-slate-700 rounded-2xl p-6 flex flex-col items-center justify-center min-h-[250px] text-slate-400 hover:border-blue-500/50 hover:text-blue-400 cursor-pointer transition-all duration-300 group"
-          >
-            <div className="w-14 h-14 rounded-xl bg-slate-800 flex items-center justify-center mb-4 group-hover:bg-blue-500/10 transition-colors">
-              <Plus size={28} className="group-hover:scale-110 transition-transform" />
+          {canCreate && (
+            <div
+              onClick={() => setShowAddClientForm(true)}
+              className="bg-slate-900/50 border-2 border-dashed border-slate-700 rounded-2xl p-6 flex flex-col items-center justify-center min-h-[250px] text-slate-400 hover:border-blue-500/50 hover:text-blue-400 cursor-pointer transition-all duration-300 group"
+            >
+              <div className="w-14 h-14 rounded-xl bg-slate-800 flex items-center justify-center mb-4 group-hover:bg-blue-500/10 transition-colors">
+                <Plus size={28} className="group-hover:scale-110 transition-transform" />
+              </div>
+              <p className="text-base font-semibold">Add New Client</p>
+              <p className="text-sm text-slate-500 mt-1">Click to create a new client</p>
             </div>
-            <p className="text-base font-semibold">Add New Client</p>
-            <p className="text-sm text-slate-500 mt-1">Click to create a new client</p>
-          </div>
+          )}
         </div>
       ) : (
         /* List View */
@@ -330,23 +347,27 @@ function ClientManagement() {
                       <td className="px-6 py-4">{getStatusBadge(client.status)}</td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all">
-                          <button 
-                            onClick={() => {
-                              setEditingClient(client);
-                              setShowEditClientForm(true);
-                            }}
-                            className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-blue-400 transition-colors" 
-                            title="Edit Client"
-                          >
-                            <Edit2 size={16} />
-                          </button>
-                          <button 
-                            onClick={() => handleDeleteClient(client.id)} 
-                            className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-rose-400 transition-colors" 
-                            title="Delete Client"
-                          >
-                            <Trash2 size={16} />
-                          </button>
+                          {canEdit && (
+                            <button 
+                              onClick={() => {
+                                setEditingClient(client);
+                                setShowEditClientForm(true);
+                              }}
+                              className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-blue-400 transition-colors" 
+                              title="Edit Client"
+                            >
+                              <Edit2 size={16} />
+                            </button>
+                          )}
+                          {canDelete && (
+                            <button 
+                              onClick={() => handleDeleteClient(client.id)} 
+                              className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-rose-400 transition-colors" 
+                              title="Delete Client"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

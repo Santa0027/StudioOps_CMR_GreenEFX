@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   FolderKanban, History, Upload, Users, Calendar, Clock, Link, 
-  FileText, Image, ArrowLeft, CheckCircle2, XCircle, Pause, Layers, X, Circle, Settings, RefreshCw, UserPlus, UserMinus
+  FileText, Image, ArrowLeft, CheckCircle2, XCircle, Pause, Layers, X, Circle, Settings, RefreshCw, UserPlus, UserMinus, AlertTriangle
 } from 'lucide-react';
 import VersionHistory from '../components/VersionHistory';
 import { getProject, uploadProjectVersion, updateProject, getProjectStageTemplates, getUsers } from '../../../shared/services/apiClient';
+import { usePermissions } from '../../../shared/hooks/usePermissions';
+import PermissionGate from '../../../shared/components/PermissionGate';
 
 const STATUS_CONFIG = {
   not_started: { color: 'bg-slate-600', ringColor: 'ring-slate-500', textColor: 'text-slate-400', bgLight: 'bg-slate-500/20' },
@@ -21,6 +23,7 @@ const STATUS_CONFIG = {
 function ProjectDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { isManager } = usePermissions();
   const [projectData, setProjectData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -55,6 +58,7 @@ function ProjectDetails() {
   };
 
   const fetchData = async () => {
+    if (!isManager) return;
     try {
       const [templatesRes, usersRes] = await Promise.all([
         getProjectStageTemplates(),
@@ -72,7 +76,7 @@ function ProjectDetails() {
       fetchProject();
       fetchData();
     }
-  }, [id]);
+  }, [id, isManager]);
 
   const handleApplyWorkflow = async () => {
     if (selectedTemplateIds.length === 0) return;
@@ -301,13 +305,15 @@ function ProjectDetails() {
           >
             <History size={18} />
           </button>
-          <button
-            onClick={() => setShowUploadModal(true)}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold bg-purple-600 hover:bg-purple-500 text-white shadow-lg shadow-purple-500/20 transition-all duration-200"
-          >
-            <Upload size={18} />
-            Upload for Approval
-          </button>
+          <PermissionGate level="manager">
+            <button
+              onClick={() => setShowUploadModal(true)}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold bg-purple-600 hover:bg-purple-500 text-white shadow-lg shadow-purple-500/20 transition-all duration-200"
+            >
+              <Upload size={18} />
+              Upload for Approval
+            </button>
+          </PermissionGate>
         </div>
       </div>
 
@@ -393,142 +399,114 @@ function ProjectDetails() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Workflow Template Assignment */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-white flex items-center gap-2">
-              <Settings size={20} className="text-blue-500" />
-              Project Workflow
-            </h2>
-            <button
-              onClick={handleApplyWorkflow}
-              disabled={selectedTemplateIds.length === 0 || isUpdatingWorkflow}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl font-semibold bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-50 transition-all text-sm shadow-lg shadow-blue-500/20"
-            >
-              {isUpdatingWorkflow ? <RefreshCw className="animate-spin" size={16} /> : <RefreshCw size={16} />}
-              Initialize Stages
-            </button>
-          </div>
-          
-          <p className="text-slate-400 text-sm mb-4">Select workflow templates to initialize new production stages and tasks for this project.</p>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-48 overflow-y-auto p-4 bg-slate-950 border border-slate-800 rounded-xl custom-scrollbar">
-            {workflowTemplates.map(template => (
-              <label key={template.id} className="flex items-center gap-3 cursor-pointer group p-2 hover:bg-white/5 rounded-lg transition-colors">
-                <input
-                  type="checkbox"
-                  checked={selectedTemplateIds.includes(template.id)}
-                  onChange={(e) => {
-                    const id = template.id;
-                    setSelectedTemplateIds(prev => 
-                      e.target.checked ? [...prev, id] : prev.filter(item => item !== id)
-                    );
-                  }}
-                  className="h-4 w-4 bg-slate-800 border-slate-700 rounded text-blue-600 focus:ring-blue-500 focus:ring-offset-slate-950"
-                />
-                <span className="text-sm text-slate-300 group-hover:text-white transition-colors">
-                  {template.name}
-                </span>
-              </label>
-            ))}
-            {workflowTemplates.length === 0 && (
-              <p className="text-slate-600 text-sm italic col-span-2 text-center py-4">No templates available.</p>
-            )}
-          </div>
-        </div>
-
-        {/* Team Members */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-white flex items-center gap-2">
-              <Users size={20} className="text-emerald-500" />
-              Team Members
-            </h2>
-            <div className="flex gap-2">
-              <select
-                value={selectedUserId}
-                onChange={(e) => setSelectedUserId(e.target.value)}
-                className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white focus:ring-1 focus:ring-blue-500 outline-none max-w-[150px]"
-              >
-                <option value="">Select User</option>
-                {allUsers.map(u => (
-                  <option key={u.id} value={u.id}>{u.name}</option>
-                ))}
-              </select>
+      <PermissionGate level="manager">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Workflow Template Assignment */}
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                <Settings size={20} className="text-blue-500" />
+                Project Workflow
+              </h2>
               <button
-                onClick={handleAddMember}
-                disabled={!selectedUserId || isUpdatingTeam}
-                className="p-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-all disabled:opacity-50"
-                title="Add Member"
+                onClick={handleApplyWorkflow}
+                disabled={selectedTemplateIds.length === 0 || isUpdatingWorkflow}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl font-semibold bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-50 transition-all text-sm shadow-lg shadow-blue-500/20"
               >
-                {isUpdatingTeam ? <RefreshCw size={14} className="animate-spin" /> : <UserPlus size={14} />}
+                {isUpdatingWorkflow ? <RefreshCw className="animate-spin" size={16} /> : <RefreshCw size={16} />}
+                Initialize Stages
               </button>
+            </div>
+            
+            <p className="text-slate-400 text-sm mb-4">Select workflow templates to initialize new production stages and tasks for this project.</p>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-48 overflow-y-auto p-4 bg-slate-950 border border-slate-800 rounded-xl custom-scrollbar">
+              {workflowTemplates.map(template => (
+                <label key={template.id} className="flex items-center gap-3 cursor-pointer group p-2 hover:bg-white/5 rounded-lg transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={selectedTemplateIds.includes(template.id)}
+                    onChange={(e) => {
+                      const id = template.id;
+                      setSelectedTemplateIds(prev => 
+                        e.target.checked ? [...prev, id] : prev.filter(item => item !== id)
+                      );
+                    }}
+                    className="h-4 w-4 bg-slate-800 border-slate-700 rounded text-blue-600 focus:ring-blue-500 focus:ring-offset-slate-950"
+                  />
+                  <span className="text-sm text-slate-300 group-hover:text-white transition-colors">
+                    {template.name}
+                  </span>
+                </label>
+              ))}
+              {workflowTemplates.length === 0 && (
+                <p className="text-slate-600 text-sm italic col-span-2 text-center py-4">No templates available.</p>
+              )}
             </div>
           </div>
 
-          <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
-            {projectData.assigned_user_details?.map((member) => (
-              <div key={member.id} className="flex items-center justify-between p-2.5 bg-slate-800/50 rounded-xl border border-slate-700/50 group">
-                <div className="flex items-center gap-3">
-                  <div className="h-8 w-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-blue-400 border border-slate-600">
-                    {member.name.charAt(0).toUpperCase()}
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-white">{member.name}</p>
-                    <p className="text-[10px] text-slate-500">{member.email}</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => handleRemoveMember(member.id)}
-                  className="p-1.5 hover:bg-rose-500/10 text-slate-500 hover:text-rose-500 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-                  title="Remove Member"
+          {/* Team Members */}
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                <Users size={20} className="text-emerald-500" />
+                Team Members
+              </h2>
+              <div className="flex gap-2">
+                <select
+                  value={selectedUserId}
+                  onChange={(e) => setSelectedUserId(e.target.value)}
+                  className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white focus:ring-1 focus:ring-blue-500 outline-none max-w-[150px]"
                 >
-                  <UserMinus size={14} />
+                  <option value="">Select User</option>
+                  {allUsers.map(u => (
+                    <option key={u.id} value={u.id}>{u.name}</option>
+                  ))}
+                </select>
+                <button
+                  onClick={handleAddMember}
+                  disabled={!selectedUserId || isUpdatingTeam}
+                  className="p-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-all disabled:opacity-50"
+                  title="Add Member"
+                >
+                  {isUpdatingTeam ? <RefreshCw size={14} className="animate-spin" /> : <UserPlus size={14} />}
                 </button>
               </div>
-            ))}
-            {(!projectData.assigned_user_details || projectData.assigned_user_details.length === 0) && (
-              <div className="text-center py-6">
-                <Users size={24} className="mx-auto text-slate-700 mb-2 opacity-20" />
-                <p className="text-slate-600 text-xs italic">No team members assigned.</p>
-              </div>
-            )}
+            </div>
+
+            <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+              {projectData.assigned_user_details?.map((member) => (
+                <div key={member.id} className="flex items-center justify-between p-2.5 bg-slate-800/50 rounded-xl border border-slate-700/50 group">
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-blue-400 border border-slate-600">
+                      {member.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-white">{member.name}</p>
+                      <p className="text-[10px] text-slate-500">{member.email}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleRemoveMember(member.id)}
+                    className="p-1.5 hover:bg-rose-500/10 text-slate-500 hover:text-rose-500 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                    title="Remove Member"
+                  >
+                    <UserMinus size={14} />
+                  </button>
+                </div>
+              ))}
+              {(!projectData.assigned_user_details || projectData.assigned_user_details.length === 0) && (
+                <div className="text-center py-6">
+                  <Users size={24} className="mx-auto text-slate-700 mb-2 opacity-20" />
+                  <p className="text-slate-600 text-xs italic">No team members assigned.</p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      </PermissionGate>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Upload for Approval */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-          <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-            <Upload size={20} className="text-purple-500" />
-            Upload for Approval
-          </h2>
-          <div className="mb-4">
-            <label className="block text-slate-300 text-sm font-medium mb-2">Select File:</label>
-            <input
-              type="file"
-              onChange={handleVersionFileChange}
-              className="block w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-purple-600 file:text-white hover:file:bg-purple-500 cursor-pointer"
-            />
-            {projectVersionFile && (
-              <p className="mt-2 text-slate-300 text-sm">Selected: <span className="font-semibold">{projectVersionFile.name}</span></p>
-            )}
-          </div>
-          <button
-            onClick={handleUploadForApproval}
-            disabled={!projectVersionFile}
-            className={`w-full px-5 py-2.5 rounded-xl font-semibold transition-all duration-200 ${
-              projectVersionFile
-                ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/20'
-                : 'bg-slate-800 text-slate-500 cursor-not-allowed'
-            }`}
-          >
-            Upload Project Version
-          </button>
-        </div>
-
         {/* Reference Links */}
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
           <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
@@ -537,15 +515,15 @@ function ProjectDetails() {
           </h2>
           <p className="text-blue-400 break-all">{projectData.reference_links || 'No reference links provided.'}</p>
         </div>
-      </div>
 
-      {/* Initial Requirements */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-        <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-          <FileText size={20} className="text-slate-400" />
-          Initial Requirements
-        </h2>
-        <p className="text-slate-300 whitespace-pre-wrap">{projectData.description || 'No requirements specified.'}</p>
+        {/* Initial Requirements */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+          <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+            <FileText size={20} className="text-slate-400" />
+            Initial Requirements
+          </h2>
+          <p className="text-slate-300 whitespace-pre-wrap">{projectData.description || 'No requirements specified.'}</p>
+        </div>
       </div>
 
       {/* Asset Library */}

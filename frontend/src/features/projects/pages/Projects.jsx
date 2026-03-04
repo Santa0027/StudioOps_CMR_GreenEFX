@@ -7,6 +7,7 @@ import {
 import { getProjects, deleteProject } from '../../../shared/services/apiClient';
 import CreateNewProject from '../components/CreateNewProject';
 import EditProjectForm from '../components/EditProjectForm';
+import { usePermissions } from '../../../shared/hooks/usePermissions';
 
 const STATUS_OPTIONS = [
   { value: "in_progress", label: "In Progress", color: "bg-blue-500/10 text-blue-400 ring-1 ring-blue-500/20", icon: TrendingUp },
@@ -23,6 +24,13 @@ const PRIORITY_OPTIONS = [
 
 function Projects() {
   const navigate = useNavigate();
+  const { can } = usePermissions();
+  
+  // Permissions
+  const canCreate = can('project.add_project');
+  const canEdit = can('project.change_project');
+  const canDelete = can('project.delete_project');
+
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -50,6 +58,7 @@ function Projects() {
   }, []);
 
   const handleDeleteProject = async (id) => {
+    if (!canDelete) return;
     if (!window.confirm("Are you sure you want to delete this project?")) return;
     try {
       await deleteProject(id);
@@ -113,13 +122,15 @@ function Projects() {
           <h1 className="text-3xl font-bold text-white tracking-tight">Projects</h1>
           <p className="text-slate-400 mt-2 text-lg">Manage and track all your projects in one place.</p>
         </div>
-        <button
-          onClick={() => setShowCreateProjectForm(true)}
-          className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl font-semibold transition-all duration-200 shadow-lg bg-blue-600 hover:bg-blue-500 text-white shadow-blue-500/20"
-        >
-          <Plus size={20} />
-          New Project
-        </button>
+        {canCreate && (
+          <button
+            onClick={() => setShowCreateProjectForm(true)}
+            className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl font-semibold transition-all duration-200 shadow-lg bg-blue-600 hover:bg-blue-500 text-white shadow-blue-500/20"
+          >
+            <Plus size={20} />
+            New Project
+          </button>
+        )}
       </div>
 
       {/* Quick Stats Summary */}
@@ -280,16 +291,18 @@ function Projects() {
                         >
                           <Eye size={16} />
                         </button>
-                        <button 
-                          onClick={() => {
-                            setEditingProject(project);
-                            setShowEditProjectForm(true);
-                          }}
-                          className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-amber-400 transition-colors" 
-                          title="Edit Project"
-                        >
-                          <Edit2 size={16} />
-                        </button>
+                        {canEdit && (
+                          <button 
+                            onClick={() => {
+                              setEditingProject(project);
+                              setShowEditProjectForm(true);
+                            }}
+                            className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-amber-400 transition-colors" 
+                            title="Edit Project"
+                          >
+                            <Edit2 size={16} />
+                          </button>
+                        )}
                         <button 
                           onClick={() => navigate(`/projects/${project.id}/version-history`)}
                           className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-purple-400 transition-colors" 
@@ -298,13 +311,15 @@ function Projects() {
                           <History size={16} />
                         </button>
                         <div className="h-4 w-px bg-slate-800 mx-1"></div>
-                        <button 
-                          onClick={() => handleDeleteProject(project.id)} 
-                          className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-rose-400 transition-colors" 
-                          title="Delete Project"
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                        {canDelete && (
+                          <button 
+                            onClick={() => handleDeleteProject(project.id)} 
+                            className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-rose-400 transition-colors" 
+                            title="Delete Project"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

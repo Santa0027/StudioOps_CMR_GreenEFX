@@ -25,18 +25,34 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         token['groups'] = list(user.groups.values_list('name', flat=True))
         token['name'] = user.name
         
-        # Get all permissions including inherited from groups
-        permissions = user.get_all_permissions()
-        token['user_permissions'] = list(permissions)
+        # Manually aggregate permissions from groups + direct user permissions
+        # This bypasses any internal caching of get_all_permissions()
+        from django.contrib.auth.models import Permission
+        
+        # Permissions from groups the user belongs to
+        group_perms = Permission.objects.filter(group__user=user).values_list('content_type__app_label', 'codename')
+        # Direct permissions assigned to user
+        user_perms = user.user_permissions.values_list('content_type__app_label', 'codename')
+        
+        # Merge and format as 'app_label.codename'
+        all_perms = set()
+        for app_label, codename in group_perms:
+            all_perms.add(f"{app_label}.{codename}")
+        for app_label, codename in user_perms:
+            all_perms.add(f"{app_label}.{codename}")
+            
+        token['user_permissions'] = list(all_perms)
         
         return token
 
 # ---------- Permissions & Roles ----------
 
 class PermissionSerializer(serializers.ModelSerializer):
+    content_type_app_label = serializers.CharField(source='content_type.app_label', read_only=True)
+
     class Meta:
         model = Permission
-        fields = ("id", "codename", "name")
+        fields = ("id", "codename", "name", "content_type_app_label")
 
 
 class GroupSerializer(serializers.ModelSerializer):

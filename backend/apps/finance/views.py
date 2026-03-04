@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from django.db.models import Sum
 from .models import Invoice, InvoiceItem, Payment
 from .serializers import InvoiceSerializer, InvoiceItemSerializer, PaymentSerializer
+from common.permissions.model_permissions import DjangoModelPermissionsWithView
 
 class IsFinanceManager(permissions.BasePermission):
     def has_permission(self, request, view):
@@ -17,7 +18,7 @@ class IsFinanceManager(permissions.BasePermission):
 class InvoiceViewSet(viewsets.ModelViewSet):
     queryset = Invoice.objects.select_related('client', 'project').prefetch_related('items', 'payments').all()
     serializer_class = InvoiceSerializer
-    permission_classes = [IsFinanceManager]
+    permission_classes = [DjangoModelPermissionsWithView]
 
     @action(detail=False, methods=['get'])
     def summary(self, request):
@@ -35,12 +36,12 @@ class InvoiceViewSet(viewsets.ModelViewSet):
 class InvoiceItemViewSet(viewsets.ModelViewSet):
     queryset = InvoiceItem.objects.all()
     serializer_class = InvoiceItemSerializer
-    permission_classes = [IsFinanceManager]
+    permission_classes = [DjangoModelPermissionsWithView]
 
 class PaymentViewSet(viewsets.ModelViewSet):
     queryset = Payment.objects.select_related('invoice', 'invoice__client').all()
     serializer_class = PaymentSerializer
-    permission_classes = [IsFinanceManager]
+    permission_classes = [DjangoModelPermissionsWithView]
 
     def perform_create(self, serializer):
         payment = serializer.save()

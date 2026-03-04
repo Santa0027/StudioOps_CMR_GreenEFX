@@ -4,6 +4,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework import status
 from django.utils import timezone
+from common.permissions.model_permissions import DjangoModelPermissionsWithView
 
 from .models import User, Employee, DepartmentOfStaff, Module, AuditLog,EmpAttendance,Payroll,Payslip,SalaryStructure
 from .serializers import (
@@ -44,7 +45,7 @@ class IsAdminOrReadOnly(permissions.BasePermission):
 
 class UserViewSet(viewsets.ModelViewSet):
     serializer_class = UserSerializer
-    # permission_classes = [IsAdminOrSelf]
+    permission_classes = [DjangoModelPermissionsWithView]
 
     def get_queryset(self):
         if self.request.user.is_staff:
@@ -58,19 +59,13 @@ class UserViewSet(viewsets.ModelViewSet):
 class EmployeeViewSet(viewsets.ModelViewSet):
     queryset = Employee.objects.select_related("user", "department", "role")
     serializer_class = EmployeeSerializer
-    
-    def get_permissions(self):
-        if self.action in ['list', 'retrieve']:
-            # Allow all authenticated users to view employees
-            return [permissions.IsAuthenticated()]
-        # Restrict creation/updates/deletion to admins/staff
-        return [permissions.IsAdminUser()]
+    permission_classes = [DjangoModelPermissionsWithView]
 
 
 class DepartmentViewSet(viewsets.ModelViewSet):
     queryset = DepartmentOfStaff.objects.all()
     serializer_class = DepartmentSerializer
-    permission_classes = [IsAdminOrReadOnly]
+    permission_classes = [DjangoModelPermissionsWithView]
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
@@ -79,7 +74,7 @@ class DepartmentViewSet(viewsets.ModelViewSet):
 class ModuleViewSet(viewsets.ModelViewSet):
     queryset = Module.objects.all()
     serializer_class = ModuleSerializer
-    permission_classes = [IsAdminOrReadOnly]
+    permission_classes = [DjangoModelPermissionsWithView]
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
@@ -88,19 +83,19 @@ class ModuleViewSet(viewsets.ModelViewSet):
 class RoleViewSet(viewsets.ModelViewSet):
     queryset = Group.objects.prefetch_related("permissions")
     serializer_class = GroupSerializer
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [DjangoModelPermissionsWithView]
 
 
 class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = AuditLog.objects.select_related("performed_by")
     serializer_class = AuditLogSerializer
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [DjangoModelPermissionsWithView]
 
 
 class AttendanceViewSet(viewsets.ModelViewSet):
     queryset = EmpAttendance.objects.select_related("employee", "employee__user")
     serializer_class = AttendanceSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [DjangoModelPermissionsWithView]
 
     def get_queryset(self):
         queryset = EmpAttendance.objects.select_related("employee", "employee__user")
@@ -175,13 +170,13 @@ class AttendanceViewSet(viewsets.ModelViewSet):
 class SalaryStructureViewSet(viewsets.ModelViewSet):
     queryset = SalaryStructure.objects.select_related("employee")
     serializer_class = SalaryStructureSerializer
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [DjangoModelPermissionsWithView]
 
 
 class PayrollViewSet(viewsets.ModelViewSet):
     queryset = Payroll.objects.all()
     serializer_class = PayrollSerializer
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [DjangoModelPermissionsWithView]
 
     @action(detail=False, methods=["post"], url_path="generate")
     def generate_payroll(self, request):

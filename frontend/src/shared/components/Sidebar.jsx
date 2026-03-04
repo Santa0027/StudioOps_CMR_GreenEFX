@@ -1,16 +1,15 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { usePermissions } from '../hooks/usePermissions';
 
 
 function Sidebar({ isExpanded, toggleSidebar }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { logout } = useAuth();
+  const { can, isAdmin, isManager } = usePermissions();
   const [expandedMenus, setExpandedMenus] = useState({});
-
-  const isStaff = user?.is_staff || false;
-  const isManagerOrAdmin = user?.groups?.some(g => ['Admin', 'Manager'].includes(g)) || isStaff;
 
   const handleLogout = () => {
     logout();
@@ -36,10 +35,10 @@ function Sidebar({ isExpanded, toggleSidebar }) {
         <path d="M2 10a8 8 0 018-8v8h8a8 8 0 01-8 8v-8H2z" />
         <path d="M12 2.252A8.014 8.014 0 0117.748 8H12V2.252z" />
       </svg>
-    ), path: '/enquiries', visible: isManagerOrAdmin },
+    ), path: '/enquiries', visible: can('Sales.view_enquiry') },
     {
       name: 'Users Management',
-      visible: isManagerOrAdmin,
+      visible: isAdmin || can('hr_payroll.view_user'),
       icon: (
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
@@ -49,14 +48,13 @@ function Sidebar({ isExpanded, toggleSidebar }) {
         </svg>
       ),
       subItems: [
-        { name: 'Users', path: '/users' },
-        { name: 'Permissions & Roles', path: '/permissions' },
-        { name: 'Permission Matrix', path: '/permissions/matrix' },
+        { name: 'Users', path: '/users', visible: can('hr_payroll.view_user') },
+        { name: 'Permissions & Roles', path: '/permissions', visible: isAdmin },
       ],
     },
     {
-      name: 'My Team & Presence',
-      visible: !isManagerOrAdmin,
+      name: 'Client Management',
+      visible: can('Sales.view_clients'),
       icon: (
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
@@ -65,62 +63,74 @@ function Sidebar({ isExpanded, toggleSidebar }) {
           <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
         </svg>
       ),
-      path: '/users' // Regular users go directly to the Attendance Entry / Profile page
+      path: '/clients'
     },
-    { name: 'Client Management', icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-        <circle cx="9" cy="7" r="4"></circle>
-        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-      </svg>
-    ), path: '/clients', visible: isManagerOrAdmin },
-    { name: 'Lead Management', icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-        <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0115 11h2a5 5 0 015 5v1h-2.07a6.97 6.97 0 00-4.33-1.5zM3 11a5 5 0 015-5h2a5 5 0 015 5v1H3v-1z" />
-      </svg>
-    ), path: '/leads', visible: isManagerOrAdmin },
+    { 
+      name: 'Lead Management', 
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+          <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0115 11h2a5 5 0 015 5v1h-2.07a6.97 6.97 0 00-4.33-1.5zM3 11a5 5 0 015-5h2a5 5 0 015 5v1H3v-1z" />
+        </svg>
+      ), 
+      path: '/leads', 
+      visible: can('Sales.view_lead') 
+    },
     {
       name: 'Projects',
-      visible: true,
+      visible: can('project.view_project'),
       icon: (
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
           <path fillRule="evenodd" d="M3 4a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm0 6a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1H4a1 1 0 01-1-1v-3zm10-6a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1V4zm0 6a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-3z" clipRule="evenodd" />
         </svg>
       ),path: '/projects'
     },
-    { name: 'Tasks Overview', icon: (
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
-        </svg>
-    ), path: '/tasks', visible: true },
+    { 
+      name: 'Tasks Overview', 
+      icon: (
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+          </svg>
+      ), 
+      path: '/tasks', 
+      visible: can('project.view_projectstageelement') 
+    },
     {
       name: 'Finance & Billing',
-      visible: isManagerOrAdmin,
+      visible: can('finance.view_invoice') || can('hr_payroll.view_payroll'),
       icon: (
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
           <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0113 3.414L16.586 7A2 2 0 0118 8.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 0v12h10V8.414L12.586 5A2 2 0 0012 4.414V4H6zm0 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm0 3a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1z" clipRule="evenodd" />
         </svg>
       ),
       subItems: [
-        { name: 'Invoices', path: '/invoice' },
-        { name: 'Payments', path: '/finance-billing/payments' },
-        { name: 'Reports', path: '/finance-billing/reports' },
+        { name: 'Invoices', path: '/invoice', visible: can('finance.view_invoice') },
+        { name: 'Payments', path: '/finance-billing/payments', visible: can('finance.view_payment') },
+        { name: 'Reports', path: '/finance-billing/reports', visible: isManager || can('hr_payroll.view_payroll') },
       ],
     },
-    { name: 'Reports & Analysis', icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-        <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM11 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2h-2zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2h-2z" />
-      </svg>
-    ), path: '/reports', visible: isManagerOrAdmin },
-    { name: 'Asset Library', icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-        <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
-      </svg>
-    ), path: '/asset-library', visible: true },
+    { 
+      name: 'Reports & Analysis', 
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+          <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM11 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2h-2zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2h-2z" />
+        </svg>
+      ), 
+      path: '/reports', 
+      visible: isManager || can('project.view_versionauditlog')
+    },
+    { 
+      name: 'Asset Library', 
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+          <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+        </svg>
+      ), 
+      path: '/asset-library', 
+      visible: can('project.view_projectasset')
+    },
     {
       name: 'Master Modules',
-      visible: isManagerOrAdmin,
+      visible: isAdmin,
       icon: (
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="12" cy="12" r="3"></circle>
@@ -128,29 +138,38 @@ function Sidebar({ isExpanded, toggleSidebar }) {
         </svg>
       ),
       subItems: [
-        { name: 'Service Catalog', path: '/services' },
-        { name: 'Package Management', path: '/master/packages' },
-        { name: 'Workflow Template Management', path: '/master/workflow-templates' },
+        { name: 'Service Catalog', path: '/services', visible: isAdmin },
+        { name: 'Package Management', path: '/master/packages', visible: isAdmin },
+        { name: 'Workflow Template Management', path: '/master/workflow-templates', visible: isAdmin },
       ],
     },
     {
       name: 'System Settings',
-      visible: isManagerOrAdmin,
+      visible: isAdmin,
       icon: (
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
           <path fillRule="evenodd" d="M11.49 3.17c-.38-1.16-1.7-1.16-2.08 0L7.12 6.5c-.24.73-.91 1.25-1.76 1.34-1.22.12-1.22 1.84 0 1.96.85.09 1.52.61 1.76 1.34l2.29 3.33c.38 1.16 1.7 1.16 2.08 0l2.29-3.33c.24-.73.91-1.25 1.76-1.34 1.22-.12 1.22-1.84 0-1.96-.85-.09-1.52-.61-1.76-1.34l-2.29-3.33zM10 2a1 1 0 00-1 1v2a1 1 0 102 0V3a1 1 0 00-1-1zm0 13a1 1 0 00-1 1v2a1 1 0 102 0v-2a1 1 0 00-1-1zM3 10a1 1 0 011-1h2a1 1 0 110 2H4a1 1 0 01-1-1zm13 0a1 1 0 011-1h2a1 1 0 110 2h-2a1 1 0 01-1-1z" clipRule="evenodd" />
         </svg>
       ),
       subItems: [
-        { name: 'Organization Settings', path: '/settings/organization' },
-        { name: 'Email & Branding', path: '/settings/email-branding' },
-        { name: 'Integrations', path: '/settings/integrations' },
-        { name: 'Storage Settings', path: '/settings/storage' },
+        { name: 'Organization Settings', path: '/settings/organization', visible: isAdmin },
+        { name: 'Email & Branding', path: '/settings/email-branding', visible: isAdmin },
+        { name: 'Integrations', path: '/settings/integrations', visible: isAdmin },
+        { name: 'Storage Settings', path: '/settings/storage', visible: isAdmin },
       ],
     },
   ];
 
-  const navItems = allNavItems.filter(item => item.visible);
+  const filteredNavItems = allNavItems
+    .filter(item => item.visible)
+    .map(item => {
+      if (item.subItems) {
+        const visibleSubItems = item.subItems.filter(sub => sub.visible);
+        return visibleSubItems.length > 0 ? { ...item, subItems: visibleSubItems } : null;
+      }
+      return item;
+    })
+    .filter(item => item !== null);
 
   return (
     <div className={`bg-[#1C1C1E] h-screen p-6 flex flex-col rounded-r-lg shadow-lg relative transition-all duration-300 z-20 ${isExpanded ? 'w-64' : 'w-20 items-center'}`}>
@@ -168,7 +187,7 @@ function Sidebar({ isExpanded, toggleSidebar }) {
 
       <nav className="flex-grow overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
         <ul>
-          {navItems.map((item) => (
+          {filteredNavItems.map((item) => (
             <li key={item.name} className="mb-4">
               {item.subItems ? (
                 <div>
@@ -177,7 +196,7 @@ function Sidebar({ isExpanded, toggleSidebar }) {
                       ${(item.name === 'Projects' && location.pathname.startsWith('/projects')) ||
                         (item.name === 'Users Management' && location.pathname.startsWith('/users')) ||
                         (item.name === 'Finance & Billing' && (location.pathname.startsWith('/finance-billing') || location.pathname.startsWith('/invoice'))) ||
-                        (item.name === 'Master Modules' && location.pathname.startsWith('/master')) || // New active state check
+                        (item.name === 'Master Modules' && location.pathname.startsWith('/master')) ||
                         (item.name === 'System Settings' && location.pathname.startsWith('/settings')) ||
                         (item.subItems.some(subItem => location.pathname === subItem.path))
                         ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' : 'text-gray-400'}
@@ -238,7 +257,7 @@ function Sidebar({ isExpanded, toggleSidebar }) {
         </ul>
       </nav>
 
-      {/* Toggle Button - Adjusted position and z-index */}
+      {/* Toggle Button */}
       <button
         onClick={toggleSidebar}
         className="absolute top-1/2 -right-3 transform -translate-y-1/2 p-1 bg-gray-700 rounded-full text-white focus:outline-none z-30 ring-2 ring-[#1C1C1E]"
@@ -254,35 +273,21 @@ function Sidebar({ isExpanded, toggleSidebar }) {
         )}
       </button>
 
-            <div className="mt-auto pt-4 border-t border-gray-700 space-y-2">
-              <Link
-                to="/profile"
-                className={`flex items-center p-3 rounded-lg text-white font-medium hover:bg-gray-700 transition-colors duration-200 ${location.pathname === '/profile' ? 'bg-blue-600' : 'text-gray-400'} ${!isExpanded && 'justify-center'}`}
-              >
-                <span className={`mr-4 ${!isExpanded && 'mr-0'}`}>
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                    <circle cx="12" cy="7" r="4"></circle>
-                  </svg>
-                </span>
-                {isExpanded && <span className="whitespace-nowrap">My Profile</span>}
-              </Link>
-      
-              <button
-                onClick={handleLogout}
-                className={`flex items-center w-full p-3 rounded-lg text-red-400 font-medium hover:bg-gray-700 transition-colors duration-200 ${!isExpanded && 'justify-center'}`}
-              >
-                <span className={`mr-4 ${!isExpanded && 'mr-0'}`}>
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clipRule="evenodd" />
-                  </svg>
-                </span>
-                {isExpanded && <span className="whitespace-nowrap">Logout</span>}
-              </button>
-            </div>
-          </div>
-        );
-      }
-      
-      export default Sidebar;
-      
+      <div className="mt-auto pt-4 border-t border-gray-700">
+        <button
+          onClick={handleLogout}
+          className={`flex items-center w-full p-3 rounded-lg text-red-400 font-medium hover:bg-gray-700 transition-colors duration-200 ${!isExpanded && 'justify-center'}`}
+        >
+          <span className={`mr-4 ${!isExpanded && 'mr-0'}`}>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clipRule="evenodd" />
+            </svg>
+          </span>
+          {isExpanded && <span className="whitespace-nowrap">Logout</span>}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export default Sidebar;

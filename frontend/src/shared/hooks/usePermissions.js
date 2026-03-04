@@ -2,21 +2,33 @@ import { useAuth } from '../context/AuthContext';
 
 /**
  * Hook to check if the current user has specific roles or permissions.
- * Currently uses Group-based checks as a proxy for permissions.
+ * Leverages granular permissions from the JWT token.
  */
 export const usePermissions = () => {
   const { user } = useAuth();
 
   const isStaff = user?.is_staff || false;
+  const userPermissions = user?.user_permissions || [];
   
-  // Role checks
+  /**
+   * Checks if user has a specific granular permission.
+   * Format: 'app_label.codename' (e.g., 'hr_payroll.view_employee')
+   * Made case-insensitive to ensure reliability.
+   */
+  const can = (permission) => {
+    if (isStaff) return true; // Staff/Superusers bypass granular checks
+    if (!userPermissions || userPermissions.length === 0) return false;
+    
+    return userPermissions.some(p => p.toLowerCase() === permission.toLowerCase());
+  };
+
+  // Role checks (computed from groups or permissions)
   const isAdmin = user?.groups?.includes('Admin') || isStaff;
   const isManager = user?.groups?.includes('Manager') || isAdmin;
   const isArtist = user?.groups?.includes('Artist');
   
   /**
    * Checks if user has a specific role.
-   * @param {string|string[]} roles - Single role or array of roles.
    */
   const hasRole = (roles) => {
     if (!user || !user.groups) return false;
@@ -26,7 +38,6 @@ export const usePermissions = () => {
 
   /**
    * Checks if user is authorized based on a required permission level.
-   * Levels: 'admin', 'manager', 'artist', 'any'
    */
   const isAuthorized = (level) => {
     switch (level) {
@@ -45,6 +56,7 @@ export const usePermissions = () => {
     isArtist,
     hasRole,
     isAuthorized,
+    can,
     user
   };
 };

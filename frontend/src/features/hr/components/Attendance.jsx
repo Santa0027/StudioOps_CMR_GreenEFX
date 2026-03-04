@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { getAttendances, updateAttendance, getEmployees } from '../../../shared/services/apiClient';
+import { getAttendances, updateAttendance } from '../../../shared/services/apiClient';
+import { usePermissions } from '../../../shared/hooks/usePermissions';
 
 const Attendance = () => {
+  const { can } = usePermissions();
+  const canEdit = can('hr_payroll.change_empattendance');
+
   const [attendanceData, setAttendanceData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -48,6 +52,7 @@ const Attendance = () => {
   };
 
   const handleUpdateStatus = async (id, newStatus) => {
+    if (!canEdit) return;
     try {
       await updateAttendance(id, { status: newStatus });
       fetchAttendance(); // Refresh list
@@ -155,7 +160,8 @@ const Attendance = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right">
                       <select 
-                        className="bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-[10px] font-bold uppercase text-slate-400 focus:ring-1 focus:ring-blue-500 outline-none"
+                        disabled={!canEdit}
+                        className="bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-[10px] font-bold uppercase text-slate-400 focus:ring-1 focus:ring-blue-500 outline-none disabled:opacity-50"
                         value={record.status}
                         onChange={(e) => handleUpdateStatus(record.id, e.target.value)}
                       >

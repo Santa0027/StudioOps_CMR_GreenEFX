@@ -28,6 +28,7 @@ from django.utils import timezone
 import os # Import os for path manipulation
 from django.views.static import serve # Added for serving NAS files
 from django.conf import settings # Added for settings access
+from common.permissions.model_permissions import DjangoModelPermissionsWithView
 
 def serve_nas_media(request, path):
     """
@@ -64,7 +65,7 @@ class ProjectViewSet(ModelViewSet):
     - List / Retrieve: Studio team only
     """
     serializer_class = ProjectSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [DjangoModelPermissionsWithView]
 
     def get_queryset(self):
         user = self.request.user
@@ -234,7 +235,7 @@ class ProjectStageElementViewSet(ModelViewSet):
     - Can filter by project_id
     """
     serializer_class = ProjectStageElementDetailSerializer
-    permission_classes = [IsAuthenticated, IsInternalUser]
+    permission_classes = [DjangoModelPermissionsWithView, IsInternalUser]
 
     def get_queryset(self):
         user = self.request.user
@@ -490,7 +491,7 @@ class ProjectAssetViewSet(ModelViewSet):
     - Hybrid storage: Local or Cloud
     """
     serializer_class = ProjectAssetSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [DjangoModelPermissionsWithView]
 
     def get_queryset(self):
         user = self.request.user
@@ -547,7 +548,7 @@ class StageElementVersionViewSet(ModelViewSet):
     - Supports rollback
     """
     serializer_class = StageElementVersionSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [DjangoModelPermissionsWithView]
 
     def get_queryset(self):
         project_pk = self.kwargs.get('project_pk')
@@ -570,7 +571,7 @@ class ProjectTimeLogViewSet(ModelViewSet):
     """
     queryset = ProjectTimeLog.objects.all()
     serializer_class = ProjectTimeLogSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [DjangoModelPermissionsWithView]
 
 
 # ==========================================================
@@ -589,7 +590,7 @@ class ClientProjectAssetViewSet(ReadOnlyModelViewSet):
     - Preview / final deliverables
     """
     serializer_class = ClientProjectAssetSerializer
-    permission_classes = [IsAuthenticated, IsClientUser]
+    permission_classes = [DjangoModelPermissionsWithView, IsClientUser]
 
     def get_queryset(self):
         return ProjectAsset.objects.filter(
@@ -610,7 +611,7 @@ class ClientProjectStageElementViewSet(ReadOnlyModelViewSet):
     - Only tasks with client_review assets
     """
     serializer_class = ClientProjectStageElementSerializer
-    permission_classes = [IsAuthenticated, IsClientUser]
+    permission_classes = [DjangoModelPermissionsWithView, IsClientUser]
 
     def get_queryset(self):
         project_id = self.request.query_params.get("project_id")
@@ -636,7 +637,7 @@ class ClientReviewLogViewSet(ModelViewSet):
     """
     queryset = ClientReviewLog.objects.all()
     serializer_class = ClientReviewLogSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [DjangoModelPermissionsWithView]
 
     def perform_create(self, serializer):
         serializer.save(reviewed_by=self.request.user)
@@ -706,7 +707,7 @@ class PackageViewSet(ModelViewSet):
     """
     queryset = Package.objects.all()
     serializer_class = PackageSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [DjangoModelPermissionsWithView]
 
 
 @extend_schema(
@@ -719,7 +720,7 @@ class PackageItemViewSet(ModelViewSet):
     Items are nested under a specific Package.
     """
     serializer_class = PackageItemSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [DjangoModelPermissionsWithView]
 
     def get_queryset(self):
         # Filter items by the package_pk provided in the URL
@@ -745,7 +746,7 @@ class ProjectStageTemplateViewSet(ModelViewSet):
     """
     queryset = ProjectStageTemplate.objects.all()
     serializer_class = ProjectStageTemplateSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [DjangoModelPermissionsWithView]
 
 
 @extend_schema(
@@ -759,7 +760,7 @@ class ProjectStageElementTemplateViewSet(ModelViewSet):
     Items are nested under a specific ProjectStageTemplate.
     """
     serializer_class = ProjectStageElementTemplateSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [DjangoModelPermissionsWithView]
 
     def get_queryset(self):
         # Filter elements by the stage_pk provided in the URL
@@ -783,7 +784,7 @@ class ProjectTaskAssignmentViewSet(ModelViewSet):
     Assignments are nested under a specific ProjectStageElement (task).
     """
     serializer_class = ProjectTaskAssignmentSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [DjangoModelPermissionsWithView]
 
     def get_queryset(self):
         # Filter assignments by the task_pk provided in the URL
@@ -827,7 +828,7 @@ class TaskCommentViewSet(ModelViewSet):
     Comments are nested under a specific ProjectStageElement (task).
     """
     serializer_class = TaskCommentSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [DjangoModelPermissionsWithView]
 
     def get_queryset(self):
         # Filter comments by the task_pk provided in the URL
@@ -866,7 +867,7 @@ class FolderStructureTemplateViewSet(ModelViewSet):
 
     serializer_class = FolderStructureTemplateSerializer
 
-    permission_classes = [IsAuthenticated] # Or IsInternalUser as appropriate for your project
+    permission_classes = [DjangoModelPermissionsWithView] # Or IsInternalUser as appropriate for your project
 
 
 
@@ -968,7 +969,7 @@ class StorageSettingAPIView(APIView):
     Supports GET (retrieve) and PATCH (partial update).
     Includes connection testing for NAS and S3.
     """
-    permission_classes = [IsAuthenticated, IsInternalUser]
+    permission_classes = [DjangoModelPermissionsWithView, IsInternalUser]
 
     def get(self, request):
         instance = StorageSetting.objects.get_singleton()

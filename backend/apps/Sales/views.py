@@ -15,30 +15,36 @@ from .serializers import (
 from django.template.loader import render_to_string
 from django.core.files.base import ContentFile
 from weasyprint import HTML, CSS
+from common.permissions.model_permissions import DjangoModelPermissionsWithView
 
 class ClientViewSet(viewsets.ModelViewSet):
     queryset = Clients.objects.all()
     serializer_class = ClientSerializer
+    permission_classes = [DjangoModelPermissionsWithView]
 
 
 class EnquiryViewSet(viewsets.ModelViewSet):
     queryset = Enquiry.objects.all()
     serializer_class = EnquirySerializer
+    permission_classes = [DjangoModelPermissionsWithView]
 
 
 class ServiceViewSet(viewsets.ModelViewSet):
     queryset = Service.objects.all()
     serializer_class = ServiceSerializer
+    permission_classes = [DjangoModelPermissionsWithView]
 
 
 class LeadSourceViewSet(viewsets.ModelViewSet):
     queryset = LeadSource.objects.all()
     serializer_class = LeadSourceSerializer
+    permission_classes = [DjangoModelPermissionsWithView]
 
 
 class LeadAttachmentViewSet(viewsets.ModelViewSet):
     queryset = LeadAttachment.objects.all()
     serializer_class = LeadAttachmentSerializer
+    permission_classes = [DjangoModelPermissionsWithView]
 
     def perform_create(self, serializer):
         # Automatically set uploaded_by to the current user
@@ -48,11 +54,13 @@ class LeadAttachmentViewSet(viewsets.ModelViewSet):
 class LeadServiceItemViewSet(viewsets.ModelViewSet):
     queryset = LeadServiceItem.objects.all()
     serializer_class = LeadServiceItemSerializer
+    permission_classes = [DjangoModelPermissionsWithView]
 
 
 class QuotationItemViewSet(viewsets.ModelViewSet):
     queryset = QuotationItem.objects.all()
     serializer_class = QuotationItemSerializer
+    permission_classes = [DjangoModelPermissionsWithView]
 
     def get_queryset(self):
         queryset = self.queryset
@@ -65,6 +73,7 @@ class QuotationItemViewSet(viewsets.ModelViewSet):
 class QuotationViewSet(viewsets.ModelViewSet):
     queryset = Quotation.objects.all()
     serializer_class = QuotationSerializer
+    permission_classes = [DjangoModelPermissionsWithView]
 
     def get_queryset(self):
         queryset = self.queryset
@@ -127,6 +136,7 @@ class QuotationViewSet(viewsets.ModelViewSet):
 class LeadViewSet(viewsets.ModelViewSet):
     queryset = Lead.objects.all()
     serializer_class = LeadSerializer
+    permission_classes = [DjangoModelPermissionsWithView]
 
     # Optional: Filter leads by assigned user, source, etc.
     def get_queryset(self):
@@ -141,6 +151,7 @@ class LeadViewSet(viewsets.ModelViewSet):
 class FollowUpViewSet(viewsets.ModelViewSet):
     queryset = FollowUp.objects.all()
     serializer_class = FollowUpSerializer
+    permission_classes = [DjangoModelPermissionsWithView]
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
@@ -149,6 +160,7 @@ class FollowUpViewSet(viewsets.ModelViewSet):
 class LeadFollowUpViewSet(viewsets.ModelViewSet):
     queryset = LeadFollowUp.objects.all()
     serializer_class = LeadFollowUpSerializer
+    permission_classes = [DjangoModelPermissionsWithView]
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
