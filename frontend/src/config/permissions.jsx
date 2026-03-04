@@ -1,96 +1,93 @@
-
 import React from 'react';
+import { 
+  BarChart3, Users, Clock, CreditCard, 
+  Layers, FolderOpen, ShoppingCart, MessageSquare, 
+  Settings, Zap, Shield, FileText 
+} from 'lucide-react';
 
-// SVG Icon Components
-const SvgDashboard = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
-    <path d="M2 10a8 8 0 018-8v8h8a8 8 0 01-8 8v-8H2z" />
-    <path d="M12 2.252A8.014 8.014 0 0117.748 8H12V2.252z" />
-  </svg>
-);
-
-const SvgUsers = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
-    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-    <circle cx="8.5" cy="7" r="4"></circle>
-    <line x1="20" y1="8" x2="20" y2="14"></line>
-    <line x1="23" y1="11" x2="17" y2="11"></line>
-  </svg>
-);
-
-const SvgAttendance = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
-    <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm-1 14H8v-2h3v2zm0-4H8V8h3v4zm5 0h-3V8h3v4z"></path>
-    <path d="M9 13H6v-2h3v2zm0-4H6V5h3v4z"></path>
-  </svg>
-);
-
-const SvgFinanceBilling = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
-    <path d="M4 4a2 2 0 012-2h4.586A2 2 0 0113 3.414L16.586 7A2 2 0 0118 8.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 0v12h10V8.414L12.586 5A2 2 0 0012 4.414V4H6zm0 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm0 3a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1z" />
-  </svg>
-);
-
-const SvgProjectsTasks = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
-    <path d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" />
-  </svg>
-);
-
-const SvgAssetsDocuments = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
-    <path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z" />
-  </svg>
-);
-
+// SVG Icon Components Mapping to project lifecycle
+export const permissionGroupIcons = {
+  "Sales & Pipeline": <ShoppingCart className="h-5 w-5" />,
+  "Production Workflow": <Layers className="h-5 w-5" />,
+  "Finance & Billing": <CreditCard className="h-5 w-5" />,
+  "Team & HR": <Users className="h-5 w-5" />,
+  "Master Data & Settings": <Settings className="h-5 w-5" />,
+  "Dashboard & Analytics": <BarChart3 className="h-5 w-5" />,
+};
 
 export const initialPermissionsStructure = {
-  "Dashboard": {
-    icon: <SvgDashboard />,
-    actions: { View: false, Create: false, Edit: false, Delete: false, Manage: false },
+  "Dashboard & Analytics": {
+    icon: <BarChart3 className="h-5 w-5" />,
+    visual: ["view_dashboard", "view_reports"],
+    executional: ["manage_analytics"]
   },
-  "Users": {
-    icon: <SvgUsers />,
-    actions: { View: false, Create: false, Edit: false, Delete: false, Manage: false },
+  "Sales & Pipeline": {
+    icon: <ShoppingCart className="h-5 w-5" />,
+    visual: ["view_enquiry", "view_lead", "view_quotation"],
+    executional: ["add_enquiry", "change_enquiry", "add_lead", "change_lead", "add_quotation", "change_quotation", "delete_lead"]
   },
-  "Attendance": {
-    icon: <SvgAttendance />,
-    actions: { View: false, Create: false, Edit: false, Delete: false, Manage: false },
+  "Production Workflow": {
+    icon: <Layers className="h-5 w-5" />,
+    visual: ["view_project", "view_projectstage", "view_projectstageelement", "view_projectasset"],
+    executional: [
+      "add_project", "change_project", 
+      "add_projectstage", "change_projectstage", 
+      "add_projectstageelement", "change_projectstageelement",
+      "add_projectasset", "change_projectasset", "delete_projectasset",
+      "add_taskcomment", "manage_project_assignments"
+    ]
   },
   "Finance & Billing": {
-    icon: <SvgFinanceBilling />,
-    actions: { View: false, Create: false, Edit: false, Delete: false, Manage: false },
+    icon: <CreditCard className="h-5 w-5" />,
+    visual: ["view_invoice", "view_payment", "view_payroll"],
+    executional: ["add_invoice", "change_invoice", "add_payment", "add_payroll", "generate_payroll"]
   },
-  "Projects & Tasks": {
-    icon: <SvgProjectsTasks />,
-    actions: { View: false, Create: false, Edit: false, Delete: false, Manage: false },
+  "Team & HR": {
+    icon: <Users className="h-5 w-5" />,
+    visual: ["view_user", "view_employee", "view_empattendance"],
+    executional: ["add_user", "change_user", "add_employee", "change_employee", "add_empattendance", "change_empattendance"]
   },
-  "Assets & Documents": {
-    icon: <SvgAssetsDocuments />,
-    actions: { View: false, Create: false, Edit: false, Delete: false, Manage: false },
+  "Master Data & Settings": {
+    icon: <Settings className="h-5 w-5" />,
+    visual: ["view_folderstructuretemplate", "view_projectstagetemplate", "view_permission"],
+    executional: [
+      "add_folderstructuretemplate", "change_folderstructuretemplate", 
+      "add_projectstagetemplate", "change_projectstagetemplate",
+      "manage_storage_settings", "add_group", "change_group", "delete_group"
+    ]
   },
 };
 
-export const parsePermissionName = (permissionName) => {
-  let module = 'Unknown';
-  let action = 'Unknown';
+export const parsePermissionName = (perm) => {
+  const codename = perm.codename || '';
+  const name = perm.name || '';
+  
+  let type = 'executional';
+  if (codename.startsWith('view_')) {
+    type = 'visual';
+  }
 
-  const cleanName = permissionName.replace(/^Can /, '').toLowerCase();
+  // Find which group this permission belongs to
+  let group = "Other";
+  for (const [groupName, config] of Object.entries(initialPermissionsStructure)) {
+    if (config.visual.includes(codename) || config.executional.includes(codename)) {
+      group = groupName;
+      break;
+    }
+  }
 
-  // Map actions
-  if (cleanName.startsWith('view ')) action = 'View';
-  else if (cleanName.startsWith('add ')) action = 'Create';
-  else if (cleanName.startsWith('change ')) action = 'Edit';
-  else if (cleanName.startsWith('delete ')) action = 'Delete';
-  else if (cleanName.includes('manage')) action = 'Manage'; // Heuristic for 'Manage'
+  // If still unknown, try heuristic based on codename
+  if (group === "Other") {
+    if (codename.includes('project') || codename.includes('task') || codename.includes('stage') || codename.includes('asset')) group = "Production Workflow";
+    else if (codename.includes('enquiry') || codename.includes('lead') || codename.includes('quotation')) group = "Sales & Pipeline";
+    else if (codename.includes('invoice') || codename.includes('payment') || codename.includes('payroll')) group = "Finance & Billing";
+    else if (codename.includes('user') || codename.includes('employee') || codename.includes('attendance')) group = "Team & HR";
+    else if (codename.includes('template') || codename.includes('setting') || codename.includes('group') || codename.includes('permission')) group = "Master Data & Settings";
+  }
 
-  // Map modules - heuristic based on common words in the permission name
-  if (cleanName.includes('dashboard')) module = 'Dashboard';
-  else if (cleanName.includes('user') || cleanName.includes('employee')) module = 'Users';
-  else if (cleanName.includes('attendance')) module = 'Attendance';
-  else if (cleanName.includes('finance') || cleanName.includes('billing') || cleanName.includes('payroll')) module = 'Finance & Billing';
-  else if (cleanName.includes('project') || cleanName.includes('task')) module = 'Projects & Tasks';
-  else if (cleanName.includes('asset') || cleanName.includes('document')) module = 'Assets & Documents';
+  // Simplify action name for the UI
+  let action = codename.split('_')[0]; 
+  action = action.charAt(0).toUpperCase() + action.slice(1);
 
-  return { module, action };
+  return { group, type, action, codename, name };
 };

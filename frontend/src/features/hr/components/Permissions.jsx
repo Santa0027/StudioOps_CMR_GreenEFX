@@ -56,9 +56,11 @@ const Permissions = () => {
     }
   };
 
-  const filteredRoles = roles.filter(role => 
-    role.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredRoles = roles.filter(role => {
+    const isSystemRole = role.name.includes('_');
+    const matchesSearch = role.name.toLowerCase().includes(searchQuery.toLowerCase());
+    return !isSystemRole && matchesSearch;
+  });
 
   if (loading) return (
     <div className="flex items-center justify-center min-h-[400px]">

@@ -24,6 +24,11 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         token['is_staff'] = user.is_staff
         token['groups'] = list(user.groups.values_list('name', flat=True))
         token['name'] = user.name
+        
+        # Get all permissions including inherited from groups
+        permissions = user.get_all_permissions()
+        token['user_permissions'] = list(permissions)
+        
         return token
 
 # ---------- Permissions & Roles ----------
