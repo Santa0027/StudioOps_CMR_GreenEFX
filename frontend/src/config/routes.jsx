@@ -34,6 +34,7 @@ import ReworkRequests from '../features/rework/pages/ReworkRequests';
 import ReworkRequestDetails from '../features/rework/pages/ReworkRequestDetails';
 
 import Permissions from '../features/hr/components/Permissions';
+import FullPermissionMatrix from '../features/hr/pages/FullPermissionMatrix';
 import Attendance from '../features/hr/components/Attendance';
 import MonthlyAttendanceCalendar from '../features/hr/components/MonthlyAttendanceCalendar';
 import CreateRole from '../features/hr/components/CreateRole';
@@ -115,6 +116,7 @@ export const protectedRoutes = [
                         element: <RoleBasedRoute level="admin" />,
                         children: [
                             { path: '/permissions', element: <Permissions /> },
+                            { path: '/permissions/matrix', element: <FullPermissionMatrix /> },
                             { path: '/roles/create', element: <CreateRole /> },
                             { path: '/services', element: <ServiceManagement /> },
                             { path: '/master/packages', element: <PackageManagement /> },

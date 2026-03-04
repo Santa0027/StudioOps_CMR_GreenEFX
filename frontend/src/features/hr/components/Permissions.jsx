@@ -113,7 +113,7 @@ const Permissions = () => {
                 </div>
                 <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button 
-                    onClick={() => navigate(`/roles/edit/${role.id}`)}
+                    onClick={() => navigate('/permissions/matrix')}
                     className="p-2 rounded-lg bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 transition-all"
                   >
                     <Edit3 size={16} />

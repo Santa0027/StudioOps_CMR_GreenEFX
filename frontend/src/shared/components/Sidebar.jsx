@@ -51,6 +51,7 @@ function Sidebar({ isExpanded, toggleSidebar }) {
       subItems: [
         { name: 'Users', path: '/users' },
         { name: 'Permissions & Roles', path: '/permissions' },
+        { name: 'Permission Matrix', path: '/permissions/matrix' },
       ],
     },
     {

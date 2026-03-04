@@ -14,7 +14,7 @@ export const getEmployees = () => api.get("/users/employees/");
 export const getRoles = () => api.get("/users/roles/");
 export const getRole = (id) => api.get(`/users/roles/${id}/`);
 export const createRole = (data) => api.post("/users/roles/", data);
-export const updateRole = (id, data) => api.put(`/users/roles/${id}/`, data);
+export const updateRole = (id, data) => api.patch(`/users/roles/${id}/`, data);
 export const deleteRole = (id) => api.delete(`/users/roles/${id}/`);
 
 // Permission APIs
