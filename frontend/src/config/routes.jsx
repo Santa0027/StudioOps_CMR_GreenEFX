@@ -42,6 +42,8 @@ import CreateRole from '../features/hr/components/CreateRole';
 import InvoicePage from '../features/finance/pages/InvoicePage';
 import InvoiceDetails from '../features/finance/pages/InvoiceDetails';
 import CreateInvoiceForm from '../features/finance/components/CreateInvoiceForm';
+import EditInvoiceForm from '../features/finance/components/EditInvoiceForm';
+import PaymentsPage from '../features/finance/pages/PaymentsPage';
 
 import PackageManagement from '../features/packages/pages/PackageManagement';
 import PackageItemPage from '../features/packages/pages/PackageItemPage';
@@ -99,6 +101,8 @@ export const protectedRoutes = [
                             { path: '/invoice', element: <InvoicePage /> },
                             { path: '/invoice/create', element: <CreateInvoiceForm /> },
                             { path: '/invoice/:invoiceId', element: <InvoiceDetails /> },
+                            { path: '/invoice/:invoiceId/edit', element: <EditInvoiceForm /> },
+                            { path: '/finance-billing/payments', element: <PaymentsPage /> },
                             { path: '/reports', element: <ReportAndAnalysis /> },
                             {
                                 path: '/settings', element: <Settings />,

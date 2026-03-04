@@ -263,10 +263,11 @@ export const deleteFolderStructureTemplate = (id) => api.delete(`/folder-structu
 export const getInvoices = () => api.get("/finance/invoices/");
 export const getInvoice = (id) => api.get(`/finance/invoices/${id}/`);
 export const createInvoice = (data) => api.post("/finance/invoices/", data);
-export const updateInvoice = (id, data) => api.patch(`/finance/invoices/${id}/`, data);
+export const updateInvoice = (id, data) => api.put(`/finance/invoices/${id}/`, data); // Standardized to PUT for full replacement
 export const deleteInvoice = (id) => api.delete(`/finance/invoices/${id}/`);
 export const getFinanceSummary = () => api.get("/finance/invoices/summary/");
 
 export const getPayments = () => api.get("/finance/payments/");
 export const createPayment = (data) => api.post("/finance/payments/", data);
+export const deletePayment = (id) => api.delete(`/finance/payments/${id}/`);
 // --------------------------------------------- end Finance APIs -----------------------------------

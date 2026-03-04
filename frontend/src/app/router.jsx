@@ -4,31 +4,28 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { publicRoutes, protectedRoutes } from '../config/routes.jsx';
 
 const AppRouter = () => {
+  const renderRoutes = (routes) => {
+    return routes.map((route, index) => {
+      const { path, element, children, index: isIndex } = route;
+      
+      if (isIndex) {
+        return <Route key={index} index element={element} />;
+      }
+
+      return (
+        <Route key={index} path={path} element={element}>
+          {children && renderRoutes(children)}
+        </Route>
+      );
+    });
+  };
+
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/login" />} />
-      {publicRoutes.map((route, index) => (
-        <Route key={index} path={route.path} element={route.element} />
-      ))}
-      {protectedRoutes.map((route, index) => (
-        <Route key={index} path={route.path} element={route.element}>
-          {route.children &&
-            route.children.map((childRoute, childIndex) => (
-              <Route key={childIndex} path={childRoute.path} element={childRoute.element}>
-                {childRoute.children &&
-                  childRoute.children.map((grandchildRoute, grandchildIndex) => (
-                    <Route key={grandchildIndex} path={grandchildRoute.path} element={grandchildRoute.element}>
-                        {grandchildRoute.children &&
-                            grandchildRoute.children.map((greatGrandchildRoute, greatGrandchildIndex) => (
-                                <Route key={greatGrandchildIndex} path={greatGrandchildRoute.path} element={greatGrandchildRoute.element} />
-                            ))}
-                    </Route>
-                  ))}
-              </Route>
-            ))}
-        </Route>
-      ))}
-       <Route path="*" element={<Navigate to="/dashboard" />} />
+      {renderRoutes(publicRoutes)}
+      {renderRoutes(protectedRoutes)}
+      <Route path="*" element={<Navigate to="/dashboard" />} />
     </Routes>
   );
 };

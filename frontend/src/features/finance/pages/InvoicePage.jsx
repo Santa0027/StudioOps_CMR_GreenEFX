@@ -195,6 +195,9 @@ const InvoicePage = () => {
                                         <Link to={`/invoice/${inv.id}`} className="inline-flex p-2 rounded-lg bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 transition-all shadow-sm">
                                             <Eye size={16} />
                                         </Link>
+                                        <Link to={`/invoice/${inv.id}/edit`} className="inline-flex p-2 rounded-lg bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 transition-all shadow-sm">
+                                            <FileText size={16} />
+                                        </Link>
                                         <button className="inline-flex p-2 rounded-lg bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 transition-all shadow-sm">
                                             <Download size={16} />
                                         </button>

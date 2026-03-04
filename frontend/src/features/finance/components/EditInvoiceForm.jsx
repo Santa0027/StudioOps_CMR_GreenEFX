@@ -1,42 +1,67 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { getClients, getProjects, createInvoice } from '../../../shared/services/apiClient';
-import { Save, X, Plus, Trash2, FileText, User, Briefcase, Calendar as CalendarIcon } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { getClients, getProjects, getInvoice, updateInvoice } from '../../../shared/services/apiClient';
+import { Save, X, Plus, Trash2, FileText, User, Briefcase } from 'lucide-react';
 
-const CreateInvoiceForm = () => {
+const EditInvoiceForm = () => {
+    const { invoiceId } = useParams();
     const navigate = useNavigate();
     const [clients, setClients] = useState([]);
     const [projects, setProjects] = useState([]);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [submitting, setSubmitting] = useState(false);
     
     const [formData, setFormData] = useState({
         client: '',
         project: '',
-        invoice_number: `INV-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
-        invoice_date: new Date().toISOString().split('T')[0],
-        due_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        items: [{ description: '', quantity: 1, unit_price: 0, total: 0 }]
+        invoice_number: '',
+        invoice_date: '',
+        due_date: '',
+        items: []
     });
 
     useEffect(() => {
-        const fetchDependencies = async () => {
+        const fetchData = async () => {
             try {
-                const [cRes, pRes] = await Promise.all([getClients(), getProjects()]);
+                const [cRes, pRes, iRes] = await Promise.all([
+                    getClients(), 
+                    getProjects(),
+                    getInvoice(invoiceId)
+                ]);
                 setClients(cRes.data);
                 setProjects(pRes.data);
+                
+                const inv = iRes.data;
+                setFormData({
+                    client: inv.client,
+                    project: inv.project || '',
+                    invoice_number: inv.invoice_number,
+                    invoice_date: inv.invoice_date,
+                    due_date: inv.due_date,
+                    items: inv.items.map(item => ({
+                        id: item.id,
+                        description: item.description,
+                        quantity: item.quantity,
+                        unit_price: item.unit_price,
+                        total: item.total
+                    }))
+                });
             } catch (err) {
-                console.error("Failed to fetch form dependencies:", err);
+                console.error("Failed to fetch data:", err);
+                alert("Error loading invoice data.");
+            } finally {
+                setLoading(false);
             }
         };
-        fetchDependencies();
-    }, []);
+        fetchData();
+    }, [invoiceId]);
 
     const handleItemChange = (index, field, value) => {
         const newItems = [...formData.items];
         newItems[index][field] = value;
         
         if (field === 'quantity' || field === 'unit_price') {
-            newItems[index].total = newItems[index].quantity * newItems[index].unit_price;
+            newItems[index].total = (newItems[index].quantity || 0) * (newItems[index].unit_price || 0);
         }
         
         setFormData({ ...formData, items: newItems });
@@ -59,32 +84,38 @@ const CreateInvoiceForm = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setLoading(true);
+        setSubmitting(true);
         try {
             const total = formData.items.reduce((sum, item) => sum + parseFloat(item.total), 0);
             const payload = { ...formData, total_amount: total };
-            await createInvoice(payload);
-            navigate('/invoice');
+            await updateInvoice(invoiceId, payload);
+            navigate(`/invoice/${invoiceId}`);
         } catch (err) {
-            alert("Failed to create invoice. Please check all fields.");
+            alert("Failed to update invoice.");
         } finally {
-            setLoading(false);
+            setSubmitting(false);
         }
     };
 
     const totalAmount = formData.items.reduce((sum, item) => sum + parseFloat(item.total), 0);
 
+    if (loading) return (
+        <div className="flex items-center justify-center min-h-[400px]">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        </div>
+    );
+
     return (
-        <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
             <header className="flex items-center justify-between border-b border-slate-800 pb-6">
                 <div>
                     <h1 className="text-3xl font-bold text-white tracking-tight flex items-center gap-3">
                         <FileText className="text-blue-500" size={32} />
-                        Create New Invoice
+                        Edit Invoice #{formData.invoice_number}
                     </h1>
-                    <p className="text-slate-400 mt-1">Generate a professional billing statement for your client.</p>
+                    <p className="text-slate-400 mt-1">Modify billing details and line items.</p>
                 </div>
-                <button onClick={() => navigate('/invoice')} className="p-2 hover:bg-slate-800 rounded-xl text-slate-500 transition-colors">
+                <button onClick={() => navigate(-1)} className="p-2 hover:bg-slate-800 rounded-xl text-slate-500 transition-colors">
                     <X size={24} />
                 </button>
             </header>
@@ -102,7 +133,6 @@ const CreateInvoiceForm = () => {
                             value={formData.client}
                             onChange={(e) => setFormData({...formData, client: e.target.value})}
                         >
-                            <option value="">Select a client...</option>
                             {clients.map(c => <option key={c.id} value={c.id}>{c.client_name}</option>)}
                         </select>
                     </div>
@@ -199,7 +229,7 @@ const CreateInvoiceForm = () => {
                                         />
                                     </td>
                                     <td className="px-6 py-4 text-sm font-bold text-white">
-                                        ${item.total.toLocaleString()}
+                                        ${parseFloat(item.total).toLocaleString()}
                                     </td>
                                     <td className="px-4 py-2 text-right">
                                         <button 
@@ -235,18 +265,18 @@ const CreateInvoiceForm = () => {
                     <div className="flex gap-4">
                         <button 
                             type="button"
-                            onClick={() => navigate('/invoice')}
+                            onClick={() => navigate(-1)}
                             className="px-8 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-2xl font-bold transition-all"
                         >
                             Cancel
                         </button>
                         <button 
                             type="submit"
-                            disabled={loading}
+                            disabled={submitting}
                             className="flex items-center gap-2 px-10 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-bold shadow-lg shadow-blue-500/20 transition-all disabled:opacity-50"
                         >
                             <Save size={20} />
-                            {loading ? 'Creating...' : 'Save & Publish'}
+                            {submitting ? 'Updating...' : 'Update Invoice'}
                         </button>
                     </div>
                 </div>
@@ -255,4 +285,4 @@ const CreateInvoiceForm = () => {
     );
 };
 
-export default CreateInvoiceForm;
+export default EditInvoiceForm;
