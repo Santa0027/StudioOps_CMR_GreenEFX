@@ -294,7 +294,7 @@ class ProjectStageElement(models.Model):
     actual_hours = models.PositiveIntegerField(null=True, blank=True)
 
     status = models.CharField(
-        max_length=25,
+        max_length=30,
         choices=[
             ("pending", "Pending"),
             ("in_progress", "In Progress"),
@@ -311,7 +311,7 @@ class ProjectStageElement(models.Model):
 
     rejection_notes = models.TextField(blank=True)
     previous_status = models.CharField(
-        max_length=20,
+        max_length=30,
         choices=[
             ("pending", "Pending"),
             ("in_progress", "In Progress"),
@@ -984,8 +984,8 @@ class TaskStatusLog(models.Model):
         on_delete=models.PROTECT,
         related_name="task_status_changes"
     )
-    old_status = models.CharField(max_length=20)
-    new_status = models.CharField(max_length=20)
+    old_status = models.CharField(max_length=30)
+    new_status = models.CharField(max_length=30)
     notes = models.TextField(blank=True) # New field
     timestamp = models.DateTimeField(auto_now_add=True)
 

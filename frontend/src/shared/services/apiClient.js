@@ -97,6 +97,7 @@ export const updateProject = (id, data) => api.patch(`/projects/${id}/`, data);
 export const deleteProject = (id) => api.delete(`/projects/${id}/`);
 export const getProjectVersions = (projectId) => api.get(`/projects/${projectId}/versions/`);
 export const uploadProjectVersion = (projectId, data) => api.post(`/projects/${projectId}/upload-version/`, data);
+export const getProjectTeam = (projectId) => api.get(`/projects/${projectId}/team/`);
 
 // --------------------------------------------- end Project APIs -----------------------------------
 // ---------------------------------------------- Task Assignment APIs --------------------------------

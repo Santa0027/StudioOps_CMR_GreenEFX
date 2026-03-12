@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, UserPlus, Info, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
-import { getEmployees, createTaskAssignment } from '../../../shared/services/apiClient';
+import { createTaskAssignment, getProjectTeam } from '../../../shared/services/apiClient';
 
 const AssignTaskForm = ({ onClose, task, onAssigned }) => {
   const [selectedUser, setSelectedUser] = useState('');
@@ -17,17 +17,23 @@ const AssignTaskForm = ({ onClose, task, onAssigned }) => {
     const fetchUsers = async () => {
       try {
         setLoadingUsers(true);
-        const usersRes = await getEmployees();
-        setUsers(usersRes.data);
+        // Fetch only users assigned to this project
+        if (task && task.project_id) {
+          const usersRes = await getProjectTeam(task.project_id);
+          setUsers(usersRes.data);
+        } else {
+          // Fallback if project_id is missing (shouldn't happen with proper task data)
+          setErrorUsers('Project information missing.');
+        }
       } catch (err) {
-        setErrorUsers('Failed to fetch users.');
+        setErrorUsers('Failed to fetch project team members.');
         console.error(err);
       } finally {
         setLoadingUsers(false);
       }
     };
     fetchUsers();
-  }, []);
+  }, [task]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

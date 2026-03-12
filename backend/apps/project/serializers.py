@@ -159,6 +159,8 @@ class ProjectStageElementSerializer(serializers.ModelSerializer):
         source="template.name",
         read_only=True
     )
+    project_id = serializers.IntegerField(source='stage.project.id', read_only=True)
+    stage_name = serializers.CharField(source='stage.template.name', read_only=True)
     manager_approved_by_name = serializers.CharField(source='manager_approved_by.name', read_only=True)
     client_approved_by_name = serializers.CharField(source='client_approved_by.name', read_only=True)
 
@@ -166,7 +168,7 @@ class ProjectStageElementSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProjectStageElement
         fields = [
-            'id', 'template_name', 'stage', 'template', 'order', 'contribution_percentage', 
+            'id', 'template_name', 'project_id', 'stage_name', 'stage', 'template', 'order', 'contribution_percentage', 
             'estimated_hours', 'actual_hours', 'status', 'initial_notes', 'rejection_notes',
             'manager_approval_status', 'manager_rework_notes', 'manager_approved_by', 'manager_approved_by_name', 'manager_approved_at',
             'client_approval_status', 'client_rework_notes', 'client_approved_by', 'client_approved_by_name', 'client_approved_at',
@@ -307,10 +309,12 @@ class ClientProjectStageElementSerializer(serializers.ModelSerializer):
 # (Full deep view with relations)
 # =====================================================
 class ProjectStageElementDetailSerializer(serializers.ModelSerializer):
+    project_id = serializers.IntegerField(source='stage.project.id', read_only=True)
     project_name = serializers.CharField(
         source="stage.project.name",
         read_only=True
     )
+    stage_name = serializers.CharField(source='stage.template.name', read_only=True)
     template_name = serializers.CharField(
         source="template.name",
         read_only=True
@@ -335,7 +339,7 @@ class ProjectStageElementDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProjectStageElement
         fields = [
-            'id', 'stage', 'template', 'order', 'contribution_percentage',
+            'id', 'stage', 'project_id', 'stage_name', 'template', 'order', 'contribution_percentage',
             'estimated_hours', 'actual_hours', 'status', 'rejection_notes',
             'manager_approval_status', 'manager_rework_notes', 'manager_approved_by', 'manager_approved_by_name', 'manager_approved_at',
             'client_approval_status', 'client_rework_notes', 'client_approved_by', 'client_approved_by_name', 'client_approved_at',
@@ -464,7 +468,7 @@ class PackageItemSerializer(serializers.ModelSerializer):
         read_only_fields = ['id']
 
 class PackageSerializer(serializers.ModelSerializer):
-    items = PackageItemSerializer(many=True, read_only=False) # Allow nested creation/update
+    items = PackageItemSerializer(many=True, read_only=False, required=False) # Allow nested creation/update
 
     class Meta:
         model = Package
@@ -472,7 +476,7 @@ class PackageSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'updated_at']
 
     def create(self, validated_data):
-        items_data = validated_data.pop('items')
+        items_data = validated_data.pop('items', [])
         package = Package.objects.create(**validated_data)
         for item_data in items_data:
             PackageItem.objects.create(package=package, **item_data)
@@ -506,7 +510,7 @@ class ProjectStageElementTemplateSerializer(serializers.ModelSerializer):
         read_only_fields = ['id']
 
 class ProjectStageTemplateSerializer(serializers.ModelSerializer):
-    task_templates = ProjectStageElementTemplateSerializer(many=True, read_only=False) # Nested serializer for elements
+    task_templates = ProjectStageElementTemplateSerializer(many=True, read_only=False, required=False) # Nested serializer for elements
 
     class Meta:
         model = ProjectStageTemplate

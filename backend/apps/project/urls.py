@@ -83,6 +83,7 @@ versions_router.register(r'versions', StageElementVersionViewSet, basename='proj
 router.register(
     "time-logs",
     ProjectTimeLogViewSet,
+    basename="time-logs"
 )
 
 # Packages CRUD (Top-level)

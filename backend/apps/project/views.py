@@ -43,7 +43,7 @@ def serve_nas_media(request, path):
     return serve(request, path, document_root=nas_root)
 
 from .models import *
-from .serializers import ProjectSerializer, ProjectAssetUploadSerializer,ProjectStageElementDetailSerializer, ProjectAssetSerializer, StageElementVersionSerializer, ProjectTimeLogSerializer, ClientProjectAssetSerializer, ClientProjectStageElementSerializer, ClientReviewLogSerializer, PackageSerializer, PackageItemSerializer, ProjectStageTemplateSerializer, ProjectStageElementTemplateSerializer, ProjectTaskAssignmentSerializer, TaskCommentSerializer, FolderStructureTemplateSerializer, StorageSettingSerializer
+from .serializers import UserSerializer, ProjectSerializer, ProjectAssetUploadSerializer,ProjectStageElementDetailSerializer, ProjectAssetSerializer, StageElementVersionSerializer, ProjectTimeLogSerializer, ClientProjectAssetSerializer, ClientProjectStageElementSerializer, ClientReviewLogSerializer, PackageSerializer, PackageItemSerializer, ProjectStageTemplateSerializer, ProjectStageElementTemplateSerializer, ProjectTaskAssignmentSerializer, TaskCommentSerializer, FolderStructureTemplateSerializer, StorageSettingSerializer
 from common.utils.folder_structure_generator import parse_structure_to_tree, create_folders
 from .permissions import IsInternalUser, IsClientUser
 from .throttles import AssetStreamRateThrottle
@@ -52,6 +52,40 @@ from .throttles import AssetStreamRateThrottle
 # ==========================================================
 # INTERNAL API VIEWS
 # ==========================================================
+
+def get_project_restricted_queryset(user, model_class, project_relation_path, base_queryset=None):
+    """
+    Helper to filter a queryset based on project assignment and user role.
+    """
+    if base_queryset is None:
+        queryset = model_class.objects.all()
+    else:
+        queryset = base_queryset
+
+    if user.is_superuser or user.groups.filter(name__in=['Admin', 'Manager']).exists():
+        return queryset
+    
+    # Check if client
+    if not user.is_staff and not user.groups.filter(name__in=['Admin', 'Manager', 'Artist', 'Staff']).exists():
+        lookup = f"{project_relation_path}client__user"
+        return queryset.filter(**{lookup: user})
+
+    # Internal user (Artist, etc.)
+    # They see things for projects they are assigned to
+    lookup_assigned = f"{project_relation_path}assigned_users"
+    
+    # For some models, we might also want to check if they are specifically assigned to the task
+    if model_class == ProjectStageElement:
+        return queryset.filter(
+            models.Q(**{lookup_assigned: user}) | models.Q(assignments__user=user)
+        ).distinct()
+    elif model_class == ProjectAsset:
+        return queryset.filter(
+            models.Q(element__stage__project__assigned_users=user) | 
+            models.Q(element__assignments__user=user)
+        ).distinct()
+    
+    return queryset.filter(**{lookup_assigned: user}).distinct()
 
 @extend_schema(
     tags=["Internal - Projects"],
@@ -68,13 +102,7 @@ class ProjectViewSet(ModelViewSet):
     permission_classes = [DjangoModelPermissionsWithView]
 
     def get_queryset(self):
-        user = self.request.user
-        # Admins and Managers see everything
-        if user.is_superuser or user.groups.filter(name__in=['Admin', 'Manager']).exists():
-            return Project.objects.all()
-        
-        # Others see only assigned projects
-        return Project.objects.filter(assigned_users=user).distinct()
+        return get_project_restricted_queryset(self.request.user, Project, "")
 
     def create(self, request, *args, **kwargs):
         # Make a mutable copy of the request data
@@ -211,6 +239,13 @@ class ProjectViewSet(ModelViewSet):
         # but it won't be called by the current create method
         serializer.save(created_by=self.request.user)
 
+    @action(detail=True, methods=['get'])
+    def team(self, request, pk=None):
+        project = self.get_object()
+        team_members = project.assigned_users.all()
+        serializer = UserSerializer(team_members, many=True)
+        return Response(serializer.data)
+
     @action(detail=True, methods=['post'], serializer_class=StageElementVersionSerializer)
     def upload_version(self, request, pk=None):
         project = self.get_object()
@@ -239,15 +274,9 @@ class ProjectStageElementViewSet(ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        queryset = ProjectStageElement.objects.select_related("stage", "template").filter(stage__status='active')
+        base_qs = ProjectStageElement.objects.select_related("stage", "template").filter(stage__status='active')
         
-        # Admins and Managers see all tasks
-        if not (user.is_superuser or user.groups.filter(name__in=['Admin', 'Manager']).exists()):
-            # Others see tasks in projects they are assigned to OR tasks they are specifically assigned to
-            queryset = queryset.filter(
-                models.Q(stage__project__assigned_users=user) | 
-                models.Q(assignments__user=user)
-            )
+        queryset = get_project_restricted_queryset(user, ProjectStageElement, "stage__project__", base_queryset=base_qs)
 
         project_id = self.request.query_params.get("project_id")
         if project_id:
@@ -494,18 +523,7 @@ class ProjectAssetViewSet(ModelViewSet):
     permission_classes = [DjangoModelPermissionsWithView]
 
     def get_queryset(self):
-        user = self.request.user
-        queryset = ProjectAsset.objects.all()
-        
-        # Admins and Managers see all assets
-        if not (user.is_superuser or user.groups.filter(name__in=['Admin', 'Manager']).exists()):
-            # Others see assets linked to tasks they are assigned to OR projects they are assigned to
-            queryset = queryset.filter(
-                models.Q(element__stage__project__assigned_users=user) | 
-                models.Q(element__assignments__user=user)
-            )
-        
-        return queryset.distinct()
+        return get_project_restricted_queryset(self.request.user, ProjectAsset, "element__stage__project__")
 
     def perform_create(self, serializer):
         # Hook for async upload / background processing
@@ -551,10 +569,11 @@ class StageElementVersionViewSet(ModelViewSet):
     permission_classes = [DjangoModelPermissionsWithView]
 
     def get_queryset(self):
+        queryset = get_project_restricted_queryset(self.request.user, StageElementVersion, "element__stage__project__")
         project_pk = self.kwargs.get('project_pk')
         if project_pk:
-            return StageElementVersion.objects.filter(element__stage__project_id=project_pk)
-        return StageElementVersion.objects.all()
+            queryset = queryset.filter(element__stage__project_id=project_pk)
+        return queryset
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
@@ -569,9 +588,11 @@ class ProjectTimeLogViewSet(ModelViewSet):
     """
     Logs working hours for tasks
     """
-    queryset = ProjectTimeLog.objects.all()
     serializer_class = ProjectTimeLogSerializer
     permission_classes = [DjangoModelPermissionsWithView]
+
+    def get_queryset(self):
+        return get_project_restricted_queryset(self.request.user, ProjectTimeLog, "task__stage__project__")
 
 
 # ==========================================================
@@ -593,7 +614,8 @@ class ClientProjectAssetViewSet(ReadOnlyModelViewSet):
     permission_classes = [DjangoModelPermissionsWithView, IsClientUser]
 
     def get_queryset(self):
-        return ProjectAsset.objects.filter(
+        queryset = get_project_restricted_queryset(self.request.user, ProjectAsset, "element__stage__project__")
+        return queryset.filter(
             client_review=True,
             storage_location="cloud"
         )
@@ -616,7 +638,8 @@ class ClientProjectStageElementViewSet(ReadOnlyModelViewSet):
     def get_queryset(self):
         project_id = self.request.query_params.get("project_id")
 
-        qs = ProjectStageElement.objects.filter(
+        qs = get_project_restricted_queryset(self.request.user, ProjectStageElement, "stage__project__")
+        qs = qs.filter(
             assets__client_review=True,
             assets__storage_location="cloud"
         )
@@ -635,9 +658,11 @@ class ClientReviewLogViewSet(ModelViewSet):
     """
     Client approvals / review notes
     """
-    queryset = ClientReviewLog.objects.all()
     serializer_class = ClientReviewLogSerializer
     permission_classes = [DjangoModelPermissionsWithView]
+
+    def get_queryset(self):
+        return get_project_restricted_queryset(self.request.user, ClientReviewLog, "asset__element__stage__project__")
 
     def perform_create(self, serializer):
         serializer.save(reviewed_by=self.request.user)
@@ -787,8 +812,9 @@ class ProjectTaskAssignmentViewSet(ModelViewSet):
     permission_classes = [DjangoModelPermissionsWithView]
 
     def get_queryset(self):
-        # Filter assignments by the task_pk provided in the URL
-        return ProjectTaskAssignment.objects.filter(task=self.kwargs['task_pk'])
+        # Filter assignments by the task_pk provided in the URL AND check project access
+        queryset = get_project_restricted_queryset(self.request.user, ProjectTaskAssignment, "task__stage__project__")
+        return queryset.filter(task=self.kwargs['task_pk'])
 
     def create(self, request, *args, **kwargs):
         task_pk = self.kwargs.get('task_pk')
@@ -831,8 +857,9 @@ class TaskCommentViewSet(ModelViewSet):
     permission_classes = [DjangoModelPermissionsWithView]
 
     def get_queryset(self):
-        # Filter comments by the task_pk provided in the URL
-        return TaskComment.objects.filter(task=self.kwargs['task_pk'])
+        # Filter comments by the task_pk provided in the URL AND check project access
+        queryset = get_project_restricted_queryset(self.request.user, TaskComment, "task__stage__project__")
+        return queryset.filter(task=self.kwargs['task_pk'])
 
     def perform_create(self, serializer):
         # Automatically assign the task and user based on the context

@@ -28,7 +28,12 @@ export const AuthProvider = ({ children }) => {
 
   console.log("AuthContext: Initial user state:", user); // Added log
 
-  const backendUrl = "http://localhost:8000/api";
+  const getBackendUrl = () => {
+    const hostname = window.location.hostname;
+    return `http://${hostname}:8000/api`;
+  };
+
+  const backendUrl = getBackendUrl();
 
   const isAuthenticated = !!user;
 
