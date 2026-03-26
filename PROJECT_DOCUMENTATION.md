@@ -84,7 +84,7 @@ The `adobe-scripts/` directory is a unique feature that directly connects the CR
 7.  **Frontend:** The React app's UI updates to show the new lead in the list, confirming the success of the operation.
 
 ### Scenario 2: An Artist Works on a Project Task
-
+``\
 1.  **Adobe Premiere Pro:** An editor opens Premiere Pro to work on a video for a project.
 2.  **Adobe Script:** They run the `CrmConnector.jsx` script from within Premiere.
 3.  **API Request:** The script sends a `GET` request to the backend API (e.g., `/api/projects/my-tasks/`) to fetch the user's assigned tasks. The request is authenticated with a token.

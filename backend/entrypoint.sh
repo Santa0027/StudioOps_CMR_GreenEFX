@@ -24,7 +24,7 @@ if [ "$SEED_DATA" = "true" ]
 then
     echo "Seeding data..."
     # You can customize the number of records as needed
-    python manage.py seed_db --clear --num_users 5
+    python manage.py seed_test_data 
     echo "Data seeding completed."
 fi
 

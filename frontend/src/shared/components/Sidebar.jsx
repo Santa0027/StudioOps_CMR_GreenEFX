@@ -105,19 +105,19 @@ function Sidebar({ isExpanded, toggleSidebar }) {
       subItems: [
         { name: 'Invoices', path: '/invoice', visible: can('finance.view_invoice') },
         { name: 'Payments', path: '/finance-billing/payments', visible: can('finance.view_payment') },
-        { name: 'Reports', path: '/finance-billing/reports', visible: isManager || can('hr_payroll.view_payroll') },
+        // { name: 'Reports', path: '/finance-billing/reports', visible: isManager || can('hr_payroll.view_payroll') },
       ],
     },
-    { 
-      name: 'Reports & Analysis', 
-      icon: (
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-          <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM11 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2h-2zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2h-2z" />
-        </svg>
-      ), 
-      path: '/reports', 
-      visible: isManager || can('project.view_versionauditlog')
-    },
+    // { 
+    //   name: 'Reports & Analysis', 
+    //   icon: (
+    //     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+    //       <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM11 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2h-2zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2h-2z" />
+    //     </svg>
+    //   ), 
+    //   path: '/reports', 
+    //   visible: isManager || can('project.view_versionauditlog')
+    // },
     { 
       name: 'Asset Library', 
       icon: (
@@ -152,9 +152,9 @@ function Sidebar({ isExpanded, toggleSidebar }) {
         </svg>
       ),
       subItems: [
-        { name: 'Organization Settings', path: '/settings/organization', visible: isAdmin },
-        { name: 'Email & Branding', path: '/settings/email-branding', visible: isAdmin },
-        { name: 'Integrations', path: '/settings/integrations', visible: isAdmin },
+        // { name: 'Organization Settings', path: '/settings/organization', visible: isAdmin },
+        // { name: 'Email & Branding', path: '/settings/email-branding', visible: isAdmin },
+        // { name: 'Integrations', path: '/settings/integrations', visible: isAdmin },
         { name: 'Storage Settings', path: '/settings/storage', visible: isAdmin },
       ],
     },
@@ -175,7 +175,7 @@ function Sidebar({ isExpanded, toggleSidebar }) {
     <div className={`bg-[#1C1C1E] h-screen p-6 flex flex-col rounded-r-lg shadow-lg relative transition-all duration-300 z-20 ${isExpanded ? 'w-64' : 'w-20 items-center'}`}>
       <div className={`flex items-center mb-10 ${!isExpanded && 'justify-center'}`}>
         <div className="w-10 h-10 bg-green-700 rounded-full flex items-center justify-center mr-3 shrink-0">
-          <span className="text-white font-bold text-lg">SO</span>
+          <span className="text-white font-bold text-lg">GEFX</span>
         </div>
         {isExpanded && (
           <div className="overflow-hidden whitespace-nowrap">

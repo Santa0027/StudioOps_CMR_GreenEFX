@@ -30,7 +30,7 @@ class Command(BaseCommand):
         # Admin gets everything
         all_perms = Permission.objects.all()
         group_objs['Admin'].permissions.set(all_perms)
-        
+
         # Manager gets most things (Add, Change, View)
         manager_perms = Permission.objects.filter(
             Q(codename__contains='view') | 
@@ -49,33 +49,33 @@ class Command(BaseCommand):
         # 4. Create Test Users & Employee Profiles
         test_users = [
             {
-                'email': 'admin@studioops.com',
-                'name': 'System Administrator',
-                'role': 'Admin',
-                'is_staff': True,
-                'dept': 'HR'
+                "email": "admin@greenefx.com",
+                "name": "System Administrator",
+                "role": "Admin",
+                "is_staff": True,
+                "dept": "HR",
             },
             {
-                'email': 'manager@studioops.com',
-                'name': 'Project Manager',
-                'role': 'Manager',
-                'is_staff': True,
-                'dept': 'Management'
+                "email": "manager@greenefx.com",
+                "name": "Project Manager",
+                "role": "Manager",
+                "is_staff": True,
+                "dept": "Management",
             },
             {
-                'email': 'artist1@studioops.com',
-                'name': 'Lead Editor',
-                'role': 'Artist',
-                'is_staff': False,
-                'dept': 'Production'
+                "email": "artist1@greenefx.com",
+                "name": "Lead Editor",
+                "role": "Artist",
+                "is_staff": False,
+                "dept": "Production",
             },
             {
-                'email': 'artist2@studioops.com',
-                'name': 'VFX Artist',
-                'role': 'Artist',
-                'is_staff': False,
-                'dept': 'Production'
-            }
+                "email": "artist2@greenefx.com",
+                "name": "VFX Artist",
+                "role": "Artist",
+                "is_staff": False,
+                "dept": "Production",
+            },
         ]
 
         for u_data in test_users:
@@ -87,12 +87,12 @@ class Command(BaseCommand):
                     'is_active': True
                 }
             )
-            
+
             if created:
                 user.set_password('Password123!')
                 user.save()
                 self.stdout.write(self.style.SUCCESS(f"Created user: {user.email}"))
-            
+
             # Assign Group
             group = group_objs[u_data['role']]
             user.groups.add(group)
